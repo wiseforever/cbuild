@@ -1,0 +1,136 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",                    /* 定义任务类型为 shell，用于运行 shell 命令 */
+            "label": "generate-default",          /* 任务的标签 */
+            "options": {
+                "cwd": "${workspaceFolder}"     /* 设置工作目录为项目根目录 已执行程序或脚本的当前工作目录。如果省略，则使用代码的当前工作区根。 */
+            },
+            "command": "python",     /* 使用 cmake 命令 */
+            "args": [
+                "cb.py",
+                "-g"
+            ],                                  /* 传递参数给 cmake */
+            "group": {
+                "kind": "build",                /* 将任务分组为构建任务 */
+                "isDefault": false              /* 是否默认构建任务 */
+            },
+            "presentation": {
+                "reveal": "always",             /* 构建任务完成后总是显示输出面板 */
+                "panel": "dedicated"            /* 是否在新面板中显示输出 */
+            }
+        },
+
+
+        {
+            "type": "shell",                    /* 定义任务类型为 shell，用于运行 shell 命令 */
+            "label": "build-default",           /* 任务的标签 */
+            "options": {
+                "cwd": "${workspaceFolder}"     /* 设置工作目录为项目根目录 已执行程序或脚本的当前工作目录。如果省略，则使用代码的当前工作区根。 */
+            },
+            "command": "python",     /* 使用 make 命令 */
+            "args": [
+                "cb.py",
+                "-b"
+            ],
+            "group": {
+                "kind": "build",                /* 将任务分组为构建任务 */
+                "isDefault": false              /* 是否默认构建任务 */
+            },
+            "presentation": {
+                "reveal": "always",             /* 构建任务完成后总是显示输出面板 */
+                "panel": "dedicated"            /* 在新面板中显示输出 */
+            },
+            "problemMatcher": [
+                /* "$gcc" */                    /* 使用 gcc 错误匹配器来捕获编译错误 */
+            ]
+        },
+
+
+        {
+            "label": "clean-default",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "command": "python",
+            "args": [
+                "cb.py",
+                "-c"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false              /* 是否默认启动此任务 */
+            }
+        },
+
+
+        {
+            "type": "shell",                    /* 定义任务类型为 shell，用于运行 shell 命令 */
+            "label": "run-default",             /* 任务的标签 */
+            "options": {
+                "cwd": "${workspaceFolder}"     /* 设置工作目录为项目根目录 已执行程序或脚本的当前工作目录。如果省略，则使用代码的当前工作区根。 */
+            },
+            "command": "python",     /* 使用 命令 */
+            "args": [
+                "cb.py",
+                "-r"
+            ],                                  /* 传递参数给 make */
+            "group": {
+                "kind": "build",                /* 将任务分组为构建任务 */
+                "isDefault": false              /* 是否默认构建任务 */
+            },
+            "presentation": {
+                "reveal": "always",             /* 构建任务完成后总是显示输出面板 */
+                "panel": "dedicated"            /* 在新面板中显示输出 */
+            }
+        },
+
+
+        {
+            "type": "shell",                    /* 定义任务类型为 shell，用于运行 shell 命令 */
+            "label": "switch-default",             /* 任务的标签 */
+            "options": {
+                "cwd": "${workspaceFolder}"     /* 设置工作目录为项目根目录 已执行程序或脚本的当前工作目录。如果省略，则使用代码的当前工作区根。 */
+            },
+            "command": "python",     /* 使用 命令 */
+            "args": [
+                "cb.py",
+                "-t"
+            ],                                  /* 传递参数给 make */
+            "group": {
+                "kind": "build",                /* 将任务分组为构建任务 */
+                "isDefault": false              /* 是否默认构建任务 */
+            },
+            "presentation": {
+                "reveal": "always",             /* 构建任务完成后总是显示输出面板 */
+                "panel": "dedicated"            /* 在新面板中显示输出 */
+            }
+        },
+
+
+        {
+            "type": "shell",                    /* 定义任务类型为 shell，用于运行 shell 命令 */
+            "label": "deploy-default",             /* 任务的标签 */
+            "options": {
+                "cwd": "${workspaceFolder}"     /* 设置工作目录为项目根目录 已执行程序或脚本的当前工作目录。如果省略，则使用代码的当前工作区根。 */
+            },
+            "command": "python",     /* 使用 命令 */
+            "args": [
+                "cb.py",
+                "-b",
+                "--target",
+                "deploy"
+            ],                                  /* 传递参数给 make */
+            "group": {
+                "kind": "build",                /* 将任务分组为构建任务 */
+                "isDefault": false              /* 是否默认构建任务 */
+            },
+            "presentation": {
+                "reveal": "always",             /* 构建任务完成后总是显示输出面板 */
+                "panel": "dedicated"            /* 在新面板中显示输出 */
+            }
+        }
+    ]
+}

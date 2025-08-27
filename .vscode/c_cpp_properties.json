@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Debug Configuration",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "includePath": [
+                
+            ],
+            "defines": [
+                // "_DEBUG",
+                // "UNICODE",
+                // "_UNICODE"
+            ]
+        }
+    ],
+    "version": 4
+}

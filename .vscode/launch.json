@@ -1,0 +1,74 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug (GCC)",                                        // 配置的名称
+            "type": "cppdbg",                                       // 指定调试器类型为 C/C++ 调试器
+            "request": "launch",                                    // 启动调试器的请求类型
+            "program": "${workspaceFolder}/build/MinGW-15.1.0-x64-Release/bin/application",     // 调试的可执行文件路径 Debug or Release
+            // "program": "${command:cmake.launchTargetPath}",         // 调试的可执行文件路径
+            "args": [],                                             // 不传递额外的参数给可执行文件
+            "stopAtEntry": false,                                   // 不在程序入口处停止
+            "cwd": "${workspaceFolder}",                            // 设置工作目录为项目根目录
+            "environment": [],                                      // 设置环境变量
+            "externalConsole": false,                               // 在 VSCode 中显示控制台而不是外部控制台
+            "MIMode": "gdb",                                        // 使用 GDB 调试器
+            "setupCommands": [
+                {
+                    "description": "Enable catch throw",
+                    "text": "catch throw",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": false
+                }
+            ],
+            "miDebuggerPath": "gdb",                                // 替换为 GDB 的路径
+            "preLaunchTask": "build-default"                            // 在启动调试器之前运行的构建任务
+        },
+
+        {
+            "name": "Debug (MSVC)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/msvc-Debug/bin/application.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "build-default",
+            "symbolSearchPath": "${workspaceFolder}/build/msvc-Debug/bin",
+            // 开启调试器日志
+            "logging": {
+                "moduleLoad": true,
+                "programOutput": true,
+                "engineLogging": true
+            }
+        }
+    ]
+}
+
+
+
+// {
+//     "version": "0.2.0",
+//     "configurations": [
+//         {
+//             "name": "Debug",                                        // 配置的名称
+//             "type": "lldb",                                         // 指定调试器类型为 C/C++ 调试器
+//             "request": "launch",                                    // 启动调试器的请求类型
+//             // "program": "${command:cmake.launchTargetPath}",         // 调试的可执行文件路径 Debug or Release
+//             "program": "${workspaceFolder}/build/gcc-Debug/bin/application",     // 调试的可执行文件路径 Debug or Release
+//             "args": [],                                             // 不传递额外的参数给可执行文件
+//             "cwd": "${workspaceFolder}",                            // 设置工作目录为项目根目录
+//             "internalConsoleOptions": "neverOpen",                  // 控制控制台是否显示
+//             "console": "integratedTerminal",                        // 控制控制台显示方式
+//             "preLaunchTask": "build"                                // 在启动调试器之前运行的构建任务
+//         }
+//     ]
+// }
+
+

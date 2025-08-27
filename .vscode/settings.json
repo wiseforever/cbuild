@@ -1,0 +1,115 @@
+{
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true
+    },
+    "editor.renderWhitespace": "all",
+    "files.autoGuessEncoding": false,
+    "files.encoding": "utf8",
+    "editor.tabSize": 4,
+    "files.eol":"\n",
+    /* 是否自动检测文件的缩进规则 */
+    "editor.detectIndentation": false,
+    /* tab 是否替换为空格 需要检测 editor.detectIndentation */
+    "editor.insertSpaces": true,
+    "editor.mouseWheelZoom": true,
+    "terminal.integrated.fontFamily": "Consolas, 'Courier New', monospace",
+    "terminal.integrated.fontSize": 14,
+    "terminal.integrated.fontWeight": "normal",
+    "terminal.integrated.shellIntegration.enabled": false,
+    "git.autorefresh": false,
+    /* Windows 上的默认终端配置文件。 */
+    "terminal.integrated.profiles.windows": {
+        "MSYS2(msys)": {
+            "path": "C:/msys64/usr/bin/bash.exe",
+            "args": ["-i"]
+        },
+        "Git Bash": {
+            "source": "Git Bash",
+            "icon": "terminal-bash"
+        },
+        "PowerShell": {
+            "path": [
+                "${env:windir}/Sysnative/WindowsPowerShell/v1.0/powershell.exe",
+                "${env:windir}/System32/WindowsPowerShell/v1.0/powershell.exe"
+            ],
+            "args": [],
+            "icon": "terminal-powershell"
+        },
+        "Command Prompt": {
+            "path": [
+                "${env:windir}/Sysnative/cmd.exe",
+                "${env:windir}/System32/cmd.exe"
+            ],
+            "args": [],
+            "icon": "terminal-cmd"
+        }
+    },
+    "terminal.integrated.env.windows": {
+        "LANG": "en_US.UTF-8",
+        "LC_ALL": "en_US.UTF-8"
+    },
+    // "terminal.integrated.defaultProfile.windows":"",
+    /* C/C++ 扩展的配置 */
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.autoAddFileAssociations": false,
+    /* clangd的配置 */
+    "clangd.path": "clangd",
+    "clangd.enable": false,
+    "clangd.enableCodeCompletion": false,
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--header-insertion=never",
+        "--all-scopes-completion",
+        "--clang-tidy",
+        "--include-cleaner=none"
+    ],
+    "VsCodeTaskButtons.showCounter": false,
+    "VsCodeTaskButtons.tasks": [
+        {
+            "label": "$(gear)",
+            "task": "generate-default",
+            "tooltip": "generate cmake cache"
+        },
+        {
+            "label": "$(wrench)",
+            "task": "build-default",
+            "tooltip": "build"
+        },
+        {
+            "label": "$(run)",
+            "task": "run-default",
+            "tooltip": "run"
+        },
+        {
+            "label": "$(package)",
+            "task": "deploy-default",
+            "tooltip": "deploy"
+        },
+        {
+            "label": "$(arrow-swap)    |",
+            "task": "switch-default",
+            "tooltip": "Debug/Release switch"
+        },
+        {
+            "label": "$(trash)",
+            "task": "clean-default",
+            "tooltip": "clean"
+        },
+        /* 
+        
+        */
+    ],
+    "files.associations": {
+        "*.c": "c",
+        "*.h": "c",
+        "*.cpp": "cpp",
+        "*.hpp": "cpp",
+        "*.cc": "cpp",
+        "*.hh": "cpp"
+    },
+}
