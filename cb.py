@@ -78,6 +78,21 @@ def get_compiler_type(compiler):
 
 COMPILER_TYPE = get_compiler_type(CXX_COMPILER_EXEC or C_COMPILER_EXEC)
 
+def rm_rf(path, check=True):
+    """rm -rf 的跨平台版本"""
+    if not os.path.exists(path):
+        return  # 路径不存在，直接返回
+    
+    if sys.platform == "win32":
+        if os.path.isdir(path):
+            cmd = ["cmd", "/c", "rmdir", "/s", "/q", path]
+        else:
+            cmd = ["cmd", "/c", "del", "/f", "/q", path]
+    else:
+        cmd = ["rm", "-rf", path]
+    
+    subprocess.run(cmd, check=check, shell=(sys.platform == "win32"))
+
 def get_project_name_simple():
     cmakelists = os.path.join(SOURCE_DIR, "CMakeLists.txt")
     if not os.path.isfile(cmakelists):
@@ -330,7 +345,7 @@ def run_cmake_configure():
 
     if MSVC_ENABLE and MSVC_ENV_SCRIPT:
         print(f"Setting up MSVC environment using {MSVC_ENV_SCRIPT} ...")
-        cmd_str = f'call "{MSVC_ENV_SCRIPT}" {HOST_ARCH} && cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
+        cmd_str = f'call "{MSVC_ENV_SCRIPT}" {HOST_ARCH} && cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_C_COMPILER="{C_COMPILER_EXEC}" -DCMAKE_CXX_COMPILER="{CXX_COMPILER_EXEC}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
         if COMPILER_EXEC_P:
             cmd_str += " " + " ".join(COMPILER_EXEC_P)
         if CMAKE_TOOLCHAIN_FILE:
@@ -370,8 +385,9 @@ def run_msvc_build():
     # 在 cmd 中调用 vcvarsall.bat，然后执行 cmake 配置
     subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
 
-    cmd = ["rm", "-rf", SOURCE_DIR + "/CMakeUserPresets.json"]
-    subprocess.run(cmd, shell=True, check=True)
+    # cmd = ["rm", "-rf", SOURCE_DIR + "/CMakeUserPresets.json"]
+    # subprocess.run(cmd, shell=True, check=True)
+    rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"), check=True)
 
     # 2. 拷贝 compile_commands.json（用 Python 内部操作）
     copy_compile_commands()
@@ -435,8 +451,9 @@ def run():
 
     if SHOULD_CONFIGURE:
         if run_cmake_configure():
-            cmd = ["rm", "-rf", SOURCE_DIR + "/CMakeUserPresets.json"]
-            subprocess.run(cmd, shell=True, check=True)
+            # cmd = ["rm", "-rf", SOURCE_DIR + "/CMakeUserPresets.json"]
+            # subprocess.run(cmd, shell=True, check=True)
+            rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"), check=True)
             copy_compile_commands()
         else:
             print("CMake configure failed.")
@@ -447,8 +464,9 @@ def run():
             run_msvc_build()
         else:
             if run_cmake_configure():
-                cmd = ["rm", "-rf", SOURCE_DIR + "/CMakeUserPresets.json"]
-                subprocess.run(cmd, shell=True, check=True)
+                # cmd = ["rm", "-rf", SOURCE_DIR + "/CMakeUserPresets.json"]
+                # subprocess.run(cmd, shell=True, check=True)
+                rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"), check=True)
                 copy_compile_commands()
                 if not run_cmake_build():
                     print("CMake build failed.")
