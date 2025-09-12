@@ -286,10 +286,10 @@ def read_conanfile_py_options(conanfile_path):
     for attr in dir(conanfile_module):
         obj = getattr(conanfile_module, attr)
         if isinstance(obj, type) and issubclass(obj, ConanFile) and obj is not ConanFile:
-            default_options = getattr(obj, "default_options", {})
+            requires_options = getattr(obj, "requires_options", {})
             # 转换成 Conan CLI 参数
             options_list = []
-            for key, value in default_options.items():
+            for key, value in requires_options.items():
                 # val_str = str(value).lower() if isinstance(value, bool) else str(value)
                 val_str = str(value) if not isinstance(value, bool) else str(value)
                 options_list.append(f"-o {key}={val_str}")
@@ -305,6 +305,28 @@ def read_conanfile_txt_options(conanfile_txt_path):
         for key, value in config.items("options"):
             options_list.append(f"-o {key}={value}")
     return options_list
+
+def get_generators_folder(conanfile_path):
+    try:
+        from conan import ConanFile
+    except ModuleNotFoundError:
+        print("Warning: Conan 模块未安装，跳过 Conan file.py 选项解析。")
+        return []
+    
+    spec = importlib.util.spec_from_file_location("conanfile_module", conanfile_path)
+    conanfile_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(conanfile_module)
+
+    # 找到继承自 ConanFile 的类
+    for attr in dir(conanfile_module):
+        cls = getattr(conanfile_module, attr)
+        if isinstance(cls, type) and issubclass(cls, ConanFile) and cls is not ConanFile:
+            instance = cls()
+            # 调用 layout 方法确保 folders.generators 被正确设置
+            if hasattr(instance, "layout"):
+                instance.layout()
+            return instance.folders.generators
+    return None
 
 # -------------------- Conan 处理 --------------------
 def run_conan_install():
@@ -341,7 +363,13 @@ def run_conan_install():
         print(" ".join(f'"{c}"' if " " in c else c for c in cmd))
         subprocess.run(cmd, check=True)
 
-        toolchain_file = os.path.join(BUILD_DIR, "conan_toolchain.cmake")
+        # toolchain_file = os.path.join(BUILD_DIR, "generators/conan_toolchain.cmake")
+        generators_folder = get_generators_folder(conan_file_py)
+        if generators_folder is None:
+            toolchain_file = os.path.join(BUILD_DIR, "conan_toolchain.cmake")
+        else:
+            toolchain_file = os.path.join(BUILD_DIR, generators_folder, "conan_toolchain.cmake")
+        
         if os.path.isfile(toolchain_file):
             bak_file = toolchain_file + ".bak"
             shutil.copy2(toolchain_file, bak_file)
