@@ -5,7 +5,9 @@
 
     camke目录下提供了一些简易的cmake函数。
 
-    支持conan，但需要根据此脚本的说明使用 conanfile.txt 或者 conanfile.py。
+    支持conan，但需要根据此脚本的说明使用 conanfile.txt 或者 conanfile.py。推荐使用conanfile.py
+
+    conan的知识需要自己学习，这里不做过多介绍。
 ```
 
 ## 如何使用
@@ -16,6 +18,7 @@
 - CMake
 - make / Ninja
 - MSVC / gcc / clang
+- conan (可选)
 - VSCode(可选)
 - C/C++ (VSCode插件、可选)
 - Task Buttons (VSCode插件、可选)
@@ -54,22 +57,81 @@ cb_conf.ini 中的参数都可以自行进行合理的修改 ，以下是参数�
 build_type = Debug      # 编译类型为 Debug。目前可选 [Debug、Release]
 source_dir = .          # 源码目录，.表示当前目录
 generator = Ninja       # 构建工具，可选 [Ninja、Unix Makefiles ...]
-parallel_jobs = 12      # 并行编译的线程数
+parallel_jobs = auto    # 并行编译的线程数，auto为自动选择cpu核心数
 
-[compiler]
-c_compiler = gcc        # c语言编译器（不包括MSVC）
-cpp_compiler = g++      # c++语言编译器（不包括MSVC）
-
-[conan]                 # conan 相关配置（可选、不包括MSVC）没有 conanfile.txt 或 conanfile.py 时，不生效
-conan_host = gcc        # conan 的 profile host 对应的 profile
+[compiler]              # 编译器相关配置（不包括MSVC）
+c_compiler = gcc        # c语言编译器
+cpp_compiler = g++      # c++语言编译器
+conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
 conan_build = gcc       # conan 的 profile build 对应的 profile
+conan_host = gcc        # conan 的 profile host 对应的 profile
 
 [msvc]                  # msvc 编译器的参数不受 compiler 和 conan 影响。单独配置。
 enable = 1              # 是否使用MSVC编译器，1、True、true表示使用，0、False、false表示不使用
 msvc_env_script = D:/Develop/VisualStudio/2019/Community/VC/Auxiliary/Build/vcvarsall.bat # MSVC环境变量脚本路径
 host_arch = x64         # 编译可执行程序的位数，可选 [x86、x64]
+conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
 conan_host = default_debug  # conan 的 profile host 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
 conan_build = default_debug # conan 的 profile build 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
+
+```
+
+#### conanfile.py 示例
+
+```python
+from conan import ConanFile
+# from conan.tools.cmake import cmake_layout
+from conan.tools.files import copy
+import os
+
+class MyProjectConan(ConanFile):
+    name = "myproject"
+    version = "0.1"
+
+    settings = "os", "compiler", "build_type", "arch"
+
+    # 生成器
+    generators = "CMakeToolchain", "CMakeDeps"
+
+    def requirements(self):
+        requires = []
+        if self.settings.os == "Windows":
+            requires = [
+                "jsoncpp/1.9.5",
+                "boost/1.81.0"
+            ]
+        else:
+            requires = [
+                
+            ]
+        for dep in requires:
+            self.requires(dep)
+    # 若要控制 库的链接方式，可以设置 requires_options。默认情况下，静态链接。
+    requires_options = {
+        "jsoncpp*:shared": True
+    }
+
+    def layout(self):
+        # cmake_layout(self)
+        # self.folders.build = os.path.join("build", str(self.settings.build_type))
+        self.folders.build = ""
+        self.folders.generators = os.path.join(self.folders.build, "generators")
+        self.cpp.build.bindirs = ["bin"]
+        self.cpp.build.libdirs = ["lib"]
+
+    def generate(self):
+        # if not self.options.shared:
+        #     return
+        build_bin = os.path.join(self.build_folder, "bin")
+        os.makedirs(build_bin, exist_ok=True)
+        for dep in self.dependencies.values():
+            for shared_lib in dep.cpp_info.bindirs:
+                print(">>>")
+                print(">>>", shared_lib)
+                print(">>>")
+                copy(self, "*.dll", shared_lib, build_bin)
+                copy(self, "*.so", shared_lib, build_bin)
+                copy(self, "*.dylib", shared_lib, build_bin)
 
 ```
 
