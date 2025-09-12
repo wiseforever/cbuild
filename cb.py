@@ -8,7 +8,6 @@ import subprocess
 import shutil
 import re
 import configparser
-from conan import ConanFile
 import importlib.util
 
 # -------------------- 配置文件 --------------------
@@ -24,16 +23,21 @@ VALID_BUILD_TYPES = ["Debug", "Release"]
 SOURCE_DIR = CONFIG.get("build", "source_dir", fallback=".")
 BUILD_DIR = None
 GENERATOR = CONFIG.get("build", "generator", fallback="Ninja")
-PARALLEL_JOBS = CONFIG.getint("build", "parallel_jobs", fallback=os.cpu_count() or 1)
-
-CONAN_HOST = CONFIG.get("conan", "conan_host", fallback="gcc")
-CONAN_BUILD = CONFIG.get("conan", "conan_build", fallback="gcc")
+PARALLEL_JOBS_RAW = CONFIG.get("build", "parallel_jobs", fallback="auto")
+if str(PARALLEL_JOBS_RAW).lower() == "auto":
+    PARALLEL_JOBS = os.cpu_count() or 1
+else:
+    PARALLEL_JOBS = int(PARALLEL_JOBS_RAW)
 
 c_compiler = CONFIG.get("compiler", "c_compiler", fallback=None)
 cpp_compiler = CONFIG.get("compiler", "cpp_compiler", fallback=None)
-MSVC_ENABLE = CONFIG.getboolean("msvc", "enable", fallback=False)
-MSVC_ENV_SCRIPT = CONFIG.get("msvc", "msvc_env_script", fallback=None)
-HOST_ARCH = CONFIG.get("msvc", "host_arch", fallback="x64")
+CONAN_ENABLER = CONFIG.getboolean("compiler", "conan_enable", fallback=False)
+CONAN_BUILD = CONFIG.get("compiler", "conan_build", fallback=None)
+CONAN_HOST = CONFIG.get("compiler", "conan_host", fallback=None)
+
+MSVC_ENABLE = False
+MSVC_ENV_SCRIPT = None
+HOST_ARCH = None
 
 COMPILER_TYPE = None
 COMPILER_EXEC_P = []
@@ -42,6 +46,9 @@ CMAKE_TOOLCHAIN_FILE = None
 # -------------------- 系统识别 --------------------
 OS_TYPE = platform.system().lower()
 if OS_TYPE == "windows":
+    MSVC_ENABLE = CONFIG.getboolean("msvc", "enable", fallback=False)
+    MSVC_ENV_SCRIPT = CONFIG.get("msvc", "msvc_env_script", fallback=None)
+    HOST_ARCH = CONFIG.get("msvc", "host_arch", fallback="x64")
     c_compiler = c_compiler or "gcc.exe"
     cpp_compiler = cpp_compiler or "g++.exe"
 elif OS_TYPE == "linux":
@@ -78,20 +85,21 @@ def get_compiler_type(compiler):
 
 COMPILER_TYPE = get_compiler_type(CXX_COMPILER_EXEC or C_COMPILER_EXEC)
 
-def rm_rf(path, check=True):
-    """rm -rf 的跨平台版本"""
+def rm_rf(path):
+    """跨平台删除文件或目录，等价 rm -rf"""
+    import os
+    import shutil
+
     if not os.path.exists(path):
         return  # 路径不存在，直接返回
-    
-    if sys.platform == "win32":
+
+    try:
         if os.path.isdir(path):
-            cmd = ["cmd", "/c", "rmdir", "/s", "/q", path]
+            shutil.rmtree(path)
         else:
-            cmd = ["cmd", "/c", "del", "/f", "/q", path]
-    else:
-        cmd = ["rm", "-rf", path]
-    
-    subprocess.run(cmd, check=check, shell=(sys.platform == "win32"))
+            os.remove(path)
+    except Exception as e:
+        print(f"Warning: Failed to remove {path}: {e}")
 
 def get_project_name_simple():
     cmakelists = os.path.join(SOURCE_DIR, "CMakeLists.txt")
@@ -264,6 +272,12 @@ def copy_compile_commands():
         print(f"Copy compile_commands.json to {dst}")
 
 def read_conanfile_py_options(conanfile_path):
+    try:
+        from conan import ConanFile
+    except ModuleNotFoundError:
+        print("Warning: Conan 模块未安装，跳过 Conan file.py 选项解析。")
+        return []
+
     spec = importlib.util.spec_from_file_location("conanfile_module", conanfile_path)
     conanfile_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(conanfile_module)
@@ -294,21 +308,26 @@ def read_conanfile_txt_options(conanfile_txt_path):
 
 # -------------------- Conan 处理 --------------------
 def run_conan_install():
-    global CONAN_HOST 
-    global CONAN_BUILD
+    global CONAN_HOST, CONAN_BUILD, CONAN_ENABLER
+
+    if MSVC_ENABLE and MSVC_ENV_SCRIPT:
+        CONAN_ENABLER = CONFIG.getboolean("msvc", "conan_enable", fallback=False)
+
+    if not CONAN_ENABLER:
+        return
 
     conan_file_txt = os.path.join(SOURCE_DIR, "conanfile.txt")
     conan_file_py = os.path.join(SOURCE_DIR, "conanfile.py")
 
     if os.path.isfile(conan_file_txt) or os.path.isfile(conan_file_py):
         if MSVC_ENABLE and MSVC_ENV_SCRIPT:
-            CONAN_HOST = CONFIG.get("msvc", "conan_host", fallback="default")
-            CONAN_BUILD = CONFIG.get("msvc", "conan_build", fallback="default")
+            CONAN_HOST = CONFIG.get("msvc", "conan_host", fallback=None)
+            CONAN_BUILD = CONFIG.get("msvc", "conan_build", fallback=None)
 
-        cmd = ["conan", "install", SOURCE_DIR, "--output-folder", BUILD_DIR, "--build=missing"]
-        if CONAN_HOST != "default":
+        cmd = ["conan", "install", SOURCE_DIR, "-s", f"build_type={BUILD_TYPE}", "--output-folder", BUILD_DIR, "--build=missing"]
+        if CONAN_HOST != None:
             cmd += ["--profile:host", CONAN_HOST]
-        if CONAN_BUILD != "default":
+        if CONAN_BUILD != None:
             cmd += ["--profile:build", CONAN_BUILD]
 
         options_list = []
@@ -337,7 +356,7 @@ def run_conan_install():
             with open(toolchain_file, "w", encoding="utf-8") as f:
                 f.write(content)
             global CMAKE_TOOLCHAIN_FILE
-            CMAKE_TOOLCHAIN_FILE = toolchain_file
+            CMAKE_TOOLCHAIN_FILE = toolchain_file.replace("\\", "/")
 
 # -------------------- 配置 & 构建 --------------------
 def run_cmake_configure():
@@ -350,11 +369,10 @@ def run_cmake_configure():
             cmd_str += " " + " ".join(COMPILER_EXEC_P)
         if CMAKE_TOOLCHAIN_FILE:
             cmd_str += f' -DCMAKE_TOOLCHAIN_FILE="{CMAKE_TOOLCHAIN_FILE}"'
-        print("Running:", cmd_str)
+        print(cmd_str)
         # 使用 shell=True，直接执行字符串命令
         return subprocess.run(cmd_str, shell=True, check=True)
     else:
-        print(f"Running CMake configure ...")
         cmd = ["cmake", "-S", SOURCE_DIR, "-B", BUILD_DIR, "-G", GENERATOR, f"-DCMAKE_BUILD_TYPE={BUILD_TYPE}"]
         if COMPILER_EXEC_P:
             cmd += COMPILER_EXEC_P
@@ -365,7 +383,7 @@ def run_cmake_configure():
 
 def run_cmake_build():
     cmd = ["cmake", "--build", BUILD_DIR, "--target", BUILD_TARGET, f"-j{PARALLEL_JOBS}"]
-    print("Building:", cmd)
+    print(cmd)
     return subprocess.run(cmd, check=True)
 
 def run_msvc_build():
@@ -383,17 +401,17 @@ def run_msvc_build():
         cmake_configure_cmd += f' -DCMAKE_TOOLCHAIN_FILE="{CMAKE_TOOLCHAIN_FILE}"'
 
     # 在 cmd 中调用 vcvarsall.bat，然后执行 cmake 配置
+    print(cmake_configure_cmd)
     subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
 
-    # cmd = ["rm", "-rf", SOURCE_DIR + "/CMakeUserPresets.json"]
-    # subprocess.run(cmd, shell=True, check=True)
-    rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"), check=True)
+    rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
 
     # 2. 拷贝 compile_commands.json（用 Python 内部操作）
     copy_compile_commands()
 
     # 3. 构建
     cmake_build_cmd = f'cmake --build "{BUILD_DIR}" --target {BUILD_TARGET} -j{PARALLEL_JOBS}'
+    print(cmake_build_cmd)
     subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_build_cmd}', shell=True, check=True)
 
 
@@ -451,9 +469,7 @@ def run():
 
     if SHOULD_CONFIGURE:
         if run_cmake_configure():
-            # cmd = ["rm", "-rf", SOURCE_DIR + "/CMakeUserPresets.json"]
-            # subprocess.run(cmd, shell=True, check=True)
-            rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"), check=True)
+            rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
             copy_compile_commands()
         else:
             print("CMake configure failed.")
@@ -464,9 +480,7 @@ def run():
             run_msvc_build()
         else:
             if run_cmake_configure():
-                # cmd = ["rm", "-rf", SOURCE_DIR + "/CMakeUserPresets.json"]
-                # subprocess.run(cmd, shell=True, check=True)
-                rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"), check=True)
+                rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
                 copy_compile_commands()
                 if not run_cmake_build():
                     print("CMake build failed.")
@@ -496,4 +510,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
-    
+
