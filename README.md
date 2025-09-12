@@ -71,8 +71,8 @@ enable = 1              # 是否使用MSVC编译器，1、True、true表示使�
 msvc_env_script = D:/Develop/VisualStudio/2019/Community/VC/Auxiliary/Build/vcvarsall.bat # MSVC环境变量脚本路径
 host_arch = x64         # 编译可执行程序的位数，可选 [x86、x64]
 conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
-conan_host = default_debug  # conan 的 profile host 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
-conan_build = default_debug # conan 的 profile build 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
+conan_host = default    # conan 的 profile host 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
+conan_build = default   # conan 的 profile build 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
 
 ```
 
