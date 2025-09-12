@@ -330,6 +330,11 @@ def get_generators_folder(conanfile_path):
 
 # -------------------- Conan 处理 --------------------
 def run_conan_install():
+    try:
+        from conan import ConanFile
+    except ModuleNotFoundError:
+        print("Warning: The Conan module is not installed. Skip.")
+        return
     global CONAN_HOST, CONAN_BUILD, CONAN_ENABLER
 
     if MSVC_ENABLE and MSVC_ENV_SCRIPT:
