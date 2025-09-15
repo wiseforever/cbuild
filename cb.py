@@ -396,15 +396,22 @@ def run_cmake_configure():
     run_conan_install()
 
     if MSVC_ENABLE and MSVC_ENV_SCRIPT:
-        print(f"Setting up MSVC environment using {MSVC_ENV_SCRIPT} ...")
-        cmd_str = f'call "{MSVC_ENV_SCRIPT}" {HOST_ARCH} && cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_C_COMPILER="{C_COMPILER_EXEC}" -DCMAKE_CXX_COMPILER="{CXX_COMPILER_EXEC}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
+        # 确保路径为反斜杠
+        msvc_env = MSVC_ENV_SCRIPT.replace("/", "\\")
+
+        # 先生成 Conan toolchain
+        run_conan_install()
+
+        # 1. 配置 CMake
+        cmake_configure_cmd = f'cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
         if COMPILER_EXEC_P:
-            cmd_str += " " + " ".join(COMPILER_EXEC_P)
+            cmake_configure_cmd += " " + " ".join(COMPILER_EXEC_P)
         if CMAKE_TOOLCHAIN_FILE:
-            cmd_str += f' -DCMAKE_TOOLCHAIN_FILE="{CMAKE_TOOLCHAIN_FILE}"'
-        print(cmd_str)
-        # 使用 shell=True，直接执行字符串命令
-        return subprocess.run(cmd_str, shell=True, check=True)
+            cmake_configure_cmd += f' -DCMAKE_TOOLCHAIN_FILE="{CMAKE_TOOLCHAIN_FILE}"'
+
+        # 在 cmd 中调用 vcvarsall.bat，然后执行 cmake 配置
+        print(cmake_configure_cmd)
+        return subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
     else:
         cmd = ["cmake", "-S", SOURCE_DIR, "-B", BUILD_DIR, "-G", GENERATOR, f"-DCMAKE_BUILD_TYPE={BUILD_TYPE}"]
         if COMPILER_EXEC_P:
