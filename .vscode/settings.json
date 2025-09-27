@@ -59,14 +59,13 @@
     "C_Cpp.autoAddFileAssociations": false,
     /* clangd的配置 */
     "clangd.path": "clangd",
-    "clangd.enable": false,
-    "clangd.enableCodeCompletion": false,
+    "clangd.enable": true,
+    "clangd.enableCodeCompletion": true,
     "clangd.arguments": [
         "--compile-commands-dir=${workspaceFolder}/build",
         "--header-insertion=never",
         "--all-scopes-completion",
-        "--clang-tidy",
-        "--include-cleaner=none"
+        "--clang-tidy"
     ],
     "VsCodeTaskButtons.showCounter": false,
     "VsCodeTaskButtons.tasks": [

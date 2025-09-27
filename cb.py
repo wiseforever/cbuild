@@ -9,6 +9,14 @@ import shutil
 import re
 import configparser
 import importlib.util
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    # format='%(asctime)s [%(levelname)s] [%(filename)s:%(lineno)d]: %(message)s'
+    format='[%(levelname)s] [%(filename)s:%(lineno)d]: %(message)s'
+)
+log = logging.getLogger()
 
 # -------------------- 配置文件 --------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -58,7 +66,7 @@ elif OS_TYPE == "darwin":
     c_compiler = c_compiler or "clang"
     cpp_compiler = cpp_compiler or "clang++"
 else:
-    print(f"未知系统: {OS_TYPE}")
+    log.error(f"Unknown system: {OS_TYPE}")
     sys.exit(1)
 
 C_COMPILER_EXEC = c_compiler
@@ -99,7 +107,7 @@ def rm_rf(path):
         else:
             os.remove(path)
     except Exception as e:
-        print(f"Warning: Failed to remove {path}: {e}")
+        log.warning(f"Failed to remove {path}: {e}")
 
 def get_project_name_simple():
     cmakelists = os.path.join(SOURCE_DIR, "CMakeLists.txt")
@@ -124,6 +132,44 @@ def save_config():
     CONFIG.set("build", "build_type", BUILD_TYPE)
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         CONFIG.write(f)
+
+def update_vscode_launch():
+    """更新 .vscode/launch.json 中的 program 路径，保留注释"""
+    launch_json_path = os.path.join(SOURCE_DIR, ".vscode", "launch.json")
+    if not os.path.isfile(launch_json_path):
+        return  # 没有 launch.json 就跳过
+
+    try:
+        with open(launch_json_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        app_name = get_project_name_simple()
+        prepare_build_dir()
+        program_path = f"${{workspaceFolder}}/{os.path.relpath(BUILD_DIR, SOURCE_DIR).replace(os.sep, '/')}/bin/{app_name}"
+
+        # 用正则匹配 "program": "xxx"
+        # 保留前后的引号和 key，只替换路径
+        new_content, n = re.subn(
+            r'("program"\s*:\s*")[^"]*(")',
+            rf'\1{program_path}\2',
+            content
+        )
+
+        if n > 0:
+            # 先备份原文件
+            bak_file = launch_json_path + ".bak"
+            with open(bak_file, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            # 写回修改后的内容
+            with open(launch_json_path, "w", encoding="utf-8") as f:
+                f.write(new_content)
+
+            log.info(f"Updated .vscode/launch.json program -> {program_path}")
+        else:
+            log.warning("No program field found in launch.json")
+    except Exception as e:
+        log.warning(f"Failed to update launch.json: {e}")
 
 def is_option_token(tok: str) -> bool:
     return tok.startswith("-")
@@ -163,19 +209,21 @@ def parse_args():
                 new_type = args[i + 1].capitalize()
                 i += 1
                 if new_type not in VALID_BUILD_TYPES:
-                    print(f"Invalid build type: {new_type}, valid types are: {VALID_BUILD_TYPES}")
+                    log.error(f"Invalid build type: {new_type}, valid types are: {VALID_BUILD_TYPES}")
                     sys.exit(1)
                 if new_type != BUILD_TYPE:
                     BUILD_TYPE = new_type
                     save_config()
-                    print(f"The build type has been switched to: {BUILD_TYPE}")
+                    update_vscode_launch()
+                    log.info(f"The build type has been switched to: {BUILD_TYPE}")
                     type_changed = True
                 else:
-                    print(f"The build type is already: {BUILD_TYPE}")
+                    log.info(f"The build type is already: {BUILD_TYPE}")
             else:
                 BUILD_TYPE = "Debug" if BUILD_TYPE == "Release" else "Release"
                 save_config()
-                print(f"The build type has been switched to: {BUILD_TYPE}")
+                update_vscode_launch()
+                log.info(f"The build type has been switched to: {BUILD_TYPE}")
                 type_changed = True
 
         elif arg in ("-g", "--generate"):
@@ -207,7 +255,7 @@ def parse_args():
                 i += 1
 
         else:
-            print(f"Unknown option: {arg}")
+            log.error(f"Unknown option: {arg}")
             sys.exit(1)
 
         i += 1
@@ -247,7 +295,7 @@ def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
         else:
             return "Default"
     except FileNotFoundError:
-        print(f"Error: Compiler not found: {compiler_type}")
+        log.error(f"Compiler not found: {compiler_type}")
         return "unknown"
 
 def prepare_build_dir():
@@ -269,13 +317,13 @@ def copy_compile_commands():
     if os.path.isfile(src):
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copy2(src, dst)
-        print(f"Copy compile_commands.json to {dst}")
+        log.info(f"Copy compile_commands.json to {dst}")
 
 def read_conanfile_py_options(conanfile_path):
     try:
         from conan import ConanFile
     except ModuleNotFoundError:
-        print("Warning: Conan 模块未安装，跳过 Conan file.py 选项解析。")
+        log.warning("The Conan module is not installed. Skip.")
         return []
 
     spec = importlib.util.spec_from_file_location("conanfile_module", conanfile_path)
@@ -310,7 +358,7 @@ def get_generators_folder(conanfile_path):
     try:
         from conan import ConanFile
     except ModuleNotFoundError:
-        print("Warning: Conan 模块未安装，跳过 Conan file.py 选项解析。")
+        log.warning("The Conan module is not installed. Skip.")
         return []
     
     spec = importlib.util.spec_from_file_location("conanfile_module", conanfile_path)
@@ -333,7 +381,7 @@ def run_conan_install():
     try:
         from conan import ConanFile
     except ModuleNotFoundError:
-        print("Warning: The Conan module is not installed. Skip.")
+        log.warning("The Conan module is not installed. Skip.")
         return
     global CONAN_HOST, CONAN_BUILD, CONAN_ENABLER
 
@@ -365,7 +413,7 @@ def run_conan_install():
         if options_list:
             cmd += options_list
 
-        print(" ".join(f'"{c}"' if " " in c else c for c in cmd))
+        log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
         subprocess.run(cmd, check=True)
 
         # toolchain_file = os.path.join(BUILD_DIR, "generators/conan_toolchain.cmake")
@@ -410,7 +458,7 @@ def run_cmake_configure():
             cmake_configure_cmd += f' -DCMAKE_TOOLCHAIN_FILE="{CMAKE_TOOLCHAIN_FILE}"'
 
         # 在 cmd 中调用 vcvarsall.bat，然后执行 cmake 配置
-        print(cmake_configure_cmd)
+        log.info(cmake_configure_cmd)
         return subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
     else:
         cmd = ["cmake", "-S", SOURCE_DIR, "-B", BUILD_DIR, "-G", GENERATOR, f"-DCMAKE_BUILD_TYPE={BUILD_TYPE}"]
@@ -418,12 +466,13 @@ def run_cmake_configure():
             cmd += COMPILER_EXEC_P
         if CMAKE_TOOLCHAIN_FILE:
             cmd.append(f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_FILE}")
-        print(" ".join(f'"{c}"' if " " in c else c for c in cmd))
+        log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
         return subprocess.run(cmd, check=True)
 
 def run_cmake_build():
     cmd = ["cmake", "--build", BUILD_DIR, "--target", BUILD_TARGET, f"-j{PARALLEL_JOBS}"]
-    print(cmd)
+    # print(cmd)
+    log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
     return subprocess.run(cmd, check=True)
 
 def run_msvc_build():
@@ -441,7 +490,7 @@ def run_msvc_build():
         cmake_configure_cmd += f' -DCMAKE_TOOLCHAIN_FILE="{CMAKE_TOOLCHAIN_FILE}"'
 
     # 在 cmd 中调用 vcvarsall.bat，然后执行 cmake 配置
-    print(cmake_configure_cmd)
+    log.info(cmake_configure_cmd)
     subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
 
     rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
@@ -451,7 +500,7 @@ def run_msvc_build():
 
     # 3. 构建
     cmake_build_cmd = f'cmake --build "{BUILD_DIR}" --target {BUILD_TARGET} -j{PARALLEL_JOBS}'
-    print(cmake_build_cmd)
+    log.info(cmake_build_cmd)
     subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_build_cmd}', shell=True, check=True)
 
 
@@ -460,17 +509,17 @@ def run_application():
     app_name = get_project_name_simple()
     exe_path = os.path.join(BUILD_DIR, "bin", app_name + (".exe" if OS_TYPE == "windows" else "")).replace("\\", "/")
     if not os.path.isfile(exe_path):
-        print(f"Error: The executable file: {exe_path} cannot be found. ")
+        log.error(f"The executable file: {exe_path} cannot be found. ")
         sys.exit(1)
-    print(f"Running {exe_path} ...")
+    log.info(f"Running {exe_path} ...")
     try:
         # 直接使用run，Python会自动处理Ctrl+C信号传递
         subprocess.run(exe_path, check=True)
     except KeyboardInterrupt:
-        print("\nProcess interrupted by user (Ctrl+C)")
+        log.info("\nProcess interrupted by user (Ctrl+C)")
         sys.exit(130)  # 130是通常用于Ctrl+C退出的代码
     except subprocess.CalledProcessError as e:
-        print(f"Application exited with error code: {e.returncode}")
+        log.error(f"Application exited with error code: {e.returncode}")
         sys.exit(e.returncode)
 
 def clean_build():
@@ -487,7 +536,7 @@ def clean_build():
         BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
 
     if os.path.isdir(BUILD_DIR):
-        print(f"Cleaning {BUILD_DIR} ...")
+        log.info(f"Cleaning {BUILD_DIR} ...")
         shutil.rmtree(BUILD_DIR)
 
     compile_json = os.path.join(SOURCE_DIR, "build", "compile_commands.json")
@@ -512,7 +561,7 @@ def run():
             rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
             copy_compile_commands()
         else:
-            print("CMake configure failed.")
+            log.error("CMake configure failed.")
         return
 
     if SHOULD_BUILD:
@@ -523,16 +572,16 @@ def run():
                 rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
                 copy_compile_commands()
                 if not run_cmake_build():
-                    print("CMake build failed.")
+                    log.error("CMake build failed.")
             else:
-                print("CMake configure failed.")
+                log.error("CMake configure failed.")
         
         app_name = get_project_name_simple()
         exe_path = os.path.join(BUILD_DIR, "bin", app_name + (".exe" if OS_TYPE == "windows" else "")).replace("\\", "/")
         if not os.path.isfile(exe_path):
-            print(f"Error: The executable file: {exe_path} cannot be found.")
+            log.error(f"The executable file: {exe_path} cannot be found.")
             sys.exit(1)
-        print(f"exec: {exe_path}")
+        log.info(f"exec: {exe_path}")
         return
 
     if SHOULD_RUN:
@@ -545,9 +594,9 @@ if __name__ == "__main__":
     try:
         run()
     except KeyboardInterrupt:
-        print("\nProcess interrupted by user (Ctrl+C)")
+        log.info("\nProcess interrupted by user (Ctrl+C)")
         sys.exit(130)  # 130是通常用于Ctrl+C退出的代码
     except Exception as e:
-        print(f"Error: {e}")
+        log.error(f"{e}")
         sys.exit(1)
 
