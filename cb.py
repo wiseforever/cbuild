@@ -581,6 +581,7 @@ def run():
         if not os.path.isfile(exe_path):
             log.error(f"The executable file: {exe_path} cannot be found.")
             sys.exit(1)
+        update_vscode_launch()
         log.info(f"exec: {exe_path}")
         return
 
