@@ -312,8 +312,8 @@ def prepare_build_dir():
     os.makedirs(BUILD_DIR, exist_ok=True)
 
 def copy_compile_commands():
-    src = os.path.join(BUILD_DIR, "compile_commands.json")
-    dst = os.path.join(SOURCE_DIR, "build", "compile_commands.json")
+    src = os.path.join(BUILD_DIR, "compile_commands.json").replace("\\", "/")
+    dst = os.path.join(SOURCE_DIR, "build", "compile_commands.json").replace("\\", "/")
     if os.path.isfile(src):
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copy2(src, dst)
