@@ -46,26 +46,6 @@
             ],
             "miDebuggerPath": "gdb",                                // 替换为 GDB 的路径
             "preLaunchTask": "build-default"                        // 在启动调试器之前运行的构建任务
-        },
-
-        {
-            "name": "Debug-msvc",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/MinGW-8.1.0-Debug/bin/ChatClient",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "console": "integratedTerminal",
-            "preLaunchTask": "build-default",
-            "symbolSearchPath": "${workspaceFolder}/build/msvc-Debug/bin",
-            // 开启调试器日志
-            "logging": {
-                "moduleLoad": true,
-                "programOutput": true,
-                "engineLogging": true
-            }
         }
     ]
 }
