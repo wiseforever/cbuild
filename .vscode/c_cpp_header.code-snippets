@@ -1,5 +1,16 @@
 {
-    
+    "clangd_h_export": {
+        "prefix": "clangd_h_export",
+        "body": [
+            "// IWYU pragma: export"
+        ],
+    },
+    "clangd_h_keep": {
+        "prefix": "clangd_h_keep",
+        "body": [
+            "// IWYU pragma: keep"
+        ],
+    },
     "C File Template": {
         "prefix": "cfile",
         "body": [
