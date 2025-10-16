@@ -105,6 +105,7 @@
         */
     ],
     "files.associations": {
+        "*.json": "jsonc",
         "*.c": "c",
         "*.h": "c",
         "*.cpp": "cpp",
