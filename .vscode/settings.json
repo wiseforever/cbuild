@@ -67,6 +67,7 @@
         "--all-scopes-completion",
         "--clang-tidy"
     ],
+    "editor.inlayHints.enabled": "offUnlessPressed",
     "VsCodeTaskButtons.showCounter": false,
     "VsCodeTaskButtons.tasks": [
         {
