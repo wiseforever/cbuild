@@ -441,8 +441,6 @@ def run_conan_install():
 
 # -------------------- 配置 & 构建 --------------------
 def run_cmake_configure():
-    run_conan_install()
-
     if MSVC_ENABLE and MSVC_ENV_SCRIPT:
         # 确保路径为反斜杠
         msvc_env = MSVC_ENV_SCRIPT.replace("/", "\\")
@@ -450,7 +448,6 @@ def run_cmake_configure():
         # 先生成 Conan toolchain
         run_conan_install()
 
-        # 1. 配置 CMake
         cmake_configure_cmd = f'cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
         if COMPILER_EXEC_P:
             cmake_configure_cmd += " " + " ".join(COMPILER_EXEC_P)
@@ -461,6 +458,7 @@ def run_cmake_configure():
         log.info(cmake_configure_cmd)
         return subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
     else:
+        run_conan_install()
         cmd = ["cmake", "-S", SOURCE_DIR, "-B", BUILD_DIR, "-G", GENERATOR, f"-DCMAKE_BUILD_TYPE={BUILD_TYPE}"]
         if COMPILER_EXEC_P:
             cmd += COMPILER_EXEC_P

@@ -1,11 +1,13 @@
 # cbuild-py
 
 ```
-    该仓库用于更方便的编译c、c++程序，python + CMake + make / Ninja 等。对vscode做了适配，依赖 VSCode 的 .vscode 目录下的 tasks.json、settings.json、c_cpp_properties.json + C/C++ 插件 + Task Buttons 插件；实现 在 VSCode 的左下角快速编译运行程序，以及代码的语法高亮与跳转。
+    该仓库用于更方便的编译c、c++程序。
+
+    对vscode做了适配，依赖 VSCode 的 .vscode 目录下的 tasks.json、settings.json、c_cpp_properties.json + C/C++ 插件 + Task Buttons 插件；实现 在 VSCode 的左下角快速编译运行程序，以及代码的语法高亮与跳转。
 
     camke目录下提供了一些简易的cmake函数。
 
-    支持conan，但需要根据此脚本的说明使用 conanfile.txt 或者 conanfile.py。推荐使用conanfile.py
+    支持conan，但需要根据此脚本的说明使用 conanfile.py(推荐) 或者 conanfile.txt。
 
     conan的知识需要自己学习，这里不做过多介绍。
 ```
@@ -15,12 +17,12 @@
 ### 1. 安装依赖
 
 - python
-- CMake
-- make / Ninja
+- CMake + make / Ninja
 - MSVC / gcc / clang
 - conan (可选)
-- VSCode(可选)
+- VSCode (可选)
 - C/C++ (VSCode插件、可选)
+- clangd + CodeLLDB (VSCode插件、可选)
 - Task Buttons (VSCode插件、可选)
 
 ### 2. 搭建项目
@@ -59,79 +61,20 @@ source_dir = .          # 源码目录，.表示当前目录
 generator = Ninja       # 构建工具，可选 [Ninja、Unix Makefiles ...]
 parallel_jobs = auto    # 并行编译的线程数，auto为自动选择cpu核心数
 
-[compiler]              # 编译器相关配置（不包括MSVC）
+[compiler]              # 编译器相关配置（不含MSVC），若msvc的enable生效则此项无效（linux下msvc项无效）
 c_compiler = gcc        # c语言编译器
 cpp_compiler = g++      # c++语言编译器
 conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
 conan_build = gcc       # conan 的 profile build 对应的 profile
 conan_host = gcc        # conan 的 profile host 对应的 profile
 
-[msvc]                  # msvc 编译器的参数不受 compiler 和 conan 影响。单独配置。
+[msvc]                  # msvc 编译器比较特殊，需要指定环境变量脚本vcvarsall.bat的路径
 enable = 1              # 是否使用MSVC编译器，1、True、true表示使用，0、False、false表示不使用
 msvc_env_script = D:/Develop/VisualStudio/2019/Community/VC/Auxiliary/Build/vcvarsall.bat # MSVC环境变量脚本路径
 host_arch = x64         # 编译可执行程序的位数，可选 [x86、x64]
 conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
 conan_host = default    # conan 的 profile host 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
 conan_build = default   # conan 的 profile build 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
-
-```
-
-#### conanfile.py 示例
-
-```python
-from conan import ConanFile
-# from conan.tools.cmake import cmake_layout
-from conan.tools.files import copy
-import os
-
-class MyProjectConan(ConanFile):
-    name = "myproject"
-    version = "0.1"
-
-    settings = "os", "compiler", "build_type", "arch"
-
-    # 生成器
-    generators = "CMakeToolchain", "CMakeDeps"
-
-    def requirements(self):
-        requires = []
-        if self.settings.os == "Windows":
-            requires = [
-                "jsoncpp/1.9.5",
-                "boost/1.81.0"
-            ]
-        else:
-            requires = [
-                
-            ]
-        for dep in requires:
-            self.requires(dep)
-    # 若要控制 库的链接方式，可以设置 requires_options。默认情况下，静态链接。
-    requires_options = {
-        "jsoncpp*:shared": True
-    }
-
-    def layout(self):
-        # cmake_layout(self)
-        # self.folders.build = os.path.join("build", str(self.settings.build_type))
-        self.folders.build = ""
-        self.folders.generators = os.path.join(self.folders.build, "generators")
-        self.cpp.build.bindirs = ["bin"]
-        self.cpp.build.libdirs = ["lib"]
-
-    def generate(self):
-        # if not self.options.shared:
-        #     return
-        build_bin = os.path.join(self.build_folder, "bin")
-        os.makedirs(build_bin, exist_ok=True)
-        for dep in self.dependencies.values():
-            for shared_lib in dep.cpp_info.bindirs:
-                print(">>>")
-                print(">>>", shared_lib)
-                print(">>>")
-                copy(self, "*.dll", shared_lib, build_bin)
-                copy(self, "*.so", shared_lib, build_bin)
-                copy(self, "*.dylib", shared_lib, build_bin)
 
 ```
 
@@ -193,4 +136,79 @@ python cb.py --help
 - 5.切换Debug/Release编译类型；
 - 6.清理。
 
-也可以在终端中使用 cb 使用命令说明中的命令，也可以在 vscode 中使用 Task Buttons 插件，配置好快捷键，即可快速编译运行。
+也可以在终端中使用 cb.py 使用命令说明中的命令，也可以在 vscode 中使用 Task Buttons 插件，配置好快捷键，即可快速编译运行。
+
+
+
+### 若使用 conan
+
+- 首先安装 conan
+- 然后在项目根目录下创建 conanfile.py 文件，并在其中定义依赖库
+- 在 conanfile.py 中，指定依赖库的名称、版本、路径等信息
+- 在 cb_conf.ini 中，将 conan_enable 设置为 1
+- 在 cb_conf.ini 中，指定 conan_build 和 conan_host 对应的 profile
+- conan的profile可以根据自己项目的需求进行修改，但需要注意，profile的名称必须与 cb_conf.ini中定义的名称一致（需要开发者自行了解相关知识）
+- 在CMakeLists.txt中，使用find_package()函数查找依赖库，并使用target_link_libraries()函数链接依赖库
+- cb.py 脚本会自动设置CMAKE_TOOLCHAIN_FILE变量，并使用conan的profile编译依赖库，请不要在CMakeLists.txt中覆盖CMAKE_TOOLCHAIN_FILE变量
+- 运行 cb.py 脚本，会自动使用 conan 编译依赖库
+
+#### conanfile.py 示例
+
+```python
+from conan import ConanFile
+# from conan.tools.cmake import cmake_layout
+from conan.tools.files import copy
+import os
+
+class MyProjectConan(ConanFile):
+    name = "myproject"
+    version = "0.1"
+
+    settings = "os", "compiler", "build_type", "arch"
+
+    # 生成器
+    generators = "CMakeToolchain", "CMakeDeps"
+
+    def requirements(self):
+        requires = [
+            "jsoncpp/1.9.5",
+            "boost/1.84.0"
+        ]
+        for dep in requires:
+            self.requires(dep)
+
+    # 若要控制 库的链接方式，可以设置 requires_options。默认情况下为静态链接库。
+    # 若需要静态链接库，可以设置 requires_options = {"*:shared": False}
+    # 若需要动态链接库，可以设置 requires_options = {"*:shared": True}
+    # 不设置则为默认值：静态链接库
+    requires_options = {
+        "jsoncpp*:shared": True # 动态链接jsoncpp库
+        "boost*:shared": True # 动态链接boost库
+    }
+
+    def layout(self):
+        # cmake_layout(self)
+        # self.folders.build = os.path.join("build", str(self.settings.build_type))
+        self.folders.build = ""
+        self.folders.generators = os.path.join(self.folders.build, "generators")
+        self.cpp.build.bindirs = ["bin"]
+        self.cpp.build.libdirs = ["lib"]
+
+    def generate(self):
+        # if not self.options.shared:
+        #     return
+
+        # 这个位置可以自定义，self.build_folder是 构建目录，表示在构建目录下的bin目录
+        # 目的是将动态库直接拷贝到bin目录下，便于运行时直接加载
+        build_bin = os.path.join(self.build_folder, "bin")
+        os.makedirs(build_bin, exist_ok=True)
+        for dep in self.dependencies.values():
+            for shared_lib in dep.cpp_info.bindirs:
+                print(">>>")
+                print(">>>", shared_lib)
+                print(">>>")
+                copy(self, "*.dll", shared_lib, build_bin)
+                copy(self, "*.so", shared_lib, build_bin)
+                copy(self, "*.dylib", shared_lib, build_bin)
+
+```
