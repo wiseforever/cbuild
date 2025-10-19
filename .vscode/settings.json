@@ -72,32 +72,32 @@
     "VsCodeTaskButtons.tasks": [
         {
             "label": "$(gear)",
-            "task": "generate-default",
+            "task": "generate",
             "tooltip": "generate cmake cache"
         },
         {
             "label": "$(wrench)",
-            "task": "build-default",
+            "task": "build",
             "tooltip": "build"
         },
         {
             "label": "$(run)",
-            "task": "run-default",
+            "task": "run",
             "tooltip": "run"
         },
         {
             "label": "$(package)",
-            "task": "deploy-default",
+            "task": "deploy",
             "tooltip": "deploy"
         },
         {
             "label": "$(arrow-swap)    |",
-            "task": "switch-default",
+            "task": "switch",
             "tooltip": "Debug/Release switch"
         },
         {
             "label": "$(trash)",
-            "task": "clean-default",
+            "task": "clean",
             "tooltip": "clean"
         },
         /* 
