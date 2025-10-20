@@ -144,7 +144,7 @@ def update_vscode_launch():
             content = f.read()
 
         app_name = get_project_name_simple()
-        prepare_build_dir()
+        prepare_build_dir(create=False)
         program_path = f"${{workspaceFolder}}/{os.path.relpath(BUILD_DIR, SOURCE_DIR).replace(os.sep, '/')}/bin/{app_name}"
 
         # 用正则匹配 "program": "xxx"
@@ -298,7 +298,7 @@ def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
         log.error(f"Compiler not found: {compiler_type}")
         return "unknown"
 
-def prepare_build_dir():
+def prepare_build_dir(create=True):
     global BUILD_DIR
     if BUILD_DIR is None:
         compiler_id = detect_compiler_version(
@@ -309,7 +309,9 @@ def prepare_build_dir():
             HOST_ARCH or "x64"
         )
         BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
-    os.makedirs(BUILD_DIR, exist_ok=True)
+    
+    if create:
+        os.makedirs(BUILD_DIR, exist_ok=True)
 
 def copy_compile_commands():
     src = os.path.join(BUILD_DIR, "compile_commands.json").replace("\\", "/")
