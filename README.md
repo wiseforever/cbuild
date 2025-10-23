@@ -181,9 +181,10 @@ class MyProjectConan(ConanFile):
     # 若需要静态链接库，可以设置 requires_options = {"*:shared": False}
     # 若需要动态链接库，可以设置 requires_options = {"*:shared": True}
     # 不设置则为默认值：静态链接库
+    # 记得加逗号
     requires_options = {
-        "jsoncpp*:shared": True # 动态链接jsoncpp库
-        "boost*:shared": True # 动态链接boost库
+        "-o jsoncpp*:shared=True", # 动态链接jsoncpp库
+        "-o boost*:shared=True" # 动态链接boost库
     }
 
     def layout(self):

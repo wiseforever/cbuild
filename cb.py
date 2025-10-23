@@ -321,7 +321,40 @@ def copy_compile_commands():
         shutil.copy2(src, dst)
         log.info(f"Copy compile_commands.json to {dst}")
 
+# def read_conanfile_py_options(conanfile_path):
+#     try:
+#         from conan import ConanFile
+#     except ModuleNotFoundError:
+#         log.warning("The Conan module is not installed. Skip.")
+#         return []
+
+#     spec = importlib.util.spec_from_file_location("conanfile_module", conanfile_path)
+#     conanfile_module = importlib.util.module_from_spec(spec)
+#     spec.loader.exec_module(conanfile_module)
+
+#     # 遍历模块内的类，找到继承自 ConanFile 的类
+#     for attr in dir(conanfile_module):
+#         obj = getattr(conanfile_module, attr)
+#         if isinstance(obj, type) and issubclass(obj, ConanFile) and obj is not ConanFile:
+#             requires_options = getattr(obj, "requires_options", {})
+#             # 转换成 Conan CLI 参数
+#             options_list = []
+#             for key, value in requires_options.items():
+#                 # val_str = str(value).lower() if isinstance(value, bool) else str(value)
+#                 val_str = str(value) if not isinstance(value, bool) else str(value)
+#                 options_list.append(f"-o {key}={val_str}")
+#             return options_list
+#     return []
+
 def read_conanfile_py_options(conanfile_path):
+    """
+    解析 conanfile.py 中 requires_options，生成 Conan CLI 参数列表。
+    
+    支持以下格式：
+    1. 字典形式：{"pkg*:option": value}
+    2. 列表/集合形式：["pkg*:option=value", ...]
+    3. 直接 CLI 形式：{"-o pkg*:option=value", "-s compiler.cppstd=17"}
+    """
     try:
         from conan import ConanFile
     except ModuleNotFoundError:
@@ -332,19 +365,45 @@ def read_conanfile_py_options(conanfile_path):
     conanfile_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(conanfile_module)
 
+    cli_args = []
+
     # 遍历模块内的类，找到继承自 ConanFile 的类
     for attr in dir(conanfile_module):
         obj = getattr(conanfile_module, attr)
         if isinstance(obj, type) and issubclass(obj, ConanFile) and obj is not ConanFile:
-            requires_options = getattr(obj, "requires_options", {})
-            # 转换成 Conan CLI 参数
-            options_list = []
-            for key, value in requires_options.items():
-                # val_str = str(value).lower() if isinstance(value, bool) else str(value)
-                val_str = str(value) if not isinstance(value, bool) else str(value)
-                options_list.append(f"-o {key}={val_str}")
-            return options_list
-    return []
+            requires_options = getattr(obj, "requires_options", None)
+            if not requires_options:
+                return cli_args
+
+            # --- 新增: 直接 CLI 风格字符串 ---
+            if isinstance(requires_options, (set, list, tuple)):
+                for entry in requires_options:
+                    entry = str(entry).strip()
+                    if entry.startswith(("-o", "-s")):
+                        # 直接原样拆成命令行参数
+                        cli_args += entry.split(" ", 1)
+                    elif ":" in entry and "=" in entry:
+                        # 老格式 pkg*:option=value
+                        cli_args += ["-o", entry]
+                    else:
+                        log.warning(f"Ignored invalid requires_option entry: {entry}")
+
+            elif isinstance(requires_options, dict):
+                for key, value in requires_options.items():
+                    key = str(key).strip()
+                    if key.startswith(("-o", "-s")):
+                        cli_args += key.split(" ", 1)
+                    elif ":" in key:
+                        cli_args += ["-o", f"{key}={value}"]
+                    else:
+                        log.warning(f"Ignored invalid requires_option key: {key}")
+
+            else:
+                log.warning(f"Unsupported requires_options type: {type(requires_options)}")
+
+            return cli_args
+
+    return cli_args
 
 def read_conanfile_txt_options(conanfile_txt_path):
     import configparser
