@@ -22,6 +22,8 @@
     "terminal.integrated.fontWeight": "normal",
     "terminal.integrated.shellIntegration.enabled": false,
     "git.autorefresh": false,
+    "git.autofetch": false,
+    "git.autoRepositoryDetection": false,
     /* Windows 上的默认终端配置文件。 */
     "terminal.integrated.profiles.windows": {
         "MSYS2(msys)": {
