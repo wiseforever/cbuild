@@ -10,7 +10,7 @@
             "cwd": "${workspaceFolder}",                            // 设置工作目录为项目根目录
             "internalConsoleOptions": "openOnSessionStart",         // 控制控制台是否显示
             "console": "integratedTerminal",                        // 控制控制台显示方式
-            "preLaunchTask": "build-default",                       // 在启动调试器之前运行的构建任务
+            "preLaunchTask": "build",                       // 在启动调试器之前运行的构建任务
 
             // CodeLLDB 已经自带 pretty-printers，一般不用额外配置
             "initCommands": [
@@ -45,7 +45,7 @@
                 }
             ],
             "miDebuggerPath": "gdb",                                // 替换为 GDB 的路径
-            "preLaunchTask": "build-default"                        // 在启动调试器之前运行的构建任务
+            "preLaunchTask": "build"                        // 在启动调试器之前运行的构建任务
         }
     ]
 }
