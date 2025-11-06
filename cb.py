@@ -461,11 +461,24 @@ def run_conan_install():
             CONAN_HOST = CONFIG.get("msvc", "conan_host", fallback=None)
 
         cmd = ["conan", "install", SOURCE_DIR, "-s", f"build_type={BUILD_TYPE}", "--output-folder", BUILD_DIR, "--build=missing"]
-        if CONAN_BUILD != None and CONAN_HOST == None:
-            cmd += ["--profile", CONAN_BUILD]
-        if CONAN_BUILD != None and CONAN_HOST != None:
-            cmd += ["--profile:build", CONAN_BUILD]
-            cmd += ["--profile:host", CONAN_HOST]
+        
+        def is_valid_value(val):
+            return val is not None and isinstance(val, str) and val.strip() != ""
+        
+        if is_valid_value(CONAN_BUILD) and not is_valid_value(CONAN_HOST):
+            cmd += ["--profile", CONAN_BUILD.strip()]  # strip() 去除首尾空格，避免意外空格影响
+        # 2. 有效 CONAN_BUILD + 有效 CONAN_HOST（走双 profile）
+        elif is_valid_value(CONAN_BUILD) and is_valid_value(CONAN_HOST):
+            cmd += [
+                "--profile:build", CONAN_BUILD.strip(),
+                "--profile:host", CONAN_HOST.strip()
+            ]
+
+        # if CONAN_BUILD != None and CONAN_HOST == None:
+        #     cmd += ["--profile", CONAN_BUILD]
+        # if CONAN_BUILD != None and CONAN_HOST != None:
+        #     cmd += ["--profile:build", CONAN_BUILD]
+        #     cmd += ["--profile:host", CONAN_HOST]
 
         options_list = []
         if os.path.isfile(conan_file_py):
