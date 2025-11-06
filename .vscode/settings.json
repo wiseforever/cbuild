@@ -7,23 +7,26 @@
         "**/.DS_Store": true,
         "**/Thumbs.db": true
     },
-    "editor.renderWhitespace": "all",
+    "git.autorefresh": false,
+    "git.autofetch": false,
     "files.autoGuessEncoding": false,
     "files.encoding": "utf8",
-    "editor.tabSize": 4,
     "files.eol":"\n",
+    "git.autoRepositoryDetection": false,
+    "editor.renderWhitespace": "all",
+    "editor.tabSize": 4,
     /* 是否自动检测文件的缩进规则 */
     "editor.detectIndentation": false,
     /* tab 是否替换为空格 需要检测 editor.detectIndentation */
     "editor.insertSpaces": true,
     "editor.mouseWheelZoom": true,
-    "terminal.integrated.fontFamily": "Consolas, 'Courier New', monospace",
+    "editor.fontFamily": "Cascadia Code, 'Microsoft YaHei Mono', monospace",
+    "terminal.integrated.fontFamily": "Cascadia Code, 'Microsoft YaHei Mono', monospace",
+    // "terminal.integrated.fontFamily": "Consolas, 'Courier New', monospace",
+    "terminal.integrated.detectLocale": "off",
     "terminal.integrated.fontSize": 14,
     "terminal.integrated.fontWeight": "normal",
     "terminal.integrated.shellIntegration.enabled": false,
-    "git.autorefresh": false,
-    "git.autofetch": false,
-    "git.autoRepositoryDetection": false,
     /* Windows 上的默认终端配置文件。 */
     "terminal.integrated.profiles.windows": {
         "MSYS2(msys)": {
@@ -32,7 +35,16 @@
         },
         "Git Bash": {
             "source": "Git Bash",
-            "icon": "terminal-bash"
+            "icon": "terminal-bash",
+            "args": [
+                "--login",
+                "-i"
+            ],
+            "env": {
+                "LANG": "zh_CN.UTF-8",
+                "LC_ALL": "zh_CN.UTF-8",
+                "LESSCHARSET": "utf-8"
+            }
         },
         "PowerShell": {
             "path": [
@@ -52,8 +64,8 @@
         }
     },
     "terminal.integrated.env.windows": {
-        "LANG": "en_US.UTF-8",
-        "LC_ALL": "en_US.UTF-8"
+        "LANG": "zh_CN.UTF-8",
+        "LC_ALL": "zh_CN.UTF-8"
     },
     // "terminal.integrated.defaultProfile.windows":"",
     /* C/C++ 扩展的配置 */
