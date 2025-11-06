@@ -444,7 +444,7 @@ def run_conan_install():
     except ModuleNotFoundError:
         log.warning("The Conan module is not installed. Skip.")
         return
-    global CONAN_HOST, CONAN_BUILD, CONAN_ENABLER
+    global CONAN_BUILD, CONAN_HOST, CONAN_ENABLER
 
     if MSVC_ENABLE and MSVC_ENV_SCRIPT:
         CONAN_ENABLER = CONFIG.getboolean("msvc", "conan_enable", fallback=False)
@@ -457,14 +457,15 @@ def run_conan_install():
 
     if os.path.isfile(conan_file_txt) or os.path.isfile(conan_file_py):
         if MSVC_ENABLE and MSVC_ENV_SCRIPT:
-            CONAN_HOST = CONFIG.get("msvc", "conan_host", fallback=None)
             CONAN_BUILD = CONFIG.get("msvc", "conan_build", fallback=None)
+            CONAN_HOST = CONFIG.get("msvc", "conan_host", fallback=None)
 
         cmd = ["conan", "install", SOURCE_DIR, "-s", f"build_type={BUILD_TYPE}", "--output-folder", BUILD_DIR, "--build=missing"]
-        if CONAN_HOST != None:
-            cmd += ["--profile:host", CONAN_HOST]
-        if CONAN_BUILD != None:
+        if CONAN_BUILD != None and CONAN_HOST == None:
+            cmd += ["--profile", CONAN_BUILD]
+        if CONAN_BUILD != None and CONAN_HOST != None:
             cmd += ["--profile:build", CONAN_BUILD]
+            cmd += ["--profile:host", CONAN_HOST]
 
         options_list = []
         if os.path.isfile(conan_file_py):
