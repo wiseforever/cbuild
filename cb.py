@@ -466,7 +466,7 @@ def run_conan_install():
             return val is not None and isinstance(val, str) and val.strip() != ""
         
         if is_valid_value(CONAN_BUILD) and not is_valid_value(CONAN_HOST):
-            cmd += ["--profile", CONAN_BUILD.strip()]  # strip() 去除首尾空格，避免意外空格影响
+            cmd += ["--profile:build", CONAN_BUILD.strip()]  # strip() 去除首尾空格，避免意外空格影响
         # 2. 有效 CONAN_BUILD + 有效 CONAN_HOST（走双 profile）
         elif is_valid_value(CONAN_BUILD) and is_valid_value(CONAN_HOST):
             cmd += [
