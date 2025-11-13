@@ -11,7 +11,7 @@
     "git.autofetch": false,
     "files.autoGuessEncoding": false,
     "files.encoding": "utf8",
-    "files.eol":"\n",
+    "files.eol": "\n",
     "git.autoRepositoryDetection": false,
     "editor.renderWhitespace": "all",
     "editor.tabSize": 4,
@@ -31,7 +31,9 @@
     "terminal.integrated.profiles.windows": {
         "MSYS2(msys)": {
             "path": "C:/msys64/usr/bin/bash.exe",
-            "args": ["-i"]
+            "args": [
+                "-i"
+            ]
         },
         "Git Bash": {
             "source": "Git Bash",
@@ -82,6 +84,21 @@
         "--clang-tidy"
     ],
     "editor.inlayHints.enabled": "offUnlessPressed",
+    // "editor.formatOnSave": true,
+    // 指定 clang-format 可执行文件
+    "clang-format.executable": "clang-format",
+    // 让 clang-format 自动查找最近的 .clang-format 文件
+    "clang-format.style": "file",
+    // 如果没有找到 .clang-format，则使用备用托底
+    // "clang-format.fallbackStyle": "Google",
+    "clang-format.fallbackStyle": "microsoft",
+    // 指定 VS Code 对 C/C++ 默认使用 clang-format
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
+    "[c]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
     "VsCodeTaskButtons.showCounter": false,
     "VsCodeTaskButtons.tasks": [
         {

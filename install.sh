@@ -16,12 +16,16 @@ bak_dir="cbuild-py_bak"
 
 
 # 参数解析
+if [[ "$1" == "-format" || "$1" == "--format" ]]; then
+    mode="format"
+fi
+
 mode="simple"
-if [[ "$1" == "--simple" || "$1" == "-s" ]]; then
+if [[ "$1" == "-s" || "$1" == "--simple" ]]; then
     mode="simple"
 fi
 
-if [[ "$1" == "--update" || "$1" == "update" ]]; then
+if [[ "$1" == "-update" || "$1" == "--update" ]]; then
     mode="update"
 fi
 
@@ -44,6 +48,19 @@ git clone --depth=1 https://gitee.com/wiseforever/cbuild-py.git "$temp_dir" || {
 if [ ! -d "$temp_dir" ]; then
     echo "❌ 克隆仓库失败，请检查网络，git环境或仓库地址是否正确！"
     exit 1
+fi
+
+if [[ $mode == "format" ]]; then
+    if [[ -f "$temp_dir/.clang-format" ]]; then
+        mkdir -p ${bak_dir}/bak_$date_str/
+        mv ${arg_path}/.clang-format ${bak_dir}/bak_$date_str/
+        cp -a "$temp_dir/.clang-format" ${arg_path} 2>/dev/null
+        rm -rf "$temp_dir"
+        exit 0
+    else
+        echo "远程仓库未找到 .clang-format 文件，请检查仓库是否正确克隆！"
+        exit 1
+    fi
 fi
 
 # 判断 $temp_dir/.vscode 与 $temp_dir/cmake 是否存在

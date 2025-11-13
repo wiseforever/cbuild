@@ -1,0 +1,47 @@
+Language: Cpp
+BasedOnStyle: Google
+UseTab: Never           # 使用空格代替制表符
+IndentWidth: 4          # 缩进宽度为4个空格
+TabWidth: 4             # 制表符宽度为4个空格
+ColumnLimit: 80         # 代码列数限制为80
+
+# ======================
+# #ifdefine/#endif 等预处理指令缩进控制
+# ======================
+# None 不缩进，顶格
+# AfterHash #后面加
+# BeforeHash #前面加
+IndentPPDirectives: BeforeHash
+
+# ======================
+# 控制语句缩进控制
+# ======================
+# SpaceBeforeParens: Never                # if/for/while/switch 等控制语句前面不加空格
+SpaceBeforeParens: ControlStatements    # if/for/while/switch 等语句的括号前加空格
+
+# ======================
+# 代码块缩进控制
+# ======================
+IndentCaseLabels: true # case 标签是否缩进
+# 函数续行对齐方式
+IndentWrappedFunctionNames: false
+# 大括号风格： Allman 另起一行; Custom 不另起一行;
+BreakBeforeBraces: Custom
+AllowShortIfStatementsOnASingleLine: true  # if 语句是否允许写在一行
+AllowShortLoopsOnASingleLine: true       # for/while 语句是否允许写在一行
+AllowShortFunctionsOnASingleLine: All    # 函数是否允许写在一行
+# 访问修饰符顶格
+AccessModifierOffset: -4
+
+# ======================
+# 尾随注释
+# ======================
+AlignTrailingComments: false           # 不对齐尾随注释
+ReflowComments: true                   # 自动换行注释
+# SpacesBeforeTrailingComments: 1        # 尾随注释前1个空格
+
+# ======================
+# include 排序控制
+# ======================
+SortIncludes: false             # 禁止修改 #include 的顺序
+IncludeBlocks: Preserve         # 保持 include 块原样，不重排或分组
