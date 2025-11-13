@@ -3,6 +3,28 @@
     "tasks": [
         {
             "type": "shell",                    /* 定义任务类型为 shell，用于运行 shell 命令 */
+            "label": "conan",             /* 任务的标签 */
+            "options": {
+                "cwd": "${workspaceFolder}"     /* 设置工作目录为项目根目录 已执行程序或脚本的当前工作目录。如果省略，则使用代码的当前工作区根。 */
+            },
+            "command": "python",     /* 使用 命令 */
+            "args": [
+                "cb.py",
+                "--conan"
+            ],                                  /* 传递参数给 make */
+            "group": {
+                "kind": "build",                /* 将任务分组为构建任务 */
+                "isDefault": false              /* 是否默认构建任务 */
+            },
+            "presentation": {
+                "reveal": "always",             /* 构建任务完成后总是显示输出面板 */
+                "panel": "dedicated"            /* 在新面板中显示输出 */
+            }
+        },
+
+
+        {
+            "type": "shell",                    /* 定义任务类型为 shell，用于运行 shell 命令 */
             "label": "generate",          /* 任务的标签 */
             "options": {
                 "cwd": "${workspaceFolder}"     /* 设置工作目录为项目根目录 已执行程序或脚本的当前工作目录。如果省略，则使用代码的当前工作区根。 */

@@ -21,8 +21,8 @@
     "editor.insertSpaces": true,
     "editor.mouseWheelZoom": true,
     "editor.fontFamily": "Cascadia Code, 'Microsoft YaHei Mono', monospace",
-    "terminal.integrated.fontFamily": "Cascadia Code, 'Microsoft YaHei Mono', monospace",
-    // "terminal.integrated.fontFamily": "Consolas, 'Courier New', monospace",
+    // "terminal.integrated.fontFamily": "Cascadia Code, 'Microsoft YaHei Mono', monospace",
+    "terminal.integrated.fontFamily": "Consolas, 'Courier New', monospace",
     "terminal.integrated.detectLocale": "off",
     "terminal.integrated.fontSize": 14,
     "terminal.integrated.fontWeight": "normal",
@@ -84,6 +84,11 @@
     "editor.inlayHints.enabled": "offUnlessPressed",
     "VsCodeTaskButtons.showCounter": false,
     "VsCodeTaskButtons.tasks": [
+        {
+            "label": "$(archive)",
+            "task": "conan",
+            "tooltip": "conan"
+        },
         {
             "label": "$(gear)",
             "task": "generate",

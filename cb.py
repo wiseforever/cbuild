@@ -175,6 +175,7 @@ def is_option_token(tok: str) -> bool:
     return tok.startswith("-")
 
 # -------------------- 命令行参数 --------------------
+SHOULD_CONAN_BUILD = False
 SHOULD_CONFIGURE = False
 SHOULD_BUILD = False
 SHOULD_RUN = False
@@ -183,7 +184,7 @@ BUILD_TARGET = "all"
 EXIT_AFTER_TYPE_CHANGE = False  # 仅切换类型时立即退出
 
 def parse_args():
-    global BUILD_TYPE, SHOULD_BUILD, SHOULD_CONFIGURE, SHOULD_RUN, SHOULD_CLEAN, BUILD_TARGET, EXIT_AFTER_TYPE_CHANGE
+    global BUILD_TYPE, SHOULD_CONAN_BUILD, SHOULD_CONFIGURE, SHOULD_BUILD, SHOULD_RUN, SHOULD_CLEAN, BUILD_TARGET, EXIT_AFTER_TYPE_CHANGE
     args = sys.argv[1:]
     i = 0
     BUILD_TARGET = "all"
@@ -225,6 +226,13 @@ def parse_args():
                 update_vscode_launch()
                 log.info(f"The build type has been switched to: {BUILD_TYPE}")
                 type_changed = True
+
+        elif arg == "--conan":
+            SHOULD_CONAN_BUILD = True
+            had_action = True
+            if i + 1 < len(args) and not is_option_token(args[i + 1]) and args[i + 1].capitalize() in VALID_BUILD_TYPES:
+                BUILD_TYPE = args[i + 1].capitalize()
+                i += 1
 
         elif arg in ("-g", "--generate"):
             SHOULD_CONFIGURE = True
@@ -521,7 +529,7 @@ def run_cmake_configure():
         msvc_env = MSVC_ENV_SCRIPT.replace("/", "\\")
 
         # 先生成 Conan toolchain
-        run_conan_install()
+        # run_conan_install()
 
         cmake_configure_cmd = f'cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
         if COMPILER_EXEC_P:
@@ -533,7 +541,7 @@ def run_cmake_configure():
         log.info(cmake_configure_cmd)
         return subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
     else:
-        run_conan_install()
+        # run_conan_install()
         cmd = ["cmake", "-S", SOURCE_DIR, "-B", BUILD_DIR, "-G", GENERATOR, f"-DCMAKE_BUILD_TYPE={BUILD_TYPE}"]
         if COMPILER_EXEC_P:
             cmd += COMPILER_EXEC_P
@@ -553,7 +561,7 @@ def run_msvc_build():
     msvc_env = MSVC_ENV_SCRIPT.replace("/", "\\")
 
     # 先生成 Conan toolchain
-    run_conan_install()
+    # run_conan_install()
 
     # 1. 配置 CMake
     cmake_configure_cmd = f'cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
@@ -628,6 +636,25 @@ def run():
     if SHOULD_CLEAN:
         clean_build()
         return
+
+    if SHOULD_CONAN_BUILD:
+        run_conan_install()
+        rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
+        return
+
+    conan_file_txt = os.path.join(SOURCE_DIR, "conanfile.txt")
+    conan_file_py = os.path.join(SOURCE_DIR, "conanfile.py")
+
+    if os.path.isfile(conan_file_txt) or os.path.isfile(conan_file_py):
+        generators_folder = get_generators_folder(conan_file_py)
+        if generators_folder is None:
+            toolchain_file = os.path.join(BUILD_DIR, "conan_toolchain.cmake")
+        else:
+            toolchain_file = os.path.join(BUILD_DIR, generators_folder, "conan_toolchain.cmake")
+
+        if os.path.isfile(toolchain_file):
+            global CMAKE_TOOLCHAIN_FILE
+            CMAKE_TOOLCHAIN_FILE = toolchain_file.replace("\\", "/")
 
     if SHOULD_CONFIGURE:
         if run_cmake_configure():
