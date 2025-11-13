@@ -51,7 +51,6 @@ if [ ! -d "$temp_dir" ]; then
     exit 1
 fi
 
-echo "$mode 模式"
 if [[ $mode == "format" ]]; then
     if [[ -f "$temp_dir/.clang-format" ]]; then
         if [[ -f "${arg_path}/.clang-format" ]]; then
