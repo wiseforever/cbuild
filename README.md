@@ -16,7 +16,7 @@
 
 ### 1. 安装依赖
 
-- python
+- python3
 - CMake + make / Ninja
 - MSVC / gcc / clang
 - conan (可选)
@@ -70,11 +70,11 @@ conan_host = gcc        # conan 的 profile host 对应的 profile
 
 [msvc]                  # msvc 编译器比较特殊，需要指定环境变量脚本vcvarsall.bat的路径
 enable = 1              # 是否使用MSVC编译器，1、True、true表示使用，0、False、false表示不使用
-msvc_env_script = D:/Develop/VisualStudio/2019/Community/VC/Auxiliary/Build/vcvarsall.bat # MSVC环境变量脚本路径
+msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC环境变量脚本路径
 host_arch = x64         # 编译可执行程序的位数，可选 [x86、x64]
 conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
-conan_host = default    # conan 的 profile host 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
 conan_build = default   # conan 的 profile build 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
+conan_host = default    # conan 的 profile host 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
 
 ```
 
@@ -91,6 +91,10 @@ python cb.py -t Debug
 python cb.py -t Release
 python cb.py --type
 
+# --conan 使用 conan 构建依赖库
+python cb.py --conan
+python cb.py --conan Debug
+python cb.py --conan Release
 
 # -g|--generate 生成CMake缓存
 python cb.py -g
@@ -170,22 +174,8 @@ class MyProjectConan(ConanFile):
     generators = "CMakeToolchain", "CMakeDeps"
 
     def requirements(self):
-        requires = [
-            "jsoncpp/1.9.5",
-            "boost/1.84.0"
-        ]
-        for dep in requires:
-            self.requires(dep)
-
-    # 若要控制 库的链接方式，可以设置 requires_options。默认情况下为静态链接库。
-    # 若需要静态链接库，可以设置 requires_options = {"*:shared": False}
-    # 若需要动态链接库，可以设置 requires_options = {"*:shared": True}
-    # 不设置则为默认值：静态链接库
-    # 记得加逗号
-    requires_options = {
-        "-o jsoncpp*:shared=True", # 动态链接jsoncpp库
-        "-o boost*:shared=True" # 动态链接boost库
-    }
+        self.requires("boost/1.84.0", options={"header_only": True}) # 仅头文件库
+        self.requires("jsoncpp/1.9.5", options={"shared": False}) # 静态库
 
     def layout(self):
         # cmake_layout(self)

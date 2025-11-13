@@ -197,11 +197,13 @@ def parse_args():
         if arg in ("-h", "--help"):
             print("Usage: cb.py [options]")
             print("Options:")
-            print("  -t, --type [Debug|Release]   不带参数时在 Debug/Release 间切换，并保存到 config.ini")
-            print("  -g, --generate               仅运行 CMake 配置")
-            print("  -b, --build [<type>] [--target <target>]   构建项目")
-            print("  -r, --run [<type>]           运行程序")
-            print("  -c, --clean [<type>]         清理构建目录")
+            print("  -h, --help                     显示帮助信息")
+            print("  -t | --type [Debug|Release]    不带参数时在 Debug/Release 间切换，并保存到 cb_conf.ini")
+            print("  --conan [<type>]               使用 Conan 构建依赖库")
+            print("  -g | --generate                仅运行 CMake 配置")
+            print("  -b | --build [<type>] [--target <target>]      构建项目")
+            print("  -r | --run [<type>]            运行程序")
+            print("  -c | --clean [<type>]          清理构建目录")
             sys.exit(0)
 
         elif arg in ("-t", "--type"):
