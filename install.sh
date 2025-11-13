@@ -15,17 +15,18 @@ install_script_name="install.sh"
 bak_dir="cbuild-py_bak"
 
 
+mode="simple"
+
 # 参数解析
-if [[ "$1" == "-format" || "$1" == "--format" ]]; then
+if [[ "$1" == "format" || "$1" == "--format" ]]; then
     mode="format"
 fi
 
-mode="simple"
 if [[ "$1" == "-s" || "$1" == "--simple" ]]; then
     mode="simple"
 fi
 
-if [[ "$1" == "-update" || "$1" == "--update" ]]; then
+if [[ "$1" == "update" || "$1" == "--update" ]]; then
     mode="update"
 fi
 
@@ -50,10 +51,13 @@ if [ ! -d "$temp_dir" ]; then
     exit 1
 fi
 
+echo "$mode 模式"
 if [[ $mode == "format" ]]; then
     if [[ -f "$temp_dir/.clang-format" ]]; then
-        mkdir -p ${bak_dir}/bak_$date_str/
-        mv ${arg_path}/.clang-format ${bak_dir}/bak_$date_str/
+        if [[ -f "${arg_path}/.clang-format" ]]; then
+            mkdir -p ${bak_dir}/bak_$date_str/
+            mv ${arg_path}/.clang-format ${bak_dir}/bak_$date_str/
+        fi
         cp -a "$temp_dir/.clang-format" ${arg_path} 2>/dev/null
         rm -rf "$temp_dir"
         exit 0
@@ -84,7 +88,7 @@ if [[ $mode == "update" ]]; then
     if [[ -f "$temp_dir/${install_script_name}" ]]; then
         mkdir -p ${bak_dir}/bak_$date_str/
         mv ${arg_path}/${install_script_name} ${bak_dir}/bak_$date_str/
-        cp -a "$temp_dir/${install_script_name}"  ${arg_path} 2>/dev/null
+        cp -a "$temp_dir/${install_script_name}" ${arg_path} 2>/dev/null
         rm -rf "$temp_dir"
         exit 0
     else
