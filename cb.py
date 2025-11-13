@@ -528,9 +528,6 @@ def run_cmake_configure():
         # 确保路径为反斜杠
         msvc_env = MSVC_ENV_SCRIPT.replace("/", "\\")
 
-        # 先生成 Conan toolchain
-        # run_conan_install()
-
         cmake_configure_cmd = f'cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
         if COMPILER_EXEC_P:
             cmake_configure_cmd += " " + " ".join(COMPILER_EXEC_P)
@@ -541,7 +538,6 @@ def run_cmake_configure():
         log.info(cmake_configure_cmd)
         return subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
     else:
-        # run_conan_install()
         cmd = ["cmake", "-S", SOURCE_DIR, "-B", BUILD_DIR, "-G", GENERATOR, f"-DCMAKE_BUILD_TYPE={BUILD_TYPE}"]
         if COMPILER_EXEC_P:
             cmd += COMPILER_EXEC_P
@@ -560,9 +556,6 @@ def run_msvc_build():
     # 确保路径为反斜杠
     msvc_env = MSVC_ENV_SCRIPT.replace("/", "\\")
 
-    # 先生成 Conan toolchain
-    # run_conan_install()
-
     # 1. 配置 CMake
     cmake_configure_cmd = f'cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
     if COMPILER_EXEC_P:
@@ -573,8 +566,6 @@ def run_msvc_build():
     # 在 cmd 中调用 vcvarsall.bat，然后执行 cmake 配置
     log.info(cmake_configure_cmd)
     subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
-
-    rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
 
     # 2. 拷贝 compile_commands.json（用 Python 内部操作）
     copy_compile_commands()
@@ -658,7 +649,6 @@ def run():
 
     if SHOULD_CONFIGURE:
         if run_cmake_configure():
-            rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
             copy_compile_commands()
         else:
             log.error("CMake configure failed.")
@@ -669,7 +659,6 @@ def run():
             run_msvc_build()
         else:
             if run_cmake_configure():
-                rm_rf(os.path.join(SOURCE_DIR, "CMakeUserPresets.json"))
                 copy_compile_commands()
                 if not run_cmake_build():
                     log.error("CMake build failed.")
