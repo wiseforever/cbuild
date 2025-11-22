@@ -2,15 +2,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug-lldb",                                   // 配置的名称
+            "name": "Debug-codelldb",                               // 配置的名称
             "type": "lldb",                                         // 指定调试器类型为 C/C++ 调试器
             "request": "launch",                                    // 启动调试器的请求类型
-            "program": "${workspaceFolder}/build/MinGW-8.1.0-Debug/bin/ChatClient",     // 调试的可执行文件路径
+            "program": "${workspaceFolder}/build/MinGW-8.1.0-Debug/bin/application",     // 调试的可执行文件路径
             "args": [],                                             // 不传递额外的参数给可执行文件
             "cwd": "${workspaceFolder}",                            // 设置工作目录为项目根目录
-            "internalConsoleOptions": "openOnSessionStart",         // 控制控制台是否显示
+            "internalConsoleOptions": "neverOpen",                  // 控制控制台是否显示
             "console": "integratedTerminal",                        // 控制控制台显示方式
-            "preLaunchTask": "build",                       // 在启动调试器之前运行的构建任务
+            "preLaunchTask": "build",                               // 在启动调试器之前运行的构建任务
 
             // CodeLLDB 已经自带 pretty-printers，一般不用额外配置
             "initCommands": [
@@ -22,10 +22,10 @@
         },
 
         {
-            "name": "Debug-gcc",                                  // 配置的名称
+            "name": "Debug-c/c++",                                  // 配置的名称
             "type": "cppdbg",                                       // 指定调试器类型为 C/C++ 调试器
             "request": "launch",                                    // 启动调试器的请求类型
-            "program": "${workspaceFolder}/build/MinGW-8.1.0-Debug/bin/ChatClient",     // 调试的可执行文件路径
+            "program": "${workspaceFolder}/build/MinGW-8.1.0-Debug/bin/application",     // 调试的可执行文件路径
             "args": [],                                             // 不传递额外的参数给可执行文件
             "stopAtEntry": false,                                   // 不在程序入口处停止
             "cwd": "${workspaceFolder}",                            // 设置工作目录为项目根目录
@@ -45,7 +45,9 @@
                 }
             ],
             "miDebuggerPath": "gdb",                                // 替换为 GDB 的路径
-            "preLaunchTask": "build"                        // 在启动调试器之前运行的构建任务
+            "preLaunchTask": "build",                               // 在启动调试器之前运行的构建任务
+            "internalConsoleOptions": "neverOpen",                  // 控制控制台是否显示
+            "console": "integratedTerminal",                        // 控制控制台显示方式
         }
     ]
 }
