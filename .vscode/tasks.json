@@ -63,10 +63,7 @@
             "presentation": {
                 "reveal": "always",             /* 构建任务完成后总是显示输出面板 */
                 "panel": "dedicated"            /* 在新面板中显示输出 */
-            },
-            "problemMatcher": [
-                /* "$gcc" */                    /* 使用 gcc 错误匹配器来捕获编译错误 */
-            ]
+            }
         },
 
 
@@ -106,7 +103,11 @@
             "presentation": {
                 "reveal": "always",             /* 构建任务完成后总是显示输出面板 */
                 "panel": "dedicated"            /* 在新面板中显示输出 */
-            }
+            },
+            // 依赖于 build 任务
+            "dependsOn": [
+                "build"
+            ]
         },
 
 

@@ -558,19 +558,19 @@ def run_msvc_build():
     # 确保路径为反斜杠
     msvc_env = MSVC_ENV_SCRIPT.replace("/", "\\")
 
-    # 1. 配置 CMake
-    cmake_configure_cmd = f'cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
-    if COMPILER_EXEC_P:
-        cmake_configure_cmd += " " + " ".join(COMPILER_EXEC_P)
-    if CMAKE_TOOLCHAIN_FILE:
-        cmake_configure_cmd += f' -DCMAKE_TOOLCHAIN_FILE="{CMAKE_TOOLCHAIN_FILE}"'
+    # # 1. 配置 CMake
+    # cmake_configure_cmd = f'cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
+    # if COMPILER_EXEC_P:
+    #     cmake_configure_cmd += " " + " ".join(COMPILER_EXEC_P)
+    # if CMAKE_TOOLCHAIN_FILE:
+    #     cmake_configure_cmd += f' -DCMAKE_TOOLCHAIN_FILE="{CMAKE_TOOLCHAIN_FILE}"'
 
-    # 在 cmd 中调用 vcvarsall.bat，然后执行 cmake 配置
-    log.info(cmake_configure_cmd)
-    subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
+    # # 在 cmd 中调用 vcvarsall.bat，然后执行 cmake 配置
+    # log.info(cmake_configure_cmd)
+    # subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
 
-    # 2. 拷贝 compile_commands.json（用 Python 内部操作）
-    copy_compile_commands()
+    # # 2. 拷贝 compile_commands.json（用 Python 内部操作）
+    # copy_compile_commands()
 
     # 3. 构建
     cmake_build_cmd = f'cmake --build "{BUILD_DIR}" --target {BUILD_TARGET} -j{PARALLEL_JOBS}'
@@ -660,12 +660,14 @@ def run():
         if MSVC_ENABLE and MSVC_ENV_SCRIPT:
             run_msvc_build()
         else:
-            if run_cmake_configure():
-                copy_compile_commands()
-                if not run_cmake_build():
-                    log.error("CMake build failed.")
-            else:
-                log.error("CMake configure failed.")
+            # if run_cmake_configure():
+            #     copy_compile_commands()
+            #     if not run_cmake_build():
+            #         log.error("CMake build failed.")
+            # else:
+            #     log.error("CMake configure failed.")
+            if not run_cmake_build():
+                log.error("CMake build failed.")
         
         app_name = get_project_name_simple()
         exe_path = os.path.join(BUILD_DIR, "bin", app_name + (".exe" if OS_TYPE == "windows" else "")).replace("\\", "/")
