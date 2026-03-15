@@ -21,9 +21,9 @@
     /* tab 是否替换为空格 需要检测 editor.detectIndentation */
     "editor.insertSpaces": true,
     "editor.mouseWheelZoom": true,
-    "editor.fontFamily": "Cascadia Code, 'Microsoft YaHei Mono', monospace",
-    // "terminal.integrated.fontFamily": "Cascadia Code, 'Microsoft YaHei Mono', monospace",
-    "terminal.integrated.fontFamily": "Consolas, 'Courier New', monospace",
+    // "editor.fontFamily": "Cascadia Code, 'Microsoft YaHei Mono', monospace, Maple Mono NF CN, 'Courier New'",
+    "editor.fontFamily":"Maple Mono NF, Cascadia Code, Jetbrains Mono, Menlo, Consolas, monospa",
+    "terminal.integrated.fontFamily": "Cascadia Code",
     "terminal.integrated.detectLocale": "off",
     "terminal.integrated.fontSize": 14,
     "terminal.integrated.fontWeight": "normal",
