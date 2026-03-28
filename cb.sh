@@ -49,6 +49,26 @@ log_info() { printf '[INFO] %s\n' "$*"; }
 log_warn() { printf '[WARN] %s\n' "$*" >&2; }
 log_err() { printf '[ERROR] %s\n' "$*" >&2; }
 
+cmd_array_to_cmdline() {
+  local out="" token
+  for token in "$@"; do
+    if [[ "$token" == *" "* || "$token" == *"("* || "$token" == *")"* || "$token" == *"&"* ]]; then
+      out+=" \"${token}\""
+    else
+      out+=" ${token}"
+    fi
+  done
+  printf '%s' "${out# }"
+}
+
+run_with_msvc_env() {
+  local user_cmd="$1"
+  local msvc_env
+  msvc_env="${MSVC_ENV_SCRIPT//\//\\}"
+  log_info "call \"${msvc_env}\" ${HOST_ARCH} && ${user_cmd}"
+  cmd.exe /c "call \"${msvc_env}\" ${HOST_ARCH} && ${user_cmd}"
+}
+
 trim() {
   local s="$1"
   s="${s#"${s%%[![:space:]]*}"}"
@@ -472,12 +492,12 @@ run_conan_install() {
     done < "$conan_file_txt"
   fi
 
-  if [[ -f "$conan_file_py" ]]; then
-    log_warn "conanfile.py 的 requires_options 解析在 cb.sh 中未实现，请使用 conanfile.txt [options] 或手动传参。"
+  log_info "$(cmd_array_to_cmdline "${cmd[@]}")"
+  if [[ "$OS_TYPE" == "windows" && "$MSVC_ENABLE" == "true" && -n "$MSVC_ENV_SCRIPT" ]]; then
+    run_with_msvc_env "$(cmd_array_to_cmdline "${cmd[@]}")"
+  else
+    "${cmd[@]}"
   fi
-
-  log_info "${cmd[*]}"
-  "${cmd[@]}"
 
   local toolchain_file=""
   if [[ -f "$BUILD_DIR/conan_toolchain.cmake" ]]; then
@@ -500,8 +520,7 @@ run_conan_install() {
 
 run_cmake_configure() {
   if [[ "$OS_TYPE" == "windows" && "$MSVC_ENABLE" == "true" && -n "$MSVC_ENV_SCRIPT" ]]; then
-    local msvc_env cmake_cmd
-    msvc_env="${MSVC_ENV_SCRIPT//\//\\}"
+    local cmake_cmd
     cmake_cmd="cmake -S \"${SOURCE_DIR}\" -B \"${BUILD_DIR}\" -G \"${GENERATOR}\" -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
     if [[ -n "$C_COMPILER" ]]; then
       cmake_cmd+=" -DCMAKE_C_COMPILER=${C_COMPILER}"
@@ -512,8 +531,7 @@ run_cmake_configure() {
     if [[ -n "$CMAKE_TOOLCHAIN_FILE" ]]; then
       cmake_cmd+=" -DCMAKE_TOOLCHAIN_FILE=\"${CMAKE_TOOLCHAIN_FILE}\""
     fi
-    log_info "$cmake_cmd"
-    cmd.exe /c "call \"${msvc_env}\" ${HOST_ARCH} && ${cmake_cmd}"
+    run_with_msvc_env "$cmake_cmd"
     return 0
   fi
 
@@ -534,11 +552,9 @@ run_cmake_configure() {
 
 run_cmake_build() {
   if [[ "$OS_TYPE" == "windows" && "$MSVC_ENABLE" == "true" && -n "$MSVC_ENV_SCRIPT" ]]; then
-    local msvc_env build_cmd
-    msvc_env="${MSVC_ENV_SCRIPT//\//\\}"
+    local build_cmd
     build_cmd="cmake --build \"${BUILD_DIR}\" --target ${BUILD_TARGET} -j${PARALLEL_JOBS}"
-    log_info "$build_cmd"
-    cmd.exe /c "call \"${msvc_env}\" ${HOST_ARCH} && ${build_cmd}"
+    run_with_msvc_env "$build_cmd"
     return 0
   fi
 
