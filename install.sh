@@ -20,7 +20,7 @@ clang_format_file=".clang-format"
 cmake_file="cmake/ez_custom_func.cmake"
 
 mode="simple"
-install_variant="python"
+install_variant="bash"
 
 print_help() {
     cat <<'EOF'
@@ -29,8 +29,8 @@ Usage:
   ./install.sh --format
 
 Options:
-  --python          安装 Python 版本（默认）
-  --bash            安装 Bash 版本
+  --bash            安装 Bash 版本（默认）
+  --python          安装 Python 版本
   -s, --simple      普通安装模式（默认）
   format, --format  仅拉取 .clang-format
   -h, --help        显示帮助
@@ -56,40 +56,40 @@ for arg in "$@"; do
             exit 0
             ;;
         *)
-            echo "❌ 未知参数: $arg"
+            echo "未知参数: $arg"
             print_help
             exit 1
             ;;
     esac
 done
 
-selected_tool="$tool_python"
-selected_tasks_template="$tasks_python"
-if [[ "$install_variant" == "bash" ]]; then
-    selected_tool="$tool_bash"
-    selected_tasks_template="$tasks_bash"
+selected_tool="$tool_bash"
+selected_tasks_template="$tasks_bash"
+if [[ "$install_variant" == "python" ]]; then
+    selected_tool="$tool_python"
+    selected_tasks_template="$tasks_python"
 fi
 
 mkdir -p "$temp_dir" || {
-    echo "❌ 创建临时目录失败，请检查目录权限或路径是否正确！"
+    echo "创建临时目录失败，请检查目录权限或路径是否正确！"
     exit 1
 }
 
 git clone --depth=1 "$repo_url" "$temp_dir" || {
     rm -rf "$temp_dir"
-    echo "❌ 克隆仓库失败，请检查网络、git环境或仓库地址是否正确！"
+    echo "克隆仓库失败，请检查网络、git环境或仓库地址是否正确！"
     exit 1
 }
 
 if [[ ! -d "$temp_dir" ]]; then
-    echo "❌ 克隆仓库失败，请检查网络、git环境或仓库地址是否正确！"
+    echo "克隆仓库失败，请检查网络、git环境或仓库地址是否正确！"
     exit 1
 fi
 
 if [[ "$mode" == "format" ]]; then
     if [[ ! -f "$temp_dir/$clang_format_file" ]]; then
         rm -rf "$temp_dir"
-        echo "❌ 远程仓库未找到 $clang_format_file 文件，请检查仓库是否正确克隆！"
+        echo "远程仓库未找到 $clang_format_file 文件，请检查仓库是否正确克隆！"
         exit 1
     fi
 
@@ -100,43 +100,43 @@ if [[ "$mode" == "format" ]]; then
 
     cp -a "$temp_dir/$clang_format_file" "$arg_path" 2>/dev/null
     rm -rf "$temp_dir"
-    echo "✅ 已更新 $clang_format_file 到当前目录。"
+    echo "已更新 $clang_format_file 到当前目录。"
     exit 0
 fi
 
 if [[ ! -d "$temp_dir/.vscode" ]]; then
     rm -rf "$temp_dir"
-    echo "❌ 未找到远程仓库的 .vscode 目录，请检查仓库是否正确克隆！"
+    echo "未找到远程仓库的 .vscode 目录，请检查仓库是否正确克隆！"
     exit 1
 fi
 
 if [[ ! -d "$temp_dir/cmake" ]]; then
     rm -rf "$temp_dir"
-    echo "❌ 未找到远程仓库的 cmake 目录，请检查仓库是否正确克隆！"
+    echo "未找到远程仓库的 cmake 目录，请检查仓库是否正确克隆！"
     exit 1
 fi
 
 if [[ ! -f "$temp_dir/$selected_tool" ]]; then
     rm -rf "$temp_dir"
-    echo "❌ 未找到 ${selected_tool}，请检查仓库是否正确克隆！"
+    echo "未找到 ${selected_tool}，请检查仓库是否正确克隆！"
     exit 1
 fi
 
 if [[ ! -f "$temp_dir/$tool_conf" ]]; then
     rm -rf "$temp_dir"
-    echo "❌ 未找到 ${tool_conf}，请检查仓库是否正确克隆！"
+    echo "未找到 ${tool_conf}，请检查仓库是否正确克隆！"
     exit 1
 fi
 
 if [[ ! -f "$temp_dir/$selected_tasks_template" ]]; then
     rm -rf "$temp_dir"
-    echo "❌ 未找到 ${selected_tasks_template}，请检查仓库是否正确克隆！"
+    echo "未找到 ${selected_tasks_template}，请检查仓库是否正确克隆！"
     exit 1
 fi
 
 if [[ ! -f "$temp_dir/$cmake_file" ]]; then
     rm -rf "$temp_dir"
-    echo "❌ 未找到 ${cmake_file}，请检查仓库是否正确克隆！"
+    echo "未找到 ${cmake_file}，请检查仓库是否正确克隆！"
     exit 1
 fi
 
@@ -175,5 +175,4 @@ if [[ "$mode" == "simple" ]]; then
 fi
 
 rm -rf "$temp_dir"
-echo "✅ 已安装 ${install_variant} 版本：.vscode(含 tasks.json)、${selected_tool}、${tool_conf}、${cmake_file}"
-
+echo "已安装 ${install_variant} 版本：.vscode(含 tasks.json)、${selected_tool}、${tool_conf}、${cmake_file}"

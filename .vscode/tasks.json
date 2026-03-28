@@ -7,9 +7,8 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "./cb.sh",
             "args": [
-                "cb.py",
                 "--conan"
             ],
             "group": {
@@ -27,9 +26,8 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "./cb.sh",
             "args": [
-                "cb.py",
                 "-g"
             ],
             "group": {
@@ -47,9 +45,8 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "./cb.sh",
             "args": [
-                "cb.py",
                 "-b"
             ],
             "group": {
@@ -67,9 +64,8 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "./cb.sh",
             "args": [
-                "cb.py",
                 "-c"
             ],
             "group": {
@@ -87,9 +83,8 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "./cb.sh",
             "args": [
-                "cb.py",
                 "-r"
             ],
             "group": {
@@ -110,9 +105,8 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "./cb.sh",
             "args": [
-                "cb.py",
                 "-t"
             ],
             "group": {
@@ -130,9 +124,8 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "./cb.sh",
             "args": [
-                "cb.py",
                 "-b",
                 "--target",
                 "deploy"
@@ -148,4 +141,5 @@
         }
     ]
 }
+
 

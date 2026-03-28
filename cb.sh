@@ -64,9 +64,36 @@ cmd_array_to_cmdline() {
 run_with_msvc_env() {
   local user_cmd="$1"
   local msvc_env
+  local tmp_cmd tmp_cmd_win
+  local exit_code=0
   msvc_env="${MSVC_ENV_SCRIPT//\//\\}"
   log_info "call \"${msvc_env}\" ${HOST_ARCH} && ${user_cmd}"
-  cmd.exe /c "call \"${msvc_env}\" ${HOST_ARCH} && ${user_cmd}"
+
+  if command -v mktemp >/dev/null 2>&1; then
+    tmp_cmd="$(mktemp "${TMPDIR:-/tmp}/cb_msvc_XXXXXX.cmd")"
+  else
+    tmp_cmd="${TMPDIR:-/tmp}/cb_msvc_$$.cmd"
+  fi
+
+  cat > "$tmp_cmd" <<EOF
+@echo off
+call "${msvc_env}" ${HOST_ARCH}
+if errorlevel 1 exit /b %errorlevel%
+${user_cmd}
+exit /b %errorlevel%
+EOF
+
+  tmp_cmd_win="$tmp_cmd"
+  if command -v cygpath >/dev/null 2>&1; then
+    tmp_cmd_win="$(cygpath -w "$tmp_cmd")"
+  fi
+
+  # In Git Bash/MSYS, disable argument path conversion for cmd switches.
+  MSYS2_ARG_CONV_EXCL='*' MSYS_NO_PATHCONV=1 \
+    cmd.exe /d /c "$tmp_cmd_win" || exit_code=$?
+
+  rm -f "$tmp_cmd"
+  return $exit_code
 }
 
 trim() {
@@ -313,7 +340,7 @@ update_vscode_launch() {
 
   cp -f "$launch_json" "${launch_json}.bak"
   escaped="${program_path//\//\\/}"
-  sed -E "0,/\"program\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/s//\"program\": \"${escaped}\"/" \
+  sed -E "s/(\"program\"[[:space:]]*:[[:space:]]*\")[^\"]*(\")/\1${escaped}\2/g" \
     "$launch_json" > "${launch_json}.tmp"
   mv "${launch_json}.tmp" "$launch_json"
   log_info "Updated .vscode/launch.json program -> ${program_path}"
