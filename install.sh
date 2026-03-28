@@ -45,10 +45,10 @@ for arg in "$@"; do
         -s|--simple|simple)
             mode="simple"
             ;;
-        python|--python)
+        python|--python|py|--py)
             install_variant="python"
             ;;
-        bash|--bash)
+        bash|--bash|sh|--sh)
             install_variant="bash"
             ;;
         -h|--help)
