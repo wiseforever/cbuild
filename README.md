@@ -38,7 +38,7 @@ curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh | bash
 安装 Python 版本（会覆盖 `.vscode/tasks.json` 为 Python 任务）：
 
 ```bash
-curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh | bash -s --python
+curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh | bash -s py
 ```
 
 仅拉取 `.clang-format`：

@@ -557,12 +557,6 @@ run_cmake_configure() {
   if [[ "$OS_TYPE" == "windows" && "$MSVC_ENABLE" == "true" && -n "$MSVC_ENV_SCRIPT" ]]; then
     local cmake_cmd
     cmake_cmd="cmake -S \"${SOURCE_DIR}\" -B \"${BUILD_DIR}\" -G \"${GENERATOR}\" -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
-    if [[ -n "$C_COMPILER" ]]; then
-      cmake_cmd+=" -DCMAKE_C_COMPILER=${C_COMPILER}"
-    fi
-    if [[ -n "$CXX_COMPILER" ]]; then
-      cmake_cmd+=" -DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
-    fi
     if [[ -n "$CMAKE_TOOLCHAIN_FILE" ]]; then
       cmake_cmd+=" -DCMAKE_TOOLCHAIN_FILE=\"${CMAKE_TOOLCHAIN_FILE}\""
     fi
