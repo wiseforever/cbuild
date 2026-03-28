@@ -30,14 +30,16 @@
 首先进入自己项目的根目录，运行此仓库的install.sh脚本，脚本会自动搭建好。
 
 ```bash
-# 默认是
-./install.sh
+curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh | bash
 
-# 若install.sh不是最新版本
-# 可以手动下载最新版本的install.sh，也可以用install.sh进行更新
-./install.sh update
-# or
-./install.sh --update
+bash <(curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh) format
+```
+
+也可以先拉取整个仓库：
+
+```bash
+git clone https://gitee.com/wiseforever/cbuild-py.git
+cd cbuild-py
 ```
 
 前提：

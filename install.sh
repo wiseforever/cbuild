@@ -26,9 +26,9 @@ if [[ "$1" == "-s" || "$1" == "--simple" ]]; then
     mode="simple"
 fi
 
-if [[ "$1" == "update" || "$1" == "--update" ]]; then
-    mode="update"
-fi
+# if [[ "$1" == "update" || "$1" == "--update" ]]; then
+#     mode="update"
+# fi
 
 
 # 创建临时目录
@@ -82,19 +82,19 @@ fi
 
 date_str=$(date "+%Y%m%d_%H%M%S")
 
-if [[ $mode == "update" ]]; then
-    # 更新你需要的内容到当前目录
-    if [[ -f "$temp_dir/${install_script_name}" ]]; then
-        mkdir -p ${bak_dir}/bak_$date_str/
-        mv ${arg_path}/${install_script_name} ${bak_dir}/bak_$date_str/
-        cp -a "$temp_dir/${install_script_name}" ${arg_path} 2>/dev/null
-        rm -rf "$temp_dir"
-        exit 0
-    else
-        echo "远程仓库未找到 ${install_script_name} 脚本，请检查仓库是否正确克隆！"
-        exit 1
-    fi
-fi
+# if [[ $mode == "update" ]]; then
+#     # 更新你需要的内容到当前目录
+#     if [[ -f "$temp_dir/${install_script_name}" ]]; then
+#         mkdir -p ${bak_dir}/bak_$date_str/
+#         mv ${arg_path}/${install_script_name} ${bak_dir}/bak_$date_str/
+#         cp -a "$temp_dir/${install_script_name}" ${arg_path} 2>/dev/null
+#         rm -rf "$temp_dir"
+#         exit 0
+#     else
+#         echo "远程仓库未找到 ${install_script_name} 脚本，请检查仓库是否正确克隆！"
+#         exit 1
+#     fi
+# fi
 
 
 
@@ -128,7 +128,7 @@ fi
 
 if [ ! -f "$temp_dir/${tool_name}" ]; then
     rm -rf "$temp_dir" # 删除临时目录
-    echo "❌ 未找到 ${tool_name}，请检查仓库是否正确克隆！"
+    echo "未找到 ${tool_name}，请检查仓库是否正确克隆！"
     exit 1
 fi
 
@@ -144,4 +144,4 @@ fi
 # 清理临时目录
 rm -rf "$temp_dir"
 
-echo "✅ 已提取 .vscode、${tool_name}、${tool_conf_name}、cmake/ez_custom_func.cmake 到当前目录！"
+echo "已提取 .vscode、${tool_name}、${tool_conf_name}、cmake/ez_custom_func.cmake 到当前目录！"
