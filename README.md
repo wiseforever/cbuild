@@ -44,18 +44,30 @@ python -m pip install conan
 默认安装 Bash 版本（会覆盖 `.vscode/tasks.json` 为 Bash 任务）：
 
 ```bash
+# github
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
+
+# gitee
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 ```
 
 安装 Python 版本（会覆盖 `.vscode/tasks.json` 为 Python 任务）：
 
 ```bash
+# github
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s py
+
+# gitee
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s py
 ```
 
 仅拉取 `.clang-format`：
 
 ```bash
+# github
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
+
+# gitee
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
 ```
 
@@ -71,7 +83,7 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 ### cb.py / cb.sh 的使用
 cb.py 与 cb.sh 都依赖 cb_conf.ini 文件，在使用前请将 cb_conf.ini 放在其同级目录下。
 
-### 关于 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
+#### 关于 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
 `cb.py` 与 `cb.sh` 默认不传入 `-DCMAKE_C_COMPILER` 和 `-DCMAKE_CXX_COMPILER`。  
 如果你需要固定编译器，请自行在 `CMakeLists.txt` 中添加（建议放在第一次 `project()` 之前）：
@@ -103,16 +115,16 @@ parallel_jobs = auto    # 并行编译的线程数，auto为自动选择cpu核�
 c_compiler = gcc        # c语言编译器
 cpp_compiler = g++      # c++语言编译器
 conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
-conan_build = gcc       # conan 的 profile build 对应的 profile
-conan_host = gcc        # conan 的 profile host 对应的 profile
+conan_build = gcc       # 对应 conan 的 profile build
+conan_host = gcc        # 对应 conan 的 profile host
 
 [msvc]                  # msvc 编译器比较特殊，需要指定环境变量脚本vcvarsall.bat的路径
 enable = 1              # 是否使用MSVC编译器，1、True、true表示使用，0、False、false表示不使用
 msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC环境变量脚本路径
 host_arch = x64         # 编译可执行程序的位数，可选 [x86、x64]
 conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
-conan_build = default   # conan 的 profile build 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
-conan_host = default    # conan 的 profile host 对应的 profile ，没有 conanfile.txt 或 conanfile.py 时，不生效
+conan_build = default   # 对应 conan 的 profile build ，没有 conanfile.txt 或 conanfile.py 时，不生效
+conan_host = default    # 对应 conan 的 profile host ，没有 conanfile.txt 或 conanfile.py 时，不生效
 
 ```
 
@@ -183,10 +195,10 @@ bash cb.sh -h
 
 如上图的1-5按钮，分别对应了生成
 
-- 1.CMake缓存；
+- 1.cmake generate；
 - 2.编译；
 - 3.运行；
-- 4.deploy部署（此处需要自己在CMakeLists.txt中根据自己项目定义一个deploy的target。若不需要请忽略）
+- 4.deploy（此处需要自己在CMakeLists.txt中根据自己项目定义一个deploy的target。若不需要请忽略）
 - 5.切换Debug/Release编译类型；
 - 6.清理。
 

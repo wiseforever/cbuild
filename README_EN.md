@@ -6,7 +6,7 @@ This repository provides a lightweight build workflow for C/C++ projects, with o
 
 ## How To Use
 
-### 1. Prerequisites
+### Prerequisites
 
 - python3 (required for `cb.py`)
 - CMake + make/Ninja
@@ -27,25 +27,37 @@ Environment notes:
 python -m pip install conan
 ```
 
-### 2. Project Bootstrap
+### Project Bootstrap
 
 Run the install script in your project root.
 
 Default install (Bash version, replaces `.vscode/tasks.json` with Bash tasks):
 
 ```bash
+# github
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
+
+# gitee
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 ```
 
 Install Python version (replaces `.vscode/tasks.json` with Python tasks):
 
 ```bash
+# github
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s py
+
+# gitee
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s py
 ```
 
 Only pull `.clang-format`:
 
 ```bash
+# github
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
+
+# gitee
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
 ```
 
@@ -55,9 +67,57 @@ Notes:
 - If you do not use VSCode, only `cb.py` or `cb.sh` plus `cb_conf.ini` is required.
 - Task templates are split into `.vscode/tasks_python.json` and `.vscode/tasks_bash.json`; install will copy one of them to `tasks.json`.
 
-### 3. `cb.py` / `cb.sh`
+### `cb.py` / `cb.sh`
 
 Both scripts depend on `cb_conf.ini` in the same directory.
+
+#### Regarding `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
+
+`cb.py` and `cb.sh` do not pass `-DCMAKE_C_COMPILER` or `-DCMAKE_CXX_COMPILER` by default.
+
+If you need fixed compilers, configure them in `CMakeLists.txt` (before the first `project()`), for example:
+
+```cmake
+cmake_minimum_required(VERSION 3.20)
+set(CMAKE_C_COMPILER "gcc" CACHE STRING "" FORCE)
+set(CMAKE_CXX_COMPILER "g++" CACHE STRING "" FORCE)
+project(my_project LANGUAGES C CXX)
+```
+
+MSVC does not need to specify this parameter.
+
+
+#### Parameter description of cb_conf.ini
+
+
+
+cb_conf.ini 中的参数都可以自行进行合理的修改 ，以下是参数的说明：
+
+```ini
+[build]
+build_type = Debug      # The compilation type is Debug. Currently, [Debug, Release]
+source_dir = .          # The source code directory, "."indicates the current directory
+generator = Ninja       # Build tools available: [Ninja, Unix Makefiles...]
+parallel_jobs = auto    # The number of threads for parallel compilation, where auto means the number of cpu cores is automatically selected
+
+[compiler]              # Compact-related configuration (excluding MSVC), is invalid if the enable of msvc takes effect (the msvc item is invalid under linux).
+c_compiler = gcc        # c language compiler
+cpp_compiler = g++      # c++ language compiler
+conan_enable = 1        # Whether to use conan: 1, True, true indicates usage; 0, False, false indicates non-usage.
+conan_build = gcc       # The profile corresponding to conan's profile build
+conan_host = gcc        # The profile corresponding to conan's profile host
+
+[msvc]                  # The msvc compiler is rather special and requires specifying the path of the environment variable script vcvarsall.bat
+enable = 1              # Whether to use the MSVC compiler or not, 1, True, true indicates usage, and 0, False, false indicates non-usage
+msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC environment variable script path
+host_arch = x64         # The number of bits for compiling the executable program can be selected as [x86, x64]
+conan_enable = 1        # Whether to use conan: 1, True, true indicates usage; 0, False, false indicates non-usage.
+conan_build = default   # The profile corresponding to conan's profile build , It does not take effect when there is no conanfile.txt or conanfile.py
+conan_host = default    # The profile corresponding to conan's profile host , It does not take effect when there is no conanfile.txt or conanfile.py
+
+```
+
+#### Command instructions for using cb.py/cb.sh
 
 Python examples:
 
@@ -83,22 +143,23 @@ bash cb.sh -r
 bash cb.sh -h
 ```
 
-### 4. About `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
+### vscode 配置
+.vscode 目录按照作者的习惯，做了一些配置，可以自行修改。
 
-`cb.py` and `cb.sh` do not pass `-DCMAKE_C_COMPILER` or `-DCMAKE_CXX_COMPILER` by default.
+![alt text](image.png)
 
-If you need fixed compilers, configure them in `CMakeLists.txt` (before the first `project()`), for example:
+如上图的1-5按钮，分别对应了生成
 
-```cmake
-cmake_minimum_required(VERSION 3.20)
-set(CMAKE_C_COMPILER "gcc" CACHE STRING "" FORCE)
-set(CMAKE_CXX_COMPILER "g++" CACHE STRING "" FORCE)
-project(my_project LANGUAGES C CXX)
-```
+- 1.cmake generate;
+- 2.compiling;
+- 3.running
+- 4.deploy (Here, you need to define a "deploy" target in your CMakeLists.txt according to your project requirements. If not necessary, please ignore it.);
+- 5.Switch between Debug and Release compilation types;
+- 6.clean.
 
-MSVC does not need to specify this parameter.
+You can also use the commands in the command description in cb.py/cb.sh in the terminal, or use the Task Buttons plugin in vscode. After configuring the shortcut keys, you can quickly compile and run.
 
-### 5. Conan Usage
+### Conan Usage
 
 - Create `conanfile.py` or `conanfile.txt` in the project root.
 - Enable Conan in `cb_conf.ini` (`conan_enable = 1`).
