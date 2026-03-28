@@ -22,4 +22,4 @@
 
 - Use `UTF-8` without BOM for text files.
 - Use `LF` line endings for text files.
-- Store project skills under `.codex/skills/`.
+- Store project skills under `skills/`.
