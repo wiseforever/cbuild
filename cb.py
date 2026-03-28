@@ -171,6 +171,10 @@ def update_vscode_launch():
     except Exception as e:
         log.warning(f"Failed to update launch.json: {e}")
 
+def has_vscode_launch():
+    launch_json_path = os.path.join(SOURCE_DIR, ".vscode", "launch.json")
+    return os.path.isfile(launch_json_path)
+
 def is_option_token(tok: str) -> bool:
     return tok.startswith("-")
 
@@ -217,7 +221,8 @@ def parse_args():
                 if new_type != BUILD_TYPE:
                     BUILD_TYPE = new_type
                     save_config()
-                    update_vscode_launch()
+                    if has_vscode_launch():
+                        update_vscode_launch()
                     log.info(f"The build type has been switched to: {BUILD_TYPE}")
                     type_changed = True
                 else:
@@ -225,7 +230,8 @@ def parse_args():
             else:
                 BUILD_TYPE = "Debug" if BUILD_TYPE == "Release" else "Release"
                 save_config()
-                update_vscode_launch()
+                if has_vscode_launch():
+                    update_vscode_launch()
                 log.info(f"The build type has been switched to: {BUILD_TYPE}")
                 type_changed = True
 
@@ -590,7 +596,8 @@ def run():
         if not os.path.isfile(exe_path):
             log.error(f"The executable file: {exe_path} cannot be found.")
             sys.exit(1)
-        update_vscode_launch()
+        if has_vscode_launch():
+            update_vscode_launch()
         log.info(f"exec: {exe_path}")
         return
 

@@ -346,6 +346,10 @@ update_vscode_launch() {
   log_info "Updated .vscode/launch.json program -> ${program_path}"
 }
 
+has_vscode_launch() {
+  [[ -f "$SOURCE_DIR/.vscode/launch.json" ]]
+}
+
 print_help() {
   cat <<'EOF'
 Usage: cb.sh [options]
@@ -383,7 +387,9 @@ parse_args() {
         if [[ "$next" != "$BUILD_TYPE" ]]; then
           BUILD_TYPE="$next"
           save_build_type "$BUILD_TYPE"
-          update_vscode_launch
+          if has_vscode_launch; then
+            update_vscode_launch
+          fi
           log_info "The build type has been switched to: $BUILD_TYPE"
           type_changed="true"
         else
@@ -396,7 +402,9 @@ parse_args() {
           BUILD_TYPE="Release"
         fi
         save_build_type "$BUILD_TYPE"
-        update_vscode_launch
+        if has_vscode_launch; then
+          update_vscode_launch
+        fi
         log_info "The build type has been switched to: $BUILD_TYPE"
         type_changed="true"
       fi
@@ -689,7 +697,9 @@ main() {
       log_err "The executable file: $exe_path cannot be found."
       exit 1
     fi
-    update_vscode_launch
+    if has_vscode_launch; then
+      update_vscode_launch
+    fi
     log_info "exec: $exe_path"
     exit 0
   fi
