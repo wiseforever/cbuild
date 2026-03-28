@@ -1,5 +1,7 @@
 # cbuild-py
 
+English documentation: [README_EN.md](README_EN.md)
+
 ```
     该仓库用于更方便的编译c、c++程序。
 
@@ -16,7 +18,7 @@
 
 ### 1. 安装依赖
 
-- python3
+- python3 (required for `cb.py`)
 - CMake + make / Ninja
 - MSVC / gcc / clang
 - conan (可选)
@@ -24,6 +26,16 @@
 - C/C++ (VSCode插件、可选)
 - clangd + CodeLLDB (VSCode插件、可选)
 - Task Buttons (VSCode插件、可选)
+
+环境建议：
+
+- Windows 下使用 Bash 版本（`install.sh` / `cb.sh`）时，建议在 Git Bash 终端执行。
+- 使用 Python 版本（`cb.py`）前，请先安装 Python（建议 Python 3.8+）。
+- Conan 建议通过 `pip` 安装：
+
+```bash
+python -m pip install conan
+```
 
 ### 2. 搭建项目
 
@@ -58,6 +70,23 @@ curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh | bash 
 
 ### cb.py / cb.sh 的使用
 cb.py 与 cb.sh 都依赖 cb_conf.ini 文件，在使用前请将 cb_conf.ini 放在其同级目录下。
+
+### 关于 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
+
+`cb.py` 与 `cb.sh` 默认不传入 `-DCMAKE_C_COMPILER` 和 `-DCMAKE_CXX_COMPILER`。  
+如果你需要固定编译器，请自行在 `CMakeLists.txt` 中添加（建议放在第一次 `project()` 之前）：
+
+```CMakeLists.txt
+cmake_minimum_required(VERSION 3.20)
+
+# 按需固定编译器（示例）
+set(CMAKE_C_COMPILER "gcc" CACHE STRING "" FORCE)
+set(CMAKE_CXX_COMPILER "g++" CACHE STRING "" FORCE)
+
+project(my_project LANGUAGES C CXX)
+```
+
+MSVC 不需要指定该参数
 
 #### cb_conf.ini 参数说明
 
@@ -186,9 +215,6 @@ from conan.tools.files import copy
 import os
 
 class MyProjectConan(ConanFile):
-    name = "myproject"
-    version = "0.1"
-
     settings = "os", "compiler", "build_type", "arch"
 
     # 生成器
@@ -207,9 +233,6 @@ class MyProjectConan(ConanFile):
         self.cpp.build.libdirs = ["lib"]
 
     def generate(self):
-        # if not self.options.shared:
-        #     return
-
         # 这个位置可以自定义，self.build_folder是 构建目录，表示在构建目录下的bin目录
         # 目的是将动态库直接拷贝到bin目录下，便于运行时直接加载
         build_bin = os.path.join(self.build_folder, "bin")

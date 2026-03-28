@@ -309,10 +309,10 @@ def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
             #     return "MSVC-unknown"
             return f"MSVC-{host_arch}"
         else:
-            return "Default"
+            return ""
     except FileNotFoundError:
         log.error(f"Compiler not found: {compiler_type}")
-        return "unknown"
+        return ""
 
 def prepare_build_dir(create=True):
     global BUILD_DIR
@@ -324,7 +324,10 @@ def prepare_build_dir(create=True):
             MSVC_ENV_SCRIPT,
             HOST_ARCH or "x64"
         )
-        BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
+        if compiler_id:
+            BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
+        else:
+            BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{BUILD_TYPE}").replace("\\", "/")
     
     if create:
         os.makedirs(BUILD_DIR, exist_ok=True)
@@ -529,7 +532,10 @@ def clean_build():
             MSVC_ENV_SCRIPT,
             HOST_ARCH or "x64"
         )
-        BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
+        if compiler_id:
+            BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
+        else:
+            BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{BUILD_TYPE}").replace("\\", "/")
 
     if os.path.isdir(BUILD_DIR):
         log.info(f"Cleaning {BUILD_DIR} ...")

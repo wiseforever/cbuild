@@ -244,7 +244,7 @@ detect_compiler_version() {
     fi
     if ! first_line="$("$compiler_exec" --version 2>/dev/null | head -n1)"; then
       log_warn "Compiler not found: $compiler_exec"
-      printf 'unknown'
+      printf ''
       return 0
     fi
     ver="$(printf '%s' "$first_line" | grep -Eo '[0-9]+(\.[0-9]+){1,2}' | head -n1 || true)"
@@ -263,7 +263,7 @@ detect_compiler_version() {
     fi
     if ! first_line="$("$compiler_exec" --version 2>/dev/null | head -n1)"; then
       log_warn "Compiler not found: $compiler_exec"
-      printf 'unknown'
+      printf ''
       return 0
     fi
     ver="$(printf '%s' "$first_line" | grep -Eo '[0-9]+(\.[0-9]+){1,2}' | head -n1 || true)"
@@ -274,7 +274,7 @@ detect_compiler_version() {
     printf 'MSVC-%s' "${HOST_ARCH:-x64}"
     ;;
   *)
-    printf 'Default'
+    printf ''
     ;;
   esac
 }
@@ -284,7 +284,11 @@ prepare_build_dir() {
   if [[ -z "$BUILD_DIR" ]]; then
     local compiler_id
     compiler_id="$(detect_compiler_version "$COMPILER_TYPE")"
-    BUILD_DIR="${SOURCE_DIR}/build/${compiler_id}-${BUILD_TYPE}"
+    if [[ -n "$compiler_id" ]]; then
+      BUILD_DIR="${SOURCE_DIR}/build/${compiler_id}-${BUILD_TYPE}"
+    else
+      BUILD_DIR="${SOURCE_DIR}/build/${BUILD_TYPE}"
+    fi
   fi
   if [[ "$create" == "true" ]]; then
     mkdir -p "$BUILD_DIR"
@@ -566,12 +570,6 @@ run_cmake_configure() {
 
   local cmd=()
   cmd=(cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G "$GENERATOR" "-DCMAKE_BUILD_TYPE=$BUILD_TYPE")
-  if [[ -n "$C_COMPILER" ]]; then
-    cmd+=("-DCMAKE_C_COMPILER=$C_COMPILER")
-  fi
-  if [[ -n "$CXX_COMPILER" ]]; then
-    cmd+=("-DCMAKE_CXX_COMPILER=$CXX_COMPILER")
-  fi
   if [[ -n "$CMAKE_TOOLCHAIN_FILE" ]]; then
     cmd+=("-DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE")
   fi
