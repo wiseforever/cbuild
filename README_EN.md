@@ -91,7 +91,7 @@ MSVC does not need to specify this parameter.
 
 
 
-cb_conf.ini 中的参数都可以自行进行合理的修改 ，以下是参数的说明：
+All the parameters in cb_conf.ini can be modified reasonably by yourself. The following is the description of the parameters:
 
 ```ini
 [build]
@@ -143,12 +143,12 @@ bash cb.sh -r
 bash cb.sh -h
 ```
 
-### vscode 配置
-.vscode 目录按照作者的习惯，做了一些配置，可以自行修改。
+### vscode configuration
+The.vscode directory has been configured according to the author's habits and can be modified by yourself.
 
 ![alt text](image.png)
 
-如上图的1-5按钮，分别对应了生成
+As shown in buttons 1 to 5 in the above figure, they respectively correspond to generation
 
 - 1.cmake generate;
 - 2.compiling;
