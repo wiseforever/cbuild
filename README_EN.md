@@ -1,4 +1,4 @@
-# cbuild-py
+# cbuild
 
 中文文档: [README.md](README.md)
 
@@ -34,19 +34,19 @@ Run the install script in your project root.
 Default install (Bash version, replaces `.vscode/tasks.json` with Bash tasks):
 
 ```bash
-curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh | bash
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 ```
 
 Install Python version (replaces `.vscode/tasks.json` with Python tasks):
 
 ```bash
-curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh | bash -s py
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s py
 ```
 
 Only pull `.clang-format`:
 
 ```bash
-curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh | bash -s format
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
 ```
 
 Notes:
