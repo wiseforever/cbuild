@@ -60,8 +60,11 @@ compile_commands.json
 # log
 log/
 
-# .vscode
-.vscode/
+# # .vscode
+# .vscode/*
+# !.vscode/tasks.json
+# !.vscode/tasks_python.json
+# !.vscode/tasks_bash.json
 
 # .vs folder
 .vs/

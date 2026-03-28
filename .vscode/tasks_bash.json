@@ -7,9 +7,9 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "bash",
             "args": [
-                "cb.py",
+                "cb.sh",
                 "--conan"
             ],
             "group": {
@@ -27,9 +27,9 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "bash",
             "args": [
-                "cb.py",
+                "cb.sh",
                 "-g"
             ],
             "group": {
@@ -47,9 +47,9 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "bash",
             "args": [
-                "cb.py",
+                "cb.sh",
                 "-b"
             ],
             "group": {
@@ -67,9 +67,9 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "bash",
             "args": [
-                "cb.py",
+                "cb.sh",
                 "-c"
             ],
             "group": {
@@ -87,9 +87,9 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "bash",
             "args": [
-                "cb.py",
+                "cb.sh",
                 "-r"
             ],
             "group": {
@@ -110,9 +110,9 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "bash",
             "args": [
-                "cb.py",
+                "cb.sh",
                 "-t"
             ],
             "group": {
@@ -130,9 +130,9 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "python",
+            "command": "bash",
             "args": [
-                "cb.py",
+                "cb.sh",
                 "-b",
                 "--target",
                 "deploy"
@@ -148,4 +148,5 @@
         }
     ]
 }
+
 

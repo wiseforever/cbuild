@@ -29,9 +29,21 @@
 
 首先进入自己项目的根目录，运行此仓库的install.sh脚本，脚本会自动搭建好。
 
+默认安装 Python 版本（会覆盖 `.vscode/tasks.json` 为 Python 任务）：
+
 ```bash
 curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh | bash
+```
 
+安装 Bash 版本（会覆盖 `.vscode/tasks.json` 为 Bash 任务）：
+
+```bash
+bash <(curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh) --bash
+```
+
+仅拉取 `.clang-format`：
+
+```bash
 bash <(curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh) format
 ```
 
@@ -40,17 +52,25 @@ bash <(curl -fsSL https://gitee.com/wiseforever/cbuild-py/raw/master/install.sh)
 ```bash
 git clone https://gitee.com/wiseforever/cbuild-py.git
 cd cbuild-py
+
+# 默认安装 Python 版本
+./install.sh
+
+# 安装 Bash 版本
+./install.sh --bash
 ```
 
 前提：
 
 - 项目根目录下应该不要存在.vscode目录，因为脚本会检查、备份以及看情况创建这个目录，为了避免冲突请在运行 install.sh 脚本的时候，请先清理好项目目录。
 
-- 若不需要使用 vscode 可以不依赖 .vscode 目录，仅仅需要 cb.py 与 cb_conf.ini 文件即可。
+- 若不需要使用 vscode 可以不依赖 .vscode 目录，仅仅需要 cb.py 或 cb.sh 与 cb_conf.ini 文件即可。
+
+- `.vscode/tasks.json` 已按模板拆分为 `.vscode/tasks_python.json` 与 `.vscode/tasks_bash.json`，安装时会按版本自动覆盖为对应的 `tasks.json`。
 
 
-### cb.py 的使用
-cb.py 依赖 cb_conf.ini 文件，在使用 cb.py 之前请将 cb_conf.ini 放在其同级目录下。没有
+### cb.py / cb.sh 的使用
+cb.py 与 cb.sh 都依赖 cb_conf.ini 文件，在使用前请将 cb_conf.ini 放在其同级目录下。
 
 #### cb_conf.ini 参数说明
 
@@ -80,7 +100,7 @@ conan_host = default    # conan 的 profile host 对应的 profile ，没有 con
 
 ```
 
-#### cb.py 使用命令说明
+#### cb.py / cb.sh 使用命令说明
 
 cb.py  脚本依赖 cb_conf.ini 文件中的参数具有一些记忆功能，但也可以通过命令行让其不过分依赖。
 
@@ -128,6 +148,18 @@ python cb.py -h
 python cb.py --help
 ```
 
+`cb.sh` 参数与 `cb.py` 保持一致，用法示例：
+
+```bash
+bash cb.sh -t
+bash cb.sh --conan
+bash cb.sh -g
+bash cb.sh -b --target all
+bash cb.sh -c
+bash cb.sh -r
+bash cb.sh -h
+```
+
 ### vscode 配置
 .vscode 目录按照作者的习惯，做了一些配置，可以自行修改。
 
@@ -142,7 +174,7 @@ python cb.py --help
 - 5.切换Debug/Release编译类型；
 - 6.清理。
 
-也可以在终端中使用 cb.py 使用命令说明中的命令，也可以在 vscode 中使用 Task Buttons 插件，配置好快捷键，即可快速编译运行。
+也可以在终端中使用 cb.py/cb.sh 使用命令说明中的命令，也可以在 vscode 中使用 Task Buttons 插件，配置好快捷键，即可快速编译运行。
 
 
 
