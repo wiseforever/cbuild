@@ -1,14 +1,15 @@
 #!/bin/bash
 
+set -euo pipefail
+
 arg_path=$(pwd)
 if [[ $arg_path == /cygdrive/* ]]; then
     arg_path=$(cygpath -w "$arg_path")
     arg_path=${arg_path//\\//}
 fi
 
-repo_url="https://gitee.com/wiseforever/cbuild-py.git"
-temp_dir="${arg_path}/cbuild-py_tmp"
-bak_dir="${arg_path}/cbuild-py_bak"
+raw_base_url="https://gitee.com/wiseforever/cbuild/raw/master"
+bak_dir="${arg_path}/cbuild_bak"
 date_str=$(date "+%Y%m%d_%H%M%S")
 
 tool_python="cb.py"
@@ -35,6 +36,32 @@ Options:
   format, --format  仅拉取 .clang-format
   -h, --help        显示帮助
 EOF
+}
+
+download_file() {
+    local rel_path="$1"
+    local dest_path="$2"
+    local url="${raw_base_url}/${rel_path}"
+    local tmp_path="${dest_path}.cbtmp.$$"
+
+    mkdir -p "$(dirname "$dest_path")"
+
+    if command -v curl >/dev/null 2>&1; then
+        if ! curl -fsSL "$url" -o "$tmp_path"; then
+            rm -f "$tmp_path"
+            return 1
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if ! wget -qO "$tmp_path" "$url"; then
+            rm -f "$tmp_path"
+            return 1
+        fi
+    else
+        echo "未找到 curl 或 wget，无法下载文件。"
+        return 1
+    fi
+
+    mv -f "$tmp_path" "$dest_path"
 }
 
 for arg in "$@"; do
@@ -70,74 +97,19 @@ if [[ "$install_variant" == "python" ]]; then
     selected_tasks_template="$tasks_python"
 fi
 
-mkdir -p "$temp_dir" || {
-    echo "创建临时目录失败，请检查目录权限或路径是否正确！"
-    exit 1
-}
-
-git clone --depth=1 "$repo_url" "$temp_dir" || {
-    rm -rf "$temp_dir"
-    echo "克隆仓库失败，请检查网络、git环境或仓库地址是否正确！"
-    exit 1
-}
-
-if [[ ! -d "$temp_dir" ]]; then
-    echo "克隆仓库失败，请检查网络、git环境或仓库地址是否正确！"
-    exit 1
-fi
-
 if [[ "$mode" == "format" ]]; then
-    if [[ ! -f "$temp_dir/$clang_format_file" ]]; then
-        rm -rf "$temp_dir"
-        echo "远程仓库未找到 $clang_format_file 文件，请检查仓库是否正确克隆！"
-        exit 1
-    fi
-
     if [[ -f "${arg_path}/$clang_format_file" ]]; then
         mkdir -p "${bak_dir}/bak_${date_str}"
         mv "${arg_path}/$clang_format_file" "${bak_dir}/bak_${date_str}/"
     fi
 
-    cp -a "$temp_dir/$clang_format_file" "$arg_path" 2>/dev/null
-    rm -rf "$temp_dir"
+    if ! download_file "$clang_format_file" "${arg_path}/$clang_format_file"; then
+        echo "下载 $clang_format_file 失败，请检查网络或仓库地址是否正确！"
+        exit 1
+    fi
+
     echo "已更新 $clang_format_file 到当前目录。"
     exit 0
-fi
-
-if [[ ! -d "$temp_dir/.vscode" ]]; then
-    rm -rf "$temp_dir"
-    echo "未找到远程仓库的 .vscode 目录，请检查仓库是否正确克隆！"
-    exit 1
-fi
-
-if [[ ! -d "$temp_dir/cmake" ]]; then
-    rm -rf "$temp_dir"
-    echo "未找到远程仓库的 cmake 目录，请检查仓库是否正确克隆！"
-    exit 1
-fi
-
-if [[ ! -f "$temp_dir/$selected_tool" ]]; then
-    rm -rf "$temp_dir"
-    echo "未找到 ${selected_tool}，请检查仓库是否正确克隆！"
-    exit 1
-fi
-
-if [[ ! -f "$temp_dir/$tool_conf" ]]; then
-    rm -rf "$temp_dir"
-    echo "未找到 ${tool_conf}，请检查仓库是否正确克隆！"
-    exit 1
-fi
-
-if [[ ! -f "$temp_dir/$selected_tasks_template" ]]; then
-    rm -rf "$temp_dir"
-    echo "未找到 ${selected_tasks_template}，请检查仓库是否正确克隆！"
-    exit 1
-fi
-
-if [[ ! -f "$temp_dir/$cmake_file" ]]; then
-    rm -rf "$temp_dir"
-    echo "未找到 ${cmake_file}，请检查仓库是否正确克隆！"
-    exit 1
 fi
 
 if [[ -d "${arg_path}/.vscode" ]]; then
@@ -166,13 +138,44 @@ if [[ -f "${arg_path}/$tool_conf" ]]; then
 fi
 
 if [[ "$mode" == "simple" ]]; then
-    cp -a "$temp_dir/.vscode" "$arg_path" 2>/dev/null
-    cp -a "$temp_dir/$selected_tool" "$arg_path" 2>/dev/null
-    cp -a "$temp_dir/$tool_conf" "$arg_path" 2>/dev/null
-    cp -a "$temp_dir/$selected_tasks_template" "${arg_path}/.vscode/tasks.json" 2>/dev/null
-    mkdir -p "${arg_path}/cmake"
-    cp -a "$temp_dir/$cmake_file" "${arg_path}/cmake/" 2>/dev/null
+    download_file ".vscode/c_cpp_header.code-snippets" "${arg_path}/.vscode/c_cpp_header.code-snippets" || {
+        echo "下载 .vscode/c_cpp_header.code-snippets 失败！"
+        exit 1
+    }
+    download_file ".vscode/c_cpp_properties.json" "${arg_path}/.vscode/c_cpp_properties.json" || {
+        echo "下载 .vscode/c_cpp_properties.json 失败！"
+        exit 1
+    }
+    download_file ".vscode/launch.json" "${arg_path}/.vscode/launch.json" || {
+        echo "下载 .vscode/launch.json 失败！"
+        exit 1
+    }
+    download_file ".vscode/settings.json" "${arg_path}/.vscode/settings.json" || {
+        echo "下载 .vscode/settings.json 失败！"
+        exit 1
+    }
+    download_file "$tasks_bash" "${arg_path}/$tasks_bash" || {
+        echo "下载 ${tasks_bash} 失败！"
+        exit 1
+    }
+    download_file "$tasks_python" "${arg_path}/$tasks_python" || {
+        echo "下载 ${tasks_python} 失败！"
+        exit 1
+    }
+    download_file "$selected_tool" "${arg_path}/$selected_tool" || {
+        echo "下载 ${selected_tool} 失败！"
+        exit 1
+    }
+    download_file "$tool_conf" "${arg_path}/$tool_conf" || {
+        echo "下载 ${tool_conf} 失败！"
+        exit 1
+    }
+    download_file "$cmake_file" "${arg_path}/$cmake_file" || {
+        echo "下载 ${cmake_file} 失败！"
+        exit 1
+    }
+
+    cp -a "${arg_path}/$selected_tasks_template" "${arg_path}/.vscode/tasks.json"
 fi
 
-rm -rf "$temp_dir"
 echo "已安装 ${install_variant} 版本：.vscode(含 tasks.json)、${selected_tool}、${tool_conf}、${cmake_file}"
