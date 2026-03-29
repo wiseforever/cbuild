@@ -31,7 +31,7 @@ python -m pip install conan
 
 Run the install script in your project root.
 
-Default install (Bash version, replaces `.vscode/tasks.json` with Bash tasks):
+Default install (Python version, replaces `.vscode/tasks.json` with Python tasks):
 
 ```bash
 # github
@@ -41,14 +41,14 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 ```
 
-Install Python version (replaces `.vscode/tasks.json` with Python tasks):
+Install Bash version (replaces `.vscode/tasks.json` with Bash tasks):
 
 ```bash
 # github
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s py
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
 
 # gitee
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s py
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
 ```
 
 Only pull `.clang-format`:

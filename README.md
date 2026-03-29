@@ -41,7 +41,7 @@ python -m pip install conan
 
 首先进入自己项目的根目录，运行此仓库的install.sh脚本，脚本会自动搭建好。
 
-默认安装 Bash 版本（会覆盖 `.vscode/tasks.json` 为 Bash 任务）：
+默认安装 Python 版本（会覆盖 `.vscode/tasks.json` 为 Python 任务）：
 
 ```bash
 # github
@@ -51,14 +51,14 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 ```
 
-安装 Python 版本（会覆盖 `.vscode/tasks.json` 为 Python 任务）：
+安装 Bash 版本（会覆盖 `.vscode/tasks.json` 为 Bash 任务）：
 
 ```bash
 # github
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s py
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
 
 # gitee
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s py
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
 ```
 
 仅拉取 `.clang-format`：

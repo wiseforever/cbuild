@@ -21,7 +21,7 @@ clang_format_file=".clang-format"
 cmake_file="cmake/ez_custom_func.cmake"
 
 mode="simple"
-install_variant="bash"
+install_variant="python"
 
 print_help() {
     cat <<'EOF'
