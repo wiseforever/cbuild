@@ -9,7 +9,9 @@ import shutil
 import re
 import configparser
 import importlib.util
+import json
 import logging
+import shlex
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -352,12 +354,115 @@ def read_conanfile_txt_options(conanfile_txt_path):
             cli_args += ["-o", f"{key}={value}"]
     return cli_args
 
+def can_import_conan_module():
+    try:
+        import conan  # noqa: F401
+        return True
+    except ModuleNotFoundError:
+        return False
+
+def read_python_from_shebang(script_path):
+    """从 conan 启动脚本 shebang 中解析真实 Python 解释器"""
+    try:
+        with open(script_path, "rb") as f:
+            first_line = f.readline(512).decode("utf-8", errors="ignore").strip()
+    except OSError:
+        return None
+
+    if not first_line.startswith("#!"):
+        return None
+
+    parts = shlex.split(first_line[2:])
+    if not parts:
+        return None
+
+    if os.path.basename(parts[0]) == "env":
+        for part in parts[1:]:
+            if part.startswith("-"):
+                continue
+            return shutil.which(part) or part
+
+    return parts[0]
+
+def query_conan_module_paths(python_exec):
+    """让 conan 命令所属 Python 返回可导入 Conan 的路径"""
+    if not python_exec:
+        return []
+
+    code = r'''
+import json
+import os
+import sysconfig
+
+import conan
+
+paths = []
+for key in ("purelib", "platlib"):
+    path = sysconfig.get_paths().get(key)
+    if path:
+        paths.append(path)
+
+module_dir = os.path.abspath(os.path.dirname(conan.__file__))
+paths.append(os.path.dirname(module_dir))
+
+print(json.dumps(list(dict.fromkeys(paths))))
+'''
+    try:
+        result = subprocess.run(
+            [python_exec, "-c", code],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return json.loads(result.stdout)
+    except Exception as e:
+        log.debug(f"Failed to query Conan Python paths from {python_exec}: {e}")
+        return []
+
+def enable_conan_from_cli_python():
+    conan_cmd = shutil.which("conan")
+    if conan_cmd is None:
+        return False
+
+    entry_scripts = [conan_cmd]
+    cmd_root, cmd_ext = os.path.splitext(conan_cmd)
+    if cmd_ext.lower() == ".exe":
+        entry_scripts.append(cmd_root + "-script.py")
+
+    for entry_script in entry_scripts:
+        python_exec = read_python_from_shebang(entry_script)
+        for path in query_conan_module_paths(python_exec):
+            if os.path.isdir(path) and path not in sys.path:
+                sys.path.insert(0, path)
+            # log.info(f"Conan module path: {path}")
+        if can_import_conan_module():
+            return True
+
+    return False
+
+def prepare_conan_python_env(conanfile_path):
+    """确保当前 Python 可以导入 conanfile.py 依赖的 Conan 模块"""
+    if not os.path.isfile(conanfile_path):
+        return False
+
+    if can_import_conan_module():
+        return True
+
+    if enable_conan_from_cli_python():
+        return True
+
+    log.warning("The Conan module is not installed in current Python. Skip conanfile.py layout inspection.")
+    return False
+
 def get_generators_folder(conanfile_path):
+    if not os.path.isfile(conanfile_path):
+        return None
+
     try:
         from conan import ConanFile
     except ModuleNotFoundError:
         log.warning("The Conan module is not installed. Skip.")
-        return []
+        return None
     
     spec = importlib.util.spec_from_file_location("conanfile_module", conanfile_path)
     conanfile_module = importlib.util.module_from_spec(spec)
@@ -376,11 +481,6 @@ def get_generators_folder(conanfile_path):
 
 # -------------------- Conan 处理 --------------------
 def run_conan_install():
-    try:
-        from conan import ConanFile
-    except ModuleNotFoundError:
-        log.warning("The Conan module is not installed. Skip.")
-        return
     global CONAN_BUILD, CONAN_HOST, CONAN_ENABLER
 
     if MSVC_ENABLE and MSVC_ENV_SCRIPT:
@@ -393,6 +493,9 @@ def run_conan_install():
     conan_file_py = os.path.join(SOURCE_DIR, "conanfile.py")
 
     if os.path.isfile(conan_file_txt) or os.path.isfile(conan_file_py):
+        # if os.path.isfile(conan_file_py):
+        #     prepare_conan_python_env(conan_file_py)
+
         if MSVC_ENABLE and MSVC_ENV_SCRIPT:
             CONAN_BUILD = CONFIG.get("msvc", "conan_build", fallback=None)
             CONAN_HOST = CONFIG.get("msvc", "conan_host", fallback=None)
@@ -567,6 +670,9 @@ def run():
     conan_file_py = os.path.join(SOURCE_DIR, "conanfile.py")
 
     if os.path.isfile(conan_file_txt) or os.path.isfile(conan_file_py):
+        if os.path.isfile(conan_file_py):
+            prepare_conan_python_env(conan_file_py)
+
         generators_folder = get_generators_folder(conan_file_py)
         if generators_folder is None:
             toolchain_file = os.path.join(BUILD_DIR, "conan_toolchain.cmake")
