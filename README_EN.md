@@ -73,18 +73,16 @@ Both scripts depend on `cb_conf.ini` in the same directory.
 
 #### Regarding `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
-`cb.py` and `cb.sh` do not pass `-DCMAKE_C_COMPILER` or `-DCMAKE_CXX_COMPILER` by default.
+`cb.py` and `cb.sh` now behave as follows:
 
-If you need fixed compilers, configure them in `CMakeLists.txt` (before the first `project()`), for example:
+- If `c_compiler` / `cpp_compiler` in `cb_conf.ini` is **empty**: no `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER` is injected; CMake uses the normal environment.
+- If `c_compiler` / `cpp_compiler` is **configured**:
+  - `-DCMAKE_C_COMPILER=...` / `-DCMAKE_CXX_COMPILER=...` is injected automatically.
+  - For absolute (or path-like) values, the compiler directory is temporarily prepended to `PATH` for this CMake subprocess only.
+  - For command names like `gcc`/`g++`/`clang`/`clang++`, the script first resolves the executable path, then temporarily prepends that directory to `PATH`.
+- In `MSVC` mode (`[msvc] enable=1` with valid `msvc_env_script`), behavior stays unchanged: environment is initialized via `vcvarsall.bat`, without the above injection flow.
 
-```cmake
-cmake_minimum_required(VERSION 3.20)
-set(CMAKE_C_COMPILER "gcc" CACHE STRING "" FORCE)
-set(CMAKE_CXX_COMPILER "g++" CACHE STRING "" FORCE)
-project(my_project LANGUAGES C CXX)
-```
-
-MSVC does not need to specify this parameter.
+Note: this temporary `PATH` change is process-local and does not modify user/system persistent environment variables.
 
 
 #### Parameter description of cb_conf.ini
@@ -101,8 +99,8 @@ generator = Ninja       # Build tools available: [Ninja, Unix Makefiles...]
 parallel_jobs = auto    # The number of threads for parallel compilation, where auto means the number of cpu cores is automatically selected
 
 [compiler]              # Compact-related configuration (excluding MSVC), is invalid if the enable of msvc takes effect (the msvc item is invalid under linux).
-c_compiler = gcc        # c language compiler
-cpp_compiler = g++      # c++ language compiler
+c_compiler = gcc        # C compiler (name or path); if non-empty, injects CMAKE_C_COMPILER
+cpp_compiler = g++      # C++ compiler (name or path); if non-empty, injects CMAKE_CXX_COMPILER
 conan_enable = 1        # Whether to use conan: 1, True, true indicates usage; 0, False, false indicates non-usage.
 conan_build = gcc       # The profile corresponding to conan's profile build
 conan_host = gcc        # The profile corresponding to conan's profile host

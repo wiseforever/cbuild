@@ -14,6 +14,8 @@ PARALLEL_JOBS_RAW="auto"
 
 C_COMPILER=""
 CXX_COMPILER=""
+CONFIG_C_COMPILER=""
+CONFIG_CXX_COMPILER=""
 CONAN_ENABLE="false"
 CONAN_BUILD=""
 CONAN_HOST=""
@@ -28,6 +30,8 @@ MSVC_CONAN_HOST=""
 BUILD_DIR=""
 COMPILER_TYPE="unknown"
 CMAKE_TOOLCHAIN_FILE=""
+CMAKE_RUN_PATH_PREFIX=""
+declare -a CMAKE_COMPILER_ARGS=()
 BUILD_TARGET="all"
 
 SHOULD_CONAN_BUILD="false"
@@ -154,8 +158,10 @@ load_config() {
   GENERATOR="$(ini_get build generator Ninja)"
   PARALLEL_JOBS_RAW="$(ini_get build parallel_jobs auto)"
 
-  C_COMPILER="$(ini_get compiler c_compiler "")"
-  CXX_COMPILER="$(ini_get compiler cpp_compiler "")"
+  CONFIG_C_COMPILER="$(trim "$(ini_get compiler c_compiler "")")"
+  CONFIG_CXX_COMPILER="$(trim "$(ini_get compiler cpp_compiler "")")"
+  C_COMPILER="$CONFIG_C_COMPILER"
+  CXX_COMPILER="$CONFIG_CXX_COMPILER"
   CONAN_ENABLE="$(to_bool "$(ini_get compiler conan_enable false)")"
   CONAN_BUILD="$(ini_get compiler conan_build "")"
   CONAN_HOST="$(ini_get compiler conan_host "")"
@@ -185,6 +191,100 @@ load_config() {
     exit 1
     ;;
   esac
+}
+
+is_windows_abs_path() {
+  local path="$1"
+  [[ "$path" =~ ^[A-Za-z]:[\\/].* ]]
+}
+
+resolve_compiler_and_bin_dir() {
+  local compiler_value="$1"
+  RESOLVED_COMPILER=""
+  RESOLVED_BIN_DIR=""
+
+  compiler_value="$(trim "$compiler_value")"
+  [[ -n "$compiler_value" ]] || return 0
+
+  if [[ "$compiler_value" == *"/"* || "$compiler_value" == *"\\"* ]]; then
+    if [[ "$compiler_value" == /* ]] || is_windows_abs_path "$compiler_value"; then
+      RESOLVED_COMPILER="$compiler_value"
+    else
+      RESOLVED_COMPILER="$PWD/$compiler_value"
+    fi
+    RESOLVED_BIN_DIR="$(dirname "$RESOLVED_COMPILER")"
+    return 0
+  fi
+
+  local resolved
+  resolved="$(type -P "$compiler_value" || true)"
+  if [[ -n "$resolved" ]]; then
+    RESOLVED_COMPILER="$resolved"
+    RESOLVED_BIN_DIR="$(dirname "$resolved")"
+  else
+    RESOLVED_COMPILER="$compiler_value"
+  fi
+}
+
+prepare_cmake_compiler_env() {
+  CMAKE_COMPILER_ARGS=()
+  CMAKE_RUN_PATH_PREFIX=""
+
+  if [[ "$OS_TYPE" == "windows" && "$MSVC_ENABLE" == "true" && -n "$MSVC_ENV_SCRIPT" ]]; then
+    return 0
+  fi
+
+  local resolved_c="" resolved_cxx="" c_bin_dir="" cxx_bin_dir=""
+  local -a bin_dirs=()
+
+  if [[ -n "$CONFIG_C_COMPILER" ]]; then
+    resolve_compiler_and_bin_dir "$CONFIG_C_COMPILER"
+    resolved_c="$RESOLVED_COMPILER"
+    c_bin_dir="$RESOLVED_BIN_DIR"
+    if [[ -n "$resolved_c" ]]; then
+      C_COMPILER="$resolved_c"
+      CMAKE_COMPILER_ARGS+=("-DCMAKE_C_COMPILER=$resolved_c")
+    fi
+    if [[ -n "$c_bin_dir" ]]; then
+      bin_dirs+=("$c_bin_dir")
+    fi
+  fi
+
+  if [[ -n "$CONFIG_CXX_COMPILER" ]]; then
+    resolve_compiler_and_bin_dir "$CONFIG_CXX_COMPILER"
+    resolved_cxx="$RESOLVED_COMPILER"
+    cxx_bin_dir="$RESOLVED_BIN_DIR"
+    if [[ -n "$resolved_cxx" ]]; then
+      CXX_COMPILER="$resolved_cxx"
+      CMAKE_COMPILER_ARGS+=("-DCMAKE_CXX_COMPILER=$resolved_cxx")
+    fi
+    if [[ -n "$cxx_bin_dir" ]]; then
+      bin_dirs+=("$cxx_bin_dir")
+    fi
+  fi
+
+  if [[ ${#bin_dirs[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  local -a unique_dirs=()
+  local dir
+  for dir in "${bin_dirs[@]}"; do
+    local exists="false"
+    local seen
+    for seen in "${unique_dirs[@]}"; do
+      if [[ "$seen" == "$dir" ]]; then
+        exists="true"
+        break
+      fi
+    done
+    if [[ "$exists" == "false" ]]; then
+      unique_dirs+=("$dir")
+    fi
+  done
+
+  CMAKE_RUN_PATH_PREFIX="$(IFS=:; printf '%s' "${unique_dirs[*]}")"
+  log_info "Temporary PATH injection for CMake subprocess: $CMAKE_RUN_PATH_PREFIX"
 }
 
 save_build_type() {
@@ -570,11 +670,18 @@ run_cmake_configure() {
 
   local cmd=()
   cmd=(cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G "$GENERATOR" "-DCMAKE_BUILD_TYPE=$BUILD_TYPE")
+  if [[ ${#CMAKE_COMPILER_ARGS[@]} -gt 0 ]]; then
+    cmd+=("${CMAKE_COMPILER_ARGS[@]}")
+  fi
   if [[ -n "$CMAKE_TOOLCHAIN_FILE" ]]; then
     cmd+=("-DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE")
   fi
-  log_info "${cmd[*]}"
-  "${cmd[@]}"
+  log_info "$(cmd_array_to_cmdline "${cmd[@]}")"
+  if [[ -n "$CMAKE_RUN_PATH_PREFIX" ]]; then
+    PATH="$CMAKE_RUN_PATH_PREFIX${PATH:+:$PATH}" "${cmd[@]}"
+  else
+    "${cmd[@]}"
+  fi
 }
 
 run_cmake_build() {
@@ -586,8 +693,12 @@ run_cmake_build() {
   fi
 
   local cmd=(cmake --build "$BUILD_DIR" --target "$BUILD_TARGET" "-j$PARALLEL_JOBS")
-  log_info "${cmd[*]}"
-  "${cmd[@]}"
+  log_info "$(cmd_array_to_cmdline "${cmd[@]}")"
+  if [[ -n "$CMAKE_RUN_PATH_PREFIX" ]]; then
+    PATH="$CMAKE_RUN_PATH_PREFIX${PATH:+:$PATH}" "${cmd[@]}"
+  else
+    "${cmd[@]}"
+  fi
 }
 
 run_application() {
@@ -652,6 +763,8 @@ main() {
     exit 0
   fi
 
+  prepare_cmake_compiler_env
+  COMPILER_TYPE="$(get_compiler_type)"
   prepare_build_dir true
 
   if [[ "$SHOULD_CLEAN" == "true" ]]; then

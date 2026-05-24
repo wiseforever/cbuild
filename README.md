@@ -85,20 +85,16 @@ cb.py 与 cb.sh 都依赖 cb_conf.ini 文件，在使用前请将 cb_conf.ini �
 
 #### 关于 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
-`cb.py` 与 `cb.sh` 默认不传入 `-DCMAKE_C_COMPILER` 和 `-DCMAKE_CXX_COMPILER`。  
-如果你需要固定编译器，请自行在 `CMakeLists.txt` 中添加（建议放在第一次 `project()` 之前）：
+`cb.py` 与 `cb.sh` 的行为如下：
 
-```CMakeLists.txt
-cmake_minimum_required(VERSION 3.20)
+- `cb_conf.ini` 中 `c_compiler` / `cpp_compiler` **留空**：不注入 `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER`，按系统环境正常调用 CMake。
+- `c_compiler` / `cpp_compiler` **已配置**：
+  - 自动注入 `-DCMAKE_C_COMPILER=...` / `-DCMAKE_CXX_COMPILER=...`。
+  - 若写的是绝对路径（或带目录的路径），会把其目录仅在本次 `cmake` 子进程临时补到 `PATH`。
+  - 若写的是 `gcc`/`g++`/`clang`/`clang++` 这类命令名，会先解析其实际路径，再把对应目录临时补到 `PATH`。
+- `MSVC` 模式（`[msvc] enable=1` 且 `msvc_env_script` 有效）保持原行为：通过 `vcvarsall.bat` 建环境，不走上述注入流程。
 
-# 按需固定编译器（示例）
-set(CMAKE_C_COMPILER "gcc" CACHE STRING "" FORCE)
-set(CMAKE_CXX_COMPILER "g++" CACHE STRING "" FORCE)
-
-project(my_project LANGUAGES C CXX)
-```
-
-MSVC 不需要指定该参数
+说明：这里的 `PATH` 处理仅对当前 `cb.py`/`cb.sh` 启动的子进程生效，不会修改系统级或用户级环境变量。
 
 #### cb_conf.ini 参数说明
 
@@ -112,8 +108,8 @@ generator = Ninja       # 构建工具，可选 [Ninja、Unix Makefiles ...]
 parallel_jobs = auto    # 并行编译的线程数，auto为自动选择cpu核心数
 
 [compiler]              # 编译器相关配置（不含MSVC），若msvc的enable生效则此项无效（linux下msvc项无效）
-c_compiler = gcc        # c语言编译器
-cpp_compiler = g++      # c++语言编译器
+c_compiler = gcc        # C 编译器（可写命令名或路径）；非空时会注入 CMAKE_C_COMPILER
+cpp_compiler = g++      # C++ 编译器（可写命令名或路径）；非空时会注入 CMAKE_CXX_COMPILER
 conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
 conan_build = gcc       # 对应 conan 的 profile build
 conan_host = gcc        # 对应 conan 的 profile host
