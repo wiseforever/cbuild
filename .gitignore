@@ -65,6 +65,7 @@ log/
 # !.vscode/tasks.json
 # !.vscode/tasks_python.json
 # !.vscode/tasks_bash.json
+.vscode/launch.json.bak
 
 # .vs folder
 .vs/
@@ -78,5 +79,5 @@ log/
 
 # cb.py
 # cb_conf.ini
-# __pycache__/
+__pycache__/
 # CMakeUserPresets.json

@@ -5,7 +5,7 @@
             "name": "Debug-codelldb",                               // 配置的名称
             "type": "lldb",                                         // 指定调试器类型为 C/C++ 调试器
             "request": "launch",                                    // 启动调试器的请求类型
-            "program": "${workspaceFolder}/build/MSVC-x64-Release/bin/application",     // 调试的可执行文件路径
+            "program": "${workspaceFolder}/build/GCC-15.2.0-Release/bin/application",     // 调试的可执行文件路径
             "args": [],                                             // 不传递额外的参数给可执行文件
             "cwd": "${workspaceFolder}",                            // 设置工作目录为项目根目录
             "internalConsoleOptions": "neverOpen",                  // 控制控制台是否显示
@@ -25,7 +25,7 @@
             "name": "Debug-c/c++",                                  // 配置的名称
             "type": "cppdbg",                                       // 指定调试器类型为 C/C++ 调试器
             "request": "launch",                                    // 启动调试器的请求类型
-            "program": "${workspaceFolder}/build/MSVC-x64-Release/bin/application",     // 调试的可执行文件路径
+            "program": "${workspaceFolder}/build/GCC-15.2.0-Release/bin/application",     // 调试的可执行文件路径
             "args": [],                                             // 不传递额外的参数给可执行文件
             "stopAtEntry": false,                                   // 不在程序入口处停止
             "cwd": "${workspaceFolder}",                            // 设置工作目录为项目根目录
