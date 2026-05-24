@@ -22,7 +22,8 @@ log = logging.getLogger()
 
 # -------------------- 配置文件 --------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(SCRIPT_DIR, "cb_conf.ini")
+CONFIG_FILE_CWD = os.path.join(os.getcwd(), "cb_conf.ini")
+CONFIG_FILE = CONFIG_FILE_CWD if os.path.isfile(CONFIG_FILE_CWD) else os.path.join(SCRIPT_DIR, "cb_conf.ini")
 
 # -------------------- 读取配置 --------------------
 CONFIG = configparser.ConfigParser()

@@ -3,7 +3,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-CONFIG_FILE="$SCRIPT_DIR/cb_conf.ini"
+CONFIG_FILE_CWD="$PWD/cb_conf.ini"
+CONFIG_FILE="$CONFIG_FILE_CWD"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  CONFIG_FILE="$SCRIPT_DIR/cb_conf.ini"
+fi
 
 VALID_BUILD_TYPES=("Debug" "Release")
 

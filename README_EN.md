@@ -51,6 +51,20 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
 ```
 
+Global install (use `cb` directly in any project directory):
+
+```bash
+# Python variant by default, command name: cb
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global
+
+# Install Bash variant
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --bash
+
+# Customize install/bin/cmd paths
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
+  bash -s -- --global --prefix ~/.local/share/cbuild --bin-dir ~/.local/bin --cmd cb
+```
+
 Only pull `.clang-format`:
 
 ```bash
@@ -69,7 +83,10 @@ Notes:
 
 ### `cb.py` / `cb.sh`
 
-Both scripts depend on `cb_conf.ini` in the same directory.
+Both scripts depend on `cb_conf.ini`, with this lookup order:
+
+1. current working directory: `./cb_conf.ini`
+2. script directory fallback: `cb_conf.ini`
 
 #### Regarding `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 

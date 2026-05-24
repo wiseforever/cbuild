@@ -22,17 +22,25 @@ cmake_file="cmake/ez_custom_func.cmake"
 
 mode="simple"
 install_variant="python"
+global_install_dir="${HOME}/.local/share/cbuild"
+global_bin_dir="${HOME}/.local/bin"
+global_cmd_name="cb"
 
 print_help() {
     cat <<'EOF'
 Usage:
   ./install.sh [--python|--bash] [--simple]
+  ./install.sh [--python|--bash] --global [--prefix <dir>] [--bin-dir <dir>] [--cmd <name>]
   ./install.sh --format
 
 Options:
-  --bash            安装 Bash 版本（默认）
-  --python          安装 Python 版本
+  --bash            安装 Bash 版本
+  --python          安装 Python 版本（默认）
   -s, --simple      普通安装模式（默认）
+  --global          全局安装模式（安装工具到共享目录并生成可执行命令）
+  --prefix <dir>    全局安装目录（默认: ~/.local/share/cbuild）
+  --bin-dir <dir>   全局命令目录（默认: ~/.local/bin）
+  --cmd <name>      全局命令名（默认: cb）
   format, --format  仅拉取 .clang-format
   -h, --help        显示帮助
 EOF
@@ -64,19 +72,52 @@ download_file() {
     mv -f "$tmp_path" "$dest_path"
 }
 
-for arg in "$@"; do
+while (($# > 0)); do
+    arg="$1"
     case "$arg" in
         format|--format)
             mode="format"
+            shift
             ;;
         -s|--simple|simple)
             mode="simple"
+            shift
+            ;;
+        -g|--global|global)
+            mode="global"
+            shift
             ;;
         python|--python|py|--py)
             install_variant="python"
+            shift
             ;;
         bash|--bash|sh|--sh)
             install_variant="bash"
+            shift
+            ;;
+        --prefix)
+            if (($# < 2)); then
+                echo "参数 --prefix 需要一个目录"
+                exit 1
+            fi
+            global_install_dir="$2"
+            shift 2
+            ;;
+        --bin-dir)
+            if (($# < 2)); then
+                echo "参数 --bin-dir 需要一个目录"
+                exit 1
+            fi
+            global_bin_dir="$2"
+            shift 2
+            ;;
+        --cmd)
+            if (($# < 2)); then
+                echo "参数 --cmd 需要一个命令名"
+                exit 1
+            fi
+            global_cmd_name="$2"
+            shift 2
             ;;
         -h|--help)
             print_help
@@ -109,6 +150,55 @@ if [[ "$mode" == "format" ]]; then
     fi
 
     echo "已更新 $clang_format_file 到当前目录。"
+    exit 0
+fi
+
+if [[ "$mode" == "global" ]]; then
+    mkdir -p "$global_install_dir" "$global_bin_dir"
+
+    if [[ "$install_variant" == "python" ]]; then
+        download_file "$tool_python" "$global_install_dir/$tool_python" || {
+            echo "下载 ${tool_python} 失败！"
+            exit 1
+        }
+        chmod +x "$global_install_dir/$tool_python"
+    else
+        download_file "$tool_bash" "$global_install_dir/$tool_bash" || {
+            echo "下载 ${tool_bash} 失败！"
+            exit 1
+        }
+        chmod +x "$global_install_dir/$tool_bash"
+    fi
+
+    download_file "$tool_conf" "$global_install_dir/$tool_conf" || {
+        echo "下载 ${tool_conf} 失败！"
+        exit 1
+    }
+
+    launcher_path="${global_bin_dir}/${global_cmd_name}"
+    if [[ "$install_variant" == "python" ]]; then
+        cat > "$launcher_path" <<EOF
+#!/usr/bin/env bash
+set -e
+exec python3 "${global_install_dir}/${tool_python}" "\$@"
+EOF
+    else
+        cat > "$launcher_path" <<EOF
+#!/usr/bin/env bash
+set -e
+exec bash "${global_install_dir}/${tool_bash}" "\$@"
+EOF
+    fi
+    chmod +x "$launcher_path"
+
+    echo "已全局安装 ${install_variant} 版本到: ${global_install_dir}"
+    echo "命令入口: ${launcher_path}"
+    case ":${PATH}:" in
+        *":${global_bin_dir}:"*) ;;
+        *)
+            echo "提示: 当前 PATH 不含 ${global_bin_dir}，请将其加入 PATH 后再直接使用 ${global_cmd_name}。"
+            ;;
+    esac
     exit 0
 fi
 

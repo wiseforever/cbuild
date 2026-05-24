@@ -61,6 +61,20 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
 ```
 
+全局安装（可在任意项目目录直接执行 `cb`）：
+
+```bash
+# 默认安装 Python 版本，全局命令为 cb
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global
+
+# 安装 Bash 版本
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --bash
+
+# 自定义安装目录/命令目录/命令名
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
+  bash -s -- --global --prefix ~/.local/share/cbuild --bin-dir ~/.local/bin --cmd cb
+```
+
 仅拉取 `.clang-format`：
 
 ```bash
@@ -81,7 +95,10 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 
 
 ### cb.py / cb.sh 的使用
-cb.py 与 cb.sh 都依赖 cb_conf.ini 文件，在使用前请将 cb_conf.ini 放在其同级目录下。
+`cb.py` 与 `cb.sh` 都依赖 `cb_conf.ini`，查找顺序如下：
+
+1. 当前工作目录 `./cb_conf.ini`
+2. 脚本同级目录 `cb_conf.ini`（回退）
 
 #### 关于 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
