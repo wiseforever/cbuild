@@ -39,8 +39,10 @@ if str(PARALLEL_JOBS_RAW).lower() == "auto":
 else:
     PARALLEL_JOBS = int(PARALLEL_JOBS_RAW)
 
-c_compiler = CONFIG.get("compiler", "c_compiler", fallback=None)
-cpp_compiler = CONFIG.get("compiler", "cpp_compiler", fallback=None)
+CONFIG_C_COMPILER = (CONFIG.get("compiler", "c_compiler", fallback="") or "").strip()
+CONFIG_CXX_COMPILER = (CONFIG.get("compiler", "cpp_compiler", fallback="") or "").strip()
+c_compiler = CONFIG_C_COMPILER or None
+cpp_compiler = CONFIG_CXX_COMPILER or None
 CONAN_ENABLER = CONFIG.getboolean("compiler", "conan_enable", fallback=False)
 CONAN_BUILD = CONFIG.get("compiler", "conan_build", fallback=None)
 CONAN_HOST = CONFIG.get("compiler", "conan_host", fallback=None)
@@ -52,6 +54,7 @@ HOST_ARCH = None
 COMPILER_TYPE = None
 COMPILER_EXEC_P = []
 CMAKE_TOOLCHAIN_FILE = None
+CMAKE_RUN_ENV = None
 
 # -------------------- 系统识别 --------------------
 OS_TYPE = platform.system().lower()
@@ -75,6 +78,63 @@ C_COMPILER_EXEC = c_compiler
 CXX_COMPILER_EXEC = cpp_compiler
 
 # -------------------- 工具函数 --------------------
+def resolve_compiler_and_bin_dir(compiler_value):
+    value = (compiler_value or "").strip()
+    if not value:
+        return None, None
+
+    value = os.path.expandvars(os.path.expanduser(value))
+    has_path_sep = os.sep in value or (os.path.altsep and os.path.altsep in value)
+    if os.path.isabs(value) or has_path_sep:
+        abs_path = os.path.abspath(value)
+        return abs_path, os.path.dirname(abs_path) or None
+
+    resolved = shutil.which(value)
+    if resolved:
+        return resolved, os.path.dirname(resolved) or None
+
+    return value, None
+
+def prepare_cmake_compiler_env():
+    global C_COMPILER_EXEC, CXX_COMPILER_EXEC, COMPILER_EXEC_P, CMAKE_RUN_ENV
+
+    if MSVC_ENABLE and MSVC_ENV_SCRIPT:
+        COMPILER_EXEC_P = []
+        CMAKE_RUN_ENV = None
+        return
+
+    compiler_flags = []
+    bin_dirs = []
+
+    if CONFIG_C_COMPILER:
+        resolved_c, c_bin_dir = resolve_compiler_and_bin_dir(CONFIG_C_COMPILER)
+        if resolved_c:
+            C_COMPILER_EXEC = resolved_c
+            compiler_flags.append(f"-DCMAKE_C_COMPILER={resolved_c}")
+        if c_bin_dir:
+            bin_dirs.append(c_bin_dir)
+
+    if CONFIG_CXX_COMPILER:
+        resolved_cxx, cxx_bin_dir = resolve_compiler_and_bin_dir(CONFIG_CXX_COMPILER)
+        if resolved_cxx:
+            CXX_COMPILER_EXEC = resolved_cxx
+            compiler_flags.append(f"-DCMAKE_CXX_COMPILER={resolved_cxx}")
+        if cxx_bin_dir:
+            bin_dirs.append(cxx_bin_dir)
+
+    COMPILER_EXEC_P = compiler_flags
+    if not bin_dirs:
+        CMAKE_RUN_ENV = None
+        return
+
+    unique_dirs = list(dict.fromkeys(bin_dirs))
+    env = os.environ.copy()
+    old_path = env.get("PATH", "")
+    env["PATH"] = os.pathsep.join(unique_dirs + ([old_path] if old_path else []))
+    CMAKE_RUN_ENV = env
+
+    log.info(f"Temporary PATH injection for CMake subprocess: {os.pathsep.join(unique_dirs)}")
+
 def get_compiler_type(compiler):
     if MSVC_ENABLE and MSVC_ENV_SCRIPT:
         return "msvc"
@@ -93,6 +153,7 @@ def get_compiler_type(compiler):
         return "msvc"
     return "unknown"
 
+prepare_cmake_compiler_env()
 COMPILER_TYPE = get_compiler_type(CXX_COMPILER_EXEC or C_COMPILER_EXEC)
 
 def rm_rf(path):
@@ -574,13 +635,13 @@ def run_cmake_configure():
         if CMAKE_TOOLCHAIN_FILE:
             cmd.append(f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_FILE}")
         log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
-        return subprocess.run(cmd, check=True)
+        return subprocess.run(cmd, check=True, env=CMAKE_RUN_ENV)
 
 def run_cmake_build():
     cmd = ["cmake", "--build", BUILD_DIR, "--target", BUILD_TARGET, f"-j{PARALLEL_JOBS}"]
     # print(cmd)
     log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
-    return subprocess.run(cmd, check=True)
+    return subprocess.run(cmd, check=True, env=CMAKE_RUN_ENV)
 
 def run_msvc_build():
     # 确保路径为反斜杠
