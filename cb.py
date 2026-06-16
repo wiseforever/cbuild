@@ -40,6 +40,8 @@ if str(PARALLEL_JOBS_RAW).lower() == "auto":
 else:
     PARALLEL_JOBS = int(PARALLEL_JOBS_RAW)
 
+CONFIG_BUILD_DIR = (CONFIG.get("build", "build_dir", fallback="") or "").strip() or None
+
 CONFIG_C_COMPILER = (CONFIG.get("compiler", "c_compiler", fallback="") or "").strip()
 CONFIG_CXX_COMPILER = (CONFIG.get("compiler", "cpp_compiler", fallback="") or "").strip()
 c_compiler = CONFIG_C_COMPILER or None
@@ -209,7 +211,11 @@ def update_vscode_launch():
 
         app_name = get_project_name_simple()
         prepare_build_dir(create=False)
-        program_path = f"${{workspaceFolder}}/{os.path.relpath(BUILD_DIR, SOURCE_DIR).replace(os.sep, '/')}/bin/{app_name}"
+        rel_path = os.path.relpath(BUILD_DIR, SOURCE_DIR).replace(os.sep, '/')
+        if rel_path.startswith('..'):
+            program_path = f"{BUILD_DIR}/bin/{app_name}"
+        else:
+            program_path = f"${{workspaceFolder}}/{rel_path}/bin/{app_name}"
 
         # 用正则匹配 "program": "xxx"
         # 保留前后的引号和 key，只替换路径
@@ -383,17 +389,23 @@ def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
 def prepare_build_dir(create=True):
     global BUILD_DIR
     if BUILD_DIR is None:
-        compiler_id = detect_compiler_version(
-            COMPILER_TYPE,
-            C_COMPILER_EXEC,
-            CXX_COMPILER_EXEC,
-            MSVC_ENV_SCRIPT,
-            HOST_ARCH or "x64"
-        )
-        if compiler_id:
-            BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
+        if CONFIG_BUILD_DIR:
+            if os.path.isabs(CONFIG_BUILD_DIR):
+                BUILD_DIR = CONFIG_BUILD_DIR.replace("\\", "/")
+            else:
+                BUILD_DIR = os.path.join(SOURCE_DIR, CONFIG_BUILD_DIR).replace("\\", "/")
         else:
-            BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{BUILD_TYPE}").replace("\\", "/")
+            compiler_id = detect_compiler_version(
+                COMPILER_TYPE,
+                C_COMPILER_EXEC,
+                CXX_COMPILER_EXEC,
+                MSVC_ENV_SCRIPT,
+                HOST_ARCH or "x64"
+            )
+            if compiler_id:
+                BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
+            else:
+                BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{BUILD_TYPE}").replace("\\", "/")
     
     if create:
         os.makedirs(BUILD_DIR, exist_ok=True)
@@ -418,7 +430,10 @@ def update_cpp_properties():
 
         prepare_build_dir(create=False)
         rel_path = os.path.relpath(BUILD_DIR, SOURCE_DIR).replace(os.sep, '/')
-        compile_commands_path = f"${{workspaceFolder}}/{rel_path}/compile_commands.json"
+        if rel_path.startswith('..'):
+            compile_commands_path = f"{BUILD_DIR}/compile_commands.json"
+        else:
+            compile_commands_path = f"${{workspaceFolder}}/{rel_path}/compile_commands.json"
 
         new_content, n = re.subn(
             r'("compileCommands"\s*:\s*")[^"]*(")',

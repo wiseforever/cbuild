@@ -161,6 +161,7 @@ load_config() {
   SOURCE_DIR="$(ini_get build source_dir .)"
   GENERATOR="$(ini_get build generator Ninja)"
   PARALLEL_JOBS_RAW="$(ini_get build parallel_jobs auto)"
+  CONFIG_BUILD_DIR="$(ini_get build build_dir "")"
 
   CONFIG_C_COMPILER="$(trim "$(ini_get compiler c_compiler "")")"
   CONFIG_CXX_COMPILER="$(trim "$(ini_get compiler cpp_compiler "")")"
@@ -386,12 +387,20 @@ detect_compiler_version() {
 prepare_build_dir() {
   local create="${1:-true}"
   if [[ -z "$BUILD_DIR" ]]; then
-    local compiler_id
-    compiler_id="$(detect_compiler_version "$COMPILER_TYPE")"
-    if [[ -n "$compiler_id" ]]; then
-      BUILD_DIR="${SOURCE_DIR}/build/${compiler_id}-${BUILD_TYPE}"
+    if [[ -n "$CONFIG_BUILD_DIR" ]]; then
+      if [[ "$CONFIG_BUILD_DIR" == /* ]] || is_windows_abs_path "$CONFIG_BUILD_DIR"; then
+        BUILD_DIR="$CONFIG_BUILD_DIR"
+      else
+        BUILD_DIR="$SOURCE_DIR/$CONFIG_BUILD_DIR"
+      fi
     else
-      BUILD_DIR="${SOURCE_DIR}/build/${BUILD_TYPE}"
+      local compiler_id
+      compiler_id="$(detect_compiler_version "$COMPILER_TYPE")"
+      if [[ -n "$compiler_id" ]]; then
+        BUILD_DIR="${SOURCE_DIR}/build/${compiler_id}-${BUILD_TYPE}"
+      else
+        BUILD_DIR="${SOURCE_DIR}/build/${BUILD_TYPE}"
+      fi
     fi
   fi
   if [[ "$create" == "true" ]]; then
@@ -419,11 +428,10 @@ update_cpp_properties() {
 
   if [[ "$BUILD_DIR" == "$SOURCE_DIR/"* ]]; then
     rel_path="${BUILD_DIR#"$SOURCE_DIR"/}"
+    compile_commands_path="\${workspaceFolder}/${rel_path}/compile_commands.json"
   else
-    rel_path="$BUILD_DIR"
+    compile_commands_path="${BUILD_DIR}/compile_commands.json"
   fi
-  rel_path="${rel_path//\\//}"
-  compile_commands_path="\${workspaceFolder}/${rel_path}/compile_commands.json"
 
   cp -f "$cpp_json" "${cpp_json}.bak"
   escaped="${compile_commands_path//\//\\/}"
@@ -463,11 +471,10 @@ update_vscode_launch() {
 
   if [[ "$BUILD_DIR" == "$SOURCE_DIR/"* ]]; then
     rel_path="${BUILD_DIR#"$SOURCE_DIR"/}"
+    program_path="\${workspaceFolder}/${rel_path}/bin/${app_name}"
   else
-    rel_path="$BUILD_DIR"
+    program_path="${BUILD_DIR}/bin/${app_name}"
   fi
-  rel_path="${rel_path//\\//}"
-  program_path="\${workspaceFolder}/${rel_path}/bin/${app_name}"
 
   cp -f "$launch_json" "${launch_json}.bak"
   escaped="${program_path//\//\\/}"
