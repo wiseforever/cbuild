@@ -2,7 +2,7 @@
     "configurations": [
         {
             "name": "Debug Configuration",
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "compileCommands": "${workspaceFolder}/build/GCC-11.4.0-Release/compile_commands.json",
             "includePath": [
                 
             ],

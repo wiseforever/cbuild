@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## File Standards
+
+- Use `UTF-8` without BOM for text files.
+- Use `LF` line endings for text files.
+- Store project skills under `skills/`.
+
 ## Skills
 
 ### Available skills
@@ -13,13 +19,9 @@
 ## Workflow Requirements
 
 - After implementing a feature or code change, wait for the user's review/approval before creating a git commit.
-- Once the user confirms the change is approved, create the commit yourself instead of asking the user to commit manually.
+<!-- - Once the user confirms the change is approved, create the commit yourself instead of asking the user to commit manually. -->
 - Perform future repository work on the `master` branch by default. If the branch does not exist yet, create and switch to it before continuing when feasible.
 - Write commit messages that are concise but specific enough to describe the actual user-facing or code-level changes.
 - Prefer Chinese commit messages unless the user explicitly asks for another language.
 
-## File Standards
 
-- Use `UTF-8` without BOM for text files.
-- Use `LF` line endings for text files.
-- Store project skills under `skills/`.
