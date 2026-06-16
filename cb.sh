@@ -410,6 +410,29 @@ copy_compile_commands() {
   fi
 }
 
+update_cpp_properties() {
+  local cpp_json rel_path compile_commands_path escaped
+  cpp_json="$SOURCE_DIR/.vscode/c_cpp_properties.json"
+  [[ -f "$cpp_json" ]] || return 0
+
+  prepare_build_dir false
+
+  if [[ "$BUILD_DIR" == "$SOURCE_DIR/"* ]]; then
+    rel_path="${BUILD_DIR#"$SOURCE_DIR"/}"
+  else
+    rel_path="$BUILD_DIR"
+  fi
+  rel_path="${rel_path//\\//}"
+  compile_commands_path="\${workspaceFolder}/${rel_path}/compile_commands.json"
+
+  cp -f "$cpp_json" "${cpp_json}.bak"
+  escaped="${compile_commands_path//\//\\/}"
+  sed -E "s/(\"compileCommands\"[[:space:]]*:[[:space:]]*\")[^\"]*(\")/\1${escaped}\2/g" \
+    "$cpp_json" > "${cpp_json}.tmp"
+  mv "${cpp_json}.tmp" "$cpp_json"
+  log_info "Updated .vscode/c_cpp_properties.json compileCommands -> ${compile_commands_path}"
+}
+
 get_project_name_simple() {
   local cmakelists line name var_name
   cmakelists="$SOURCE_DIR/CMakeLists.txt"
@@ -498,6 +521,7 @@ parse_args() {
           if has_vscode_launch; then
             update_vscode_launch
           fi
+          update_cpp_properties
           log_info "The build type has been switched to: $BUILD_TYPE"
           type_changed="true"
         else
@@ -513,6 +537,7 @@ parse_args() {
         if has_vscode_launch; then
           update_vscode_launch
         fi
+        update_cpp_properties
         log_info "The build type has been switched to: $BUILD_TYPE"
         type_changed="true"
       fi
@@ -788,7 +813,7 @@ main() {
 
   if [[ "$SHOULD_CONFIGURE" == "true" ]]; then
     run_cmake_configure
-    copy_compile_commands
+    update_cpp_properties
     exit 0
   fi
 
@@ -809,6 +834,7 @@ main() {
     if has_vscode_launch; then
       update_vscode_launch
     fi
+    update_cpp_properties
     log_info "exec: $exe_path"
     exit 0
   fi

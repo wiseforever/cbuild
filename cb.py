@@ -287,6 +287,7 @@ def parse_args():
                     save_config()
                     if has_vscode_launch():
                         update_vscode_launch()
+                    update_cpp_properties()
                     log.info(f"The build type has been switched to: {BUILD_TYPE}")
                     type_changed = True
                 else:
@@ -296,6 +297,7 @@ def parse_args():
                 save_config()
                 if has_vscode_launch():
                     update_vscode_launch()
+                update_cpp_properties()
                 log.info(f"The build type has been switched to: {BUILD_TYPE}")
                 type_changed = True
 
@@ -403,6 +405,38 @@ def copy_compile_commands():
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copy2(src, dst)
         log.info(f"Copy compile_commands.json to {dst}")
+
+def update_cpp_properties():
+    """更新 .vscode/c_cpp_properties.json 中的 compileCommands 路径"""
+    cpp_json_path = os.path.join(SOURCE_DIR, ".vscode", "c_cpp_properties.json")
+    if not os.path.isfile(cpp_json_path):
+        return
+
+    try:
+        with open(cpp_json_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        prepare_build_dir(create=False)
+        rel_path = os.path.relpath(BUILD_DIR, SOURCE_DIR).replace(os.sep, '/')
+        compile_commands_path = f"${{workspaceFolder}}/{rel_path}/compile_commands.json"
+
+        new_content, n = re.subn(
+            r'("compileCommands"\s*:\s*")[^"]*(")',
+            rf'\1{compile_commands_path}\2',
+            content
+        )
+
+        if n > 0:
+            bak_file = cpp_json_path + ".bak"
+            with open(bak_file, "w", encoding="utf-8") as f:
+                f.write(content)
+            with open(cpp_json_path, "w", encoding="utf-8") as f:
+                f.write(new_content)
+            log.info(f"Updated .vscode/c_cpp_properties.json compileCommands -> {compile_commands_path}")
+        else:
+            log.warning("No compileCommands field found in c_cpp_properties.json")
+    except Exception as e:
+        log.warning(f"Failed to update c_cpp_properties.json: {e}")
 
 def read_conanfile_txt_options(conanfile_txt_path):
     import configparser
@@ -747,7 +781,7 @@ def run():
 
     if SHOULD_CONFIGURE:
         if run_cmake_configure():
-            copy_compile_commands()
+            update_cpp_properties()
         else:
             log.error("CMake configure failed.")
         return
@@ -772,6 +806,7 @@ def run():
             sys.exit(1)
         if has_vscode_launch():
             update_vscode_launch()
+        update_cpp_properties()
         log.info(f"exec: {exe_path}")
         return
 
