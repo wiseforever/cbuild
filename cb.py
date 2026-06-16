@@ -294,6 +294,7 @@ def parse_args():
                     if has_vscode_launch():
                         update_vscode_launch()
                     update_cpp_properties()
+                    update_settings_json()
                     log.info(f"The build type has been switched to: {BUILD_TYPE}")
                     type_changed = True
                 else:
@@ -304,6 +305,7 @@ def parse_args():
                 if has_vscode_launch():
                     update_vscode_launch()
                 update_cpp_properties()
+                update_settings_json()
                 log.info(f"The build type has been switched to: {BUILD_TYPE}")
                 type_changed = True
 
@@ -452,6 +454,41 @@ def update_cpp_properties():
             log.warning("No compileCommands field found in c_cpp_properties.json")
     except Exception as e:
         log.warning(f"Failed to update c_cpp_properties.json: {e}")
+
+def update_settings_json():
+    """更新 .vscode/settings.json 中 clangd.arguments 的 --compile-commands-dir 路径"""
+    settings_json_path = os.path.join(SOURCE_DIR, ".vscode", "settings.json")
+    if not os.path.isfile(settings_json_path):
+        return
+
+    try:
+        with open(settings_json_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        prepare_build_dir(create=False)
+        rel_path = os.path.relpath(BUILD_DIR, SOURCE_DIR).replace(os.sep, '/')
+        if rel_path.startswith('..'):
+            compile_commands_dir = BUILD_DIR
+        else:
+            compile_commands_dir = f"${{workspaceFolder}}/{rel_path}"
+
+        new_content, n = re.subn(
+            r'("--compile-commands-dir=)[^"]*(")',
+            rf'\1{compile_commands_dir}\2',
+            content
+        )
+
+        if n > 0:
+            bak_file = settings_json_path + ".bak"
+            with open(bak_file, "w", encoding="utf-8") as f:
+                f.write(content)
+            with open(settings_json_path, "w", encoding="utf-8") as f:
+                f.write(new_content)
+            log.info(f"Updated .vscode/settings.json compile-commands-dir -> {compile_commands_dir}")
+        else:
+            log.warning("No --compile-commands-dir= found in settings.json")
+    except Exception as e:
+        log.warning(f"Failed to update settings.json: {e}")
 
 def read_conanfile_txt_options(conanfile_txt_path):
     import configparser
@@ -797,6 +834,7 @@ def run():
     if SHOULD_CONFIGURE:
         if run_cmake_configure():
             update_cpp_properties()
+            update_settings_json()
         else:
             log.error("CMake configure failed.")
         return
@@ -822,6 +860,7 @@ def run():
         if has_vscode_launch():
             update_vscode_launch()
         update_cpp_properties()
+        update_settings_json()
         log.info(f"exec: {exe_path}")
         return
 
