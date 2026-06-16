@@ -161,7 +161,7 @@ load_config() {
   SOURCE_DIR="$(ini_get build source_dir .)"
   GENERATOR="$(ini_get build generator Ninja)"
   PARALLEL_JOBS_RAW="$(ini_get build parallel_jobs auto)"
-  CONFIG_BUILD_DIR="$(ini_get build build_dir "")"
+  OUTPUT_DIR="$(ini_get build output_dir "")"
 
   CONFIG_C_COMPILER="$(trim "$(ini_get compiler c_compiler "")")"
   CONFIG_CXX_COMPILER="$(trim "$(ini_get compiler cpp_compiler "")")"
@@ -387,11 +387,11 @@ detect_compiler_version() {
 prepare_build_dir() {
   local create="${1:-true}"
   if [[ -z "$BUILD_DIR" ]]; then
-    if [[ -n "$CONFIG_BUILD_DIR" ]]; then
-      if [[ "$CONFIG_BUILD_DIR" == /* ]] || is_windows_abs_path "$CONFIG_BUILD_DIR"; then
-        BUILD_DIR="$CONFIG_BUILD_DIR"
+    if [[ -n "$OUTPUT_DIR" ]]; then
+      if [[ "$OUTPUT_DIR" == /* ]] || is_windows_abs_path "$OUTPUT_DIR"; then
+        BUILD_DIR="$OUTPUT_DIR"
       else
-        BUILD_DIR="$SOURCE_DIR/$CONFIG_BUILD_DIR"
+        BUILD_DIR="$SOURCE_DIR/$OUTPUT_DIR"
       fi
     else
       local compiler_id

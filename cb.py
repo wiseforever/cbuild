@@ -40,7 +40,7 @@ if str(PARALLEL_JOBS_RAW).lower() == "auto":
 else:
     PARALLEL_JOBS = int(PARALLEL_JOBS_RAW)
 
-CONFIG_BUILD_DIR = (CONFIG.get("build", "build_dir", fallback="") or "").strip() or None
+OUTPUT_DIR = (CONFIG.get("build", "output_dir", fallback="") or "").strip() or None
 
 CONFIG_C_COMPILER = (CONFIG.get("compiler", "c_compiler", fallback="") or "").strip()
 CONFIG_CXX_COMPILER = (CONFIG.get("compiler", "cpp_compiler", fallback="") or "").strip()
@@ -389,11 +389,11 @@ def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
 def prepare_build_dir(create=True):
     global BUILD_DIR
     if BUILD_DIR is None:
-        if CONFIG_BUILD_DIR:
-            if os.path.isabs(CONFIG_BUILD_DIR):
-                BUILD_DIR = CONFIG_BUILD_DIR.replace("\\", "/")
+        if OUTPUT_DIR:
+            if os.path.isabs(OUTPUT_DIR):
+                BUILD_DIR = OUTPUT_DIR.replace("\\", "/")
             else:
-                BUILD_DIR = os.path.join(SOURCE_DIR, CONFIG_BUILD_DIR).replace("\\", "/")
+                BUILD_DIR = os.path.join(SOURCE_DIR, OUTPUT_DIR).replace("\\", "/")
         else:
             compiler_id = detect_compiler_version(
                 COMPILER_TYPE,
