@@ -727,6 +727,7 @@ patch_conan_toolchain() {
   local toolchain_file="$1"
   [[ -n "$toolchain_file" && -f "$toolchain_file" ]] || return 0
 
+  # cp -f "$toolchain_file" "${toolchain_file}.bak"
   sed -E \
     -e 's/^(set\(CMAKE_GENERATOR_(PLATFORM|TOOLSET).*FORCE\))/#\1/' \
     -e 's/^(message\(STATUS "Conan toolchain: CMAKE_GENERATOR_TOOLSET=.*"\))/#\1/' \
@@ -830,14 +831,14 @@ run_application() {
     log_err "The executable file: $exe_path cannot be found."
     exit 1
   fi
-  log_info "Running $exe_path ..."
+  log_info "Running $exe_path"
   "$exe_path"
 }
 
 clean_build() {
   prepare_build_dir false
   if [[ -d "$BUILD_DIR" ]]; then
-    log_info "Cleaning $BUILD_DIR ..."
+    log_info "Cleaning $BUILD_DIR"
     rm -rf "$BUILD_DIR"
   fi
   rm -f "$SOURCE_DIR/build/compile_commands.json"
@@ -899,6 +900,9 @@ main() {
 
   if [[ "$SHOULD_CONFIGURE" == "true" ]]; then
     run_cmake_configure
+    if has_vscode_launch; then
+      update_vscode_launch
+    fi
     update_cpp_properties
     update_settings_json
     exit 0

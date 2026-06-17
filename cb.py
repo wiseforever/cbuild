@@ -7,6 +7,7 @@ import platform
 import subprocess
 import shutil
 import re
+import glob
 import configparser
 import importlib.util
 import json
@@ -39,6 +40,24 @@ if str(PARALLEL_JOBS_RAW).lower() == "auto":
     PARALLEL_JOBS = os.cpu_count() or 1
 else:
     PARALLEL_JOBS = int(PARALLEL_JOBS_RAW)
+
+# CMake 版本检测（用于兼容性判断）
+def get_cmake_version():
+    try:
+        out = subprocess.run(["cmake", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout.decode("utf-8")
+        m = re.search(r'(\d+)\.(\d+)', out)
+        if m:
+            return (int(m.group(1)), int(m.group(2)))
+    except Exception:
+        pass
+    return (0, 0)
+
+CMAKE_VERSION = get_cmake_version()
+
+# Generator 自动降级：若配置了 Ninja 但未安装，退化为 Unix Makefiles
+if GENERATOR == "Ninja" and not shutil.which("ninja"):
+    log.warning("Ninja not found, falling back to Unix Makefiles")
+    GENERATOR = "Unix Makefiles"
 
 OUTPUT_DIR = (CONFIG.get("build", "output_dir", fallback="") or "").strip() or None
 
@@ -358,7 +377,7 @@ def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
     try:
         if compiler_type in ("gcc", "g++"):
             compiler_exec = c_compiler_exec if compiler_type == "gcc" else cxx_compiler_exec
-            result = subprocess.run([compiler_exec, "--version"], capture_output=True, text=True, check=True)
+            result = subprocess.run([compiler_exec, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, check=True)
             first_line = result.stdout.splitlines()[0]
             m = re.search(r"(\d+(\.\d+){1,2})", first_line)
             ver = m.group(1) if m else "unknown"
@@ -368,7 +387,7 @@ def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
                 return f"GCC-{ver}"
         elif compiler_type in ("clang", "clang++"):
             compiler_exec = c_compiler_exec if compiler_type == "clang" else cxx_compiler_exec
-            result = subprocess.run([compiler_exec, "--version"], capture_output=True, text=True, check=True)
+            result = subprocess.run([compiler_exec, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, check=True)
             first_line = result.stdout.splitlines()[0]
             m = re.search(r"(\d+(\.\d+){1,2})", first_line)
             ver = m.group(1) if m else "unknown"
@@ -558,8 +577,9 @@ print(json.dumps(list(dict.fromkeys(paths))))
     try:
         result = subprocess.run(
             [python_exec, "-c", code],
-            capture_output=True,
-            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
             check=True
         )
         return json.loads(result.stdout)
@@ -685,20 +705,62 @@ def run_conan_install():
             toolchain_file = os.path.join(BUILD_DIR, generators_folder, "conan_toolchain.cmake")
         
         if os.path.isfile(toolchain_file):
-            # bak_file = toolchain_file + ".bak"
-            # shutil.copy2(toolchain_file, bak_file)
-            with open(toolchain_file, "r", encoding="utf-8") as f:
-                content = f.read()
-            content = re.sub(
-                r'^(set\(CMAKE_GENERATOR_(PLATFORM|TOOLSET).*FORCE\)|message\(STATUS "Conan toolchain: CMAKE_GENERATOR_TOOLSET=.*"\)|string\(APPEND CONAN_(CXX_FLAGS|C_FLAGS) " /MP[0-9]+"\))',
-                r'# \1',
-                content,
-                flags=re.MULTILINE
-            )
-            with open(toolchain_file, "w", encoding="utf-8") as f:
-                f.write(content)
+            patch_conan_toolchain(toolchain_file)
             global CMAKE_TOOLCHAIN_FILE
             CMAKE_TOOLCHAIN_FILE = toolchain_file.replace("\\", "/")
+
+def patch_conan_toolchain(toolchain_file):
+    """Patch Conan 生成的 toolchain / Config.cmake 以兼容 CMake 3.10"""
+    if not os.path.isfile(toolchain_file):
+        return
+    # bak_file = toolchain_file + ".bak"
+    # shutil.copy2(toolchain_file, bak_file)
+    with open(toolchain_file, "r", encoding="utf-8") as f:
+        content = f.read()
+    content = re.sub(
+        r'^(set\(CMAKE_GENERATOR_(PLATFORM|TOOLSET).*FORCE\)|message\(STATUS "Conan toolchain: CMAKE_GENERATOR_TOOLSET=.*"\)|string\(APPEND CONAN_(CXX_FLAGS|C_FLAGS) " /MP[0-9]+"\))',
+        r'#\1',
+        content,
+        flags=re.MULTILINE
+    )
+    # list(PREPEND ...) → list(INSERT ... 0 ...)  —— CMake 3.12+
+    content = re.sub(
+        r'(list\(PREPEND )(\w+)',
+        r'list(INSERT \2 0',
+        content
+    )
+    # CMAKE_FIND_PACKAGE_PREFER_CONFIG —— CMake 3.15+
+    content = re.sub(
+        r'^(.*CMAKE_FIND_PACKAGE_PREFER_CONFIG.*)$',
+        r'#\1',
+        content,
+        flags=re.MULTILINE
+    )
+    # CMakeToolchain / CMakeDeps 版本检查
+    content = re.sub(
+        r'^(.*message\(FATAL_ERROR "The \'CMakeToolchain\'.*)$',
+        r'#\1',
+        content,
+        flags=re.MULTILINE
+    )
+    with open(toolchain_file, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    # 同样 patch 同目录下 *Config.cmake 中的 CMakeDeps 版本检查
+    gen_dir = os.path.dirname(toolchain_file)
+    for cfg in glob.glob(os.path.join(gen_dir, "*Config.cmake")):
+        with open(cfg, "r", encoding="utf-8") as f:
+            cfg_content = f.read()
+        if "CMakeDeps" in cfg_content and "only works with CMake" in cfg_content:
+            cfg_content = re.sub(
+                r'^(.*message\(FATAL_ERROR.*CMakeDeps.*only works with CMake.*)$',
+                r'#\1',
+                cfg_content,
+                flags=re.MULTILINE
+            )
+            with open(cfg, "w", encoding="utf-8") as f:
+                f.write(cfg_content)
+            log.info(f"Patched CMake version check in {os.path.basename(cfg)}")
 
 # -------------------- 配置 & 构建 --------------------
 def run_cmake_configure():
@@ -706,7 +768,7 @@ def run_cmake_configure():
         # 确保路径为反斜杠
         msvc_env = MSVC_ENV_SCRIPT.replace("/", "\\")
 
-        cmake_configure_cmd = f'cmake -S "{SOURCE_DIR}" -B "{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
+        cmake_configure_cmd = f'cmake -H"{SOURCE_DIR}" -B"{BUILD_DIR}" -G "{GENERATOR}" -DCMAKE_BUILD_TYPE={BUILD_TYPE}'
         if COMPILER_EXEC_P:
             cmake_configure_cmd += " " + " ".join(COMPILER_EXEC_P)
         if CMAKE_TOOLCHAIN_FILE:
@@ -716,7 +778,7 @@ def run_cmake_configure():
         log.info(cmake_configure_cmd)
         return subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_configure_cmd}', shell=True, check=True)
     else:
-        cmd = ["cmake", "-S", SOURCE_DIR, "-B", BUILD_DIR, "-G", GENERATOR, f"-DCMAKE_BUILD_TYPE={BUILD_TYPE}"]
+        cmd = ["cmake", f"-H{SOURCE_DIR}", f"-B{BUILD_DIR}", "-G", GENERATOR, f"-DCMAKE_BUILD_TYPE={BUILD_TYPE}"]
         if COMPILER_EXEC_P:
             cmd += COMPILER_EXEC_P
         if CMAKE_TOOLCHAIN_FILE:
@@ -725,7 +787,10 @@ def run_cmake_configure():
         return subprocess.run(cmd, check=True, env=CMAKE_RUN_ENV)
 
 def run_cmake_build():
-    cmd = ["cmake", "--build", BUILD_DIR, "--target", BUILD_TARGET, f"-j{PARALLEL_JOBS}"]
+    if CMAKE_VERSION >= (3, 12):
+        cmd = ["cmake", "--build", BUILD_DIR, "--target", BUILD_TARGET, f"-j{PARALLEL_JOBS}"]
+    else:
+        cmd = ["cmake", "--build", BUILD_DIR, "--target", BUILD_TARGET, "--", f"-j{PARALLEL_JOBS}"]
     # print(cmd)
     log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
     return subprocess.run(cmd, check=True, env=CMAKE_RUN_ENV)
@@ -749,7 +814,10 @@ def run_msvc_build():
     # copy_compile_commands()
 
     # 3. 构建
-    cmake_build_cmd = f'cmake --build "{BUILD_DIR}" --target {BUILD_TARGET} -j{PARALLEL_JOBS}'
+    if CMAKE_VERSION >= (3, 12):
+        cmake_build_cmd = f'cmake --build "{BUILD_DIR}" --target {BUILD_TARGET} -j{PARALLEL_JOBS}'
+    else:
+        cmake_build_cmd = f'cmake --build "{BUILD_DIR}" --target {BUILD_TARGET} -- -j{PARALLEL_JOBS}'
     log.info(cmake_build_cmd)
     subprocess.run(f'call "{msvc_env}" {HOST_ARCH} && {cmake_build_cmd}', shell=True, check=True)
 
@@ -761,7 +829,7 @@ def run_application():
     if not os.path.isfile(exe_path):
         log.error(f"The executable file: {exe_path} cannot be found. ")
         sys.exit(1)
-    log.info(f"Running {exe_path} ...")
+    log.info(f"Running {exe_path}")
     try:
         # 直接使用run，Python会自动处理Ctrl+C信号传递
         subprocess.run(exe_path, check=True)
@@ -789,7 +857,7 @@ def clean_build():
             BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{BUILD_TYPE}").replace("\\", "/")
 
     if os.path.isdir(BUILD_DIR):
-        log.info(f"Cleaning {BUILD_DIR} ...")
+        log.info(f"Cleaning {BUILD_DIR}")
         shutil.rmtree(BUILD_DIR)
 
     compile_json = os.path.join(SOURCE_DIR, "build", "compile_commands.json")
@@ -828,11 +896,14 @@ def run():
             toolchain_file = os.path.join(BUILD_DIR, generators_folder, "conan_toolchain.cmake")
 
         if os.path.isfile(toolchain_file):
+            patch_conan_toolchain(toolchain_file)
             global CMAKE_TOOLCHAIN_FILE
             CMAKE_TOOLCHAIN_FILE = toolchain_file.replace("\\", "/")
 
     if SHOULD_CONFIGURE:
         if run_cmake_configure():
+            if has_vscode_launch():
+                update_vscode_launch()
             update_cpp_properties()
             update_settings_json()
         else:
