@@ -321,6 +321,23 @@ is_build_type() {
   [[ "$t" == "Debug" || "$t" == "Release" ]]
 }
 
+resolve_generator() {
+  local gen="${1:-Ninja}"
+  case "$gen" in
+  Ninja)
+    if ! command -v ninja >/dev/null 2>&1; then
+      log_warn "Ninja not found, falling back to Unix Makefiles"
+      printf 'Unix Makefiles'
+    else
+      printf '%s' "$gen"
+    fi
+    ;;
+  *)
+    printf '%s' "$gen"
+    ;;
+  esac
+}
+
 get_compiler_type() {
   if [[ "$OS_TYPE" == "windows" && "$MSVC_ENABLE" == "true" && -n "$MSVC_ENV_SCRIPT" ]]; then
     printf 'msvc'
@@ -698,29 +715,53 @@ run_conan_install() {
     "${cmd[@]}"
   fi
 
+  local toolchain_file
+  toolchain_file="$(detect_toolchain_file)"
+  if [[ -n "$toolchain_file" && -f "$toolchain_file" ]]; then
+    patch_conan_toolchain "$toolchain_file"
+    CMAKE_TOOLCHAIN_FILE="${toolchain_file//\\//}"
+  fi
+}
+
+patch_conan_toolchain() {
+  local toolchain_file="$1"
+  [[ -n "$toolchain_file" && -f "$toolchain_file" ]] || return 0
+
+  sed -E \
+    -e 's/^(set\(CMAKE_GENERATOR_(PLATFORM|TOOLSET).*FORCE\))/#\1/' \
+    -e 's/^(message\(STATUS "Conan toolchain: CMAKE_GENERATOR_TOOLSET=.*"\))/#\1/' \
+    -e 's/^(string\(APPEND CONAN_(CXX_FLAGS|C_FLAGS) " \/MP[0-9]+"\))/#\1/' \
+    -e '/message\(FATAL_ERROR "The .CMakeToolchain./s/^/#/' \
+    -e 's/(list\(PREPEND ([^ )]*))/list(INSERT \2 0/' \
+    -e '/CMAKE_FIND_PACKAGE_PREFER_CONFIG/s/^/#/' \
+    "$toolchain_file" > "${toolchain_file}.tmp"
+  mv "${toolchain_file}.tmp" "$toolchain_file"
+
+  # 同样 patch 同目录下 *Config.cmake 中的 CMake 版本检查
+  local gen_dir
+  gen_dir="$(dirname "$toolchain_file")"
+  while IFS= read -r -d '' cfg; do
+    if grep -q 'message(FATAL_ERROR.*CMakeDeps.*generator.*only works with CMake' "$cfg" 2>/dev/null; then
+      sed -i '/message(FATAL_ERROR.*CMakeDeps.*generator.*only works with CMake/s/^/#/' "$cfg"
+      log_info "Patched CMake version check in $(basename "$cfg")"
+    fi
+  done < <(find "$gen_dir" -maxdepth 1 -name '*Config.cmake' -print0 2>/dev/null)
+}
+
+detect_toolchain_file() {
   local toolchain_file=""
   if [[ -f "$BUILD_DIR/conan_toolchain.cmake" ]]; then
     toolchain_file="$BUILD_DIR/conan_toolchain.cmake"
   else
     toolchain_file="$(find "$BUILD_DIR" -type f -name conan_toolchain.cmake 2>/dev/null | head -n1 || true)"
   fi
-
-  if [[ -n "$toolchain_file" && -f "$toolchain_file" ]]; then
-    # cp -f "$toolchain_file" "${toolchain_file}.bak"
-    sed -E \
-      -e 's/^(set\(CMAKE_GENERATOR_(PLATFORM|TOOLSET).*FORCE\))/# \1/' \
-      -e 's/^(message\(STATUS "Conan toolchain: CMAKE_GENERATOR_TOOLSET=.*"\))/# \1/' \
-      -e 's/^(string\(APPEND CONAN_(CXX_FLAGS|C_FLAGS) " \/MP[0-9]+"\))/# \1/' \
-      "$toolchain_file" > "${toolchain_file}.tmp"
-    mv "${toolchain_file}.tmp" "$toolchain_file"
-    CMAKE_TOOLCHAIN_FILE="${toolchain_file//\\//}"
-  fi
+  printf '%s' "$toolchain_file"
 }
 
 run_cmake_configure() {
   if [[ "$OS_TYPE" == "windows" && "$MSVC_ENABLE" == "true" && -n "$MSVC_ENV_SCRIPT" ]]; then
     local cmake_cmd
-    cmake_cmd="cmake -S \"${SOURCE_DIR}\" -B \"${BUILD_DIR}\" -G \"${GENERATOR}\" -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
+    cmake_cmd="cmake -H\"${SOURCE_DIR}\" -B\"${BUILD_DIR}\" -G \"${GENERATOR}\" -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
     if [[ -n "$CMAKE_TOOLCHAIN_FILE" ]]; then
       cmake_cmd+=" -DCMAKE_TOOLCHAIN_FILE=\"${CMAKE_TOOLCHAIN_FILE}\""
     fi
@@ -729,7 +770,7 @@ run_cmake_configure() {
   fi
 
   local cmd=()
-  cmd=(cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G "$GENERATOR" "-DCMAKE_BUILD_TYPE=$BUILD_TYPE")
+  cmd=(cmake -H"$SOURCE_DIR" -B"$BUILD_DIR" -G "$GENERATOR" "-DCMAKE_BUILD_TYPE=$BUILD_TYPE")
   if [[ ${#CMAKE_COMPILER_ARGS[@]} -gt 0 ]]; then
     cmd+=("${CMAKE_COMPILER_ARGS[@]}")
   fi
@@ -745,14 +786,30 @@ run_cmake_configure() {
 }
 
 run_cmake_build() {
+  # CMake --build -j flag requires CMake >= 3.12, use -- separator for older versions
+  local cmake_ver cmake_major cmake_minor
+  cmake_ver="$(cmake --version | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)"
+  cmake_major="${cmake_ver%.*}"
+  cmake_minor="${cmake_ver#*.}"
+
   if [[ "$OS_TYPE" == "windows" && "$MSVC_ENABLE" == "true" && -n "$MSVC_ENV_SCRIPT" ]]; then
     local build_cmd
-    build_cmd="cmake --build \"${BUILD_DIR}\" --target ${BUILD_TARGET} -j${PARALLEL_JOBS}"
+    build_cmd="cmake --build \"${BUILD_DIR}\" --target ${BUILD_TARGET}"
+    if (( cmake_major > 3 || (cmake_major == 3 && cmake_minor >= 12) )); then
+      build_cmd+=" -j${PARALLEL_JOBS}"
+    else
+      build_cmd+=" -- -j${PARALLEL_JOBS}"
+    fi
     run_with_msvc_env "$build_cmd"
     return 0
   fi
 
-  local cmd=(cmake --build "$BUILD_DIR" --target "$BUILD_TARGET" "-j$PARALLEL_JOBS")
+  local cmd=(cmake --build "$BUILD_DIR" --target "$BUILD_TARGET")
+  if (( cmake_major > 3 || (cmake_major == 3 && cmake_minor >= 12) )); then
+    cmd+=("-j$PARALLEL_JOBS")
+  else
+    cmd+=("--" "-j$PARALLEL_JOBS")
+  fi
   log_info "$(cmd_array_to_cmdline "${cmd[@]}")"
   if [[ -n "$CMAKE_RUN_PATH_PREFIX" ]]; then
     PATH="$CMAKE_RUN_PATH_PREFIX${PATH:+:$PATH}" "${cmd[@]}"
@@ -801,19 +858,17 @@ set_parallel_jobs() {
 }
 
 detect_existing_toolchain() {
-  local toolchain_file=""
-  if [[ -f "$BUILD_DIR/conan_toolchain.cmake" ]]; then
-    toolchain_file="$BUILD_DIR/conan_toolchain.cmake"
-  else
-    toolchain_file="$(find "$BUILD_DIR" -type f -name conan_toolchain.cmake 2>/dev/null | head -n1 || true)"
-  fi
+  local toolchain_file
+  toolchain_file="$(detect_toolchain_file)"
   if [[ -n "$toolchain_file" && -f "$toolchain_file" ]]; then
+    patch_conan_toolchain "$toolchain_file"
     CMAKE_TOOLCHAIN_FILE="${toolchain_file//\\//}"
   fi
 }
 
 main() {
   load_config
+  GENERATOR="$(resolve_generator "$GENERATOR")"
   set_parallel_jobs
   COMPILER_TYPE="$(get_compiler_type)"
 

@@ -184,6 +184,16 @@ endif()
 # # 禁用静态运行时（避免与编译器冲突）
 # set(Boost_USE_STATIC_RUNTIME OFF)
 
+# CMake < 3.15: FindBoost.cmake 不认 CMAKE_INCLUDE_PATH，从 Conan toolchain
+# 设置中提取 Boost 路径作为 BOOST_INCLUDEDIR 提示变量。
+foreach(_boost_path IN LISTS CMAKE_INCLUDE_PATH)
+    if(EXISTS "${_boost_path}/boost/version.hpp")
+        set(BOOST_INCLUDEDIR "${_boost_path}")
+        message(STATUS "Boost INCLUDEDIR from Conan: ${BOOST_INCLUDEDIR}")
+        break()
+    endif()
+endforeach()
+
 find_package(Boost REQUIRED COMPONENTS)
 if(Boost_FOUND)
     message(STATUS "Boost version: ${Boost_VERSION}")
