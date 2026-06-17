@@ -227,9 +227,9 @@ def update_vscode_launch():
 
         if n > 0:
             # 先备份原文件
-            bak_file = launch_json_path + ".bak"
-            with open(bak_file, "w", encoding="utf-8") as f:
-                f.write(content)
+            # bak_file = launch_json_path + ".bak"
+            # with open(bak_file, "w", encoding="utf-8") as f:
+            #     f.write(content)
 
             # 写回修改后的内容
             with open(launch_json_path, "w", encoding="utf-8") as f:
@@ -444,9 +444,9 @@ def update_cpp_properties():
         )
 
         if n > 0:
-            bak_file = cpp_json_path + ".bak"
-            with open(bak_file, "w", encoding="utf-8") as f:
-                f.write(content)
+            # bak_file = cpp_json_path + ".bak"
+            # with open(bak_file, "w", encoding="utf-8") as f:
+            #     f.write(content)
             with open(cpp_json_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
             log.info(f"Updated .vscode/c_cpp_properties.json compileCommands -> {compile_commands_path}")
@@ -479,9 +479,9 @@ def update_settings_json():
         )
 
         if n > 0:
-            bak_file = settings_json_path + ".bak"
-            with open(bak_file, "w", encoding="utf-8") as f:
-                f.write(content)
+            # bak_file = settings_json_path + ".bak"
+            # with open(bak_file, "w", encoding="utf-8") as f:
+            #     f.write(content)
             with open(settings_json_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
             log.info(f"Updated .vscode/settings.json compile-commands-dir -> {compile_commands_dir}")
@@ -685,8 +685,8 @@ def run_conan_install():
             toolchain_file = os.path.join(BUILD_DIR, generators_folder, "conan_toolchain.cmake")
         
         if os.path.isfile(toolchain_file):
-            bak_file = toolchain_file + ".bak"
-            shutil.copy2(toolchain_file, bak_file)
+            # bak_file = toolchain_file + ".bak"
+            # shutil.copy2(toolchain_file, bak_file)
             with open(toolchain_file, "r", encoding="utf-8") as f:
                 content = f.read()
             content = re.sub(

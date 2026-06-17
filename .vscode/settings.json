@@ -79,7 +79,7 @@
     "clangd.enable": true,
     "clangd.enableCodeCompletion": true,
     "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/build",
+        "--compile-commands-dir=${workspaceFolder}/build/GCC-11.4.0-Release",
         "--header-insertion=never",
         "--all-scopes-completion",
         "--clang-tidy"

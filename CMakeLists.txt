@@ -238,7 +238,7 @@ elseif(UNIX)
         PRIVATE
         pthread
         dl
-        icuuc
+        # icuuc
     )
 
 endif()

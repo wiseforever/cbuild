@@ -433,7 +433,7 @@ update_cpp_properties() {
     compile_commands_path="${BUILD_DIR}/compile_commands.json"
   fi
 
-  cp -f "$cpp_json" "${cpp_json}.bak"
+#   cp -f "$cpp_json" "${cpp_json}.bak"
   escaped="${compile_commands_path//\//\\/}"
   sed -E "s/(\"compileCommands\"[[:space:]]*:[[:space:]]*\")[^\"]*(\")/\1${escaped}\2/g" \
     "$cpp_json" > "${cpp_json}.tmp"
@@ -455,7 +455,7 @@ update_settings_json() {
     compile_commands_dir="${BUILD_DIR}"
   fi
 
-  cp -f "$settings_json" "${settings_json}.bak"
+#   cp -f "$settings_json" "${settings_json}.bak"
   escaped="${compile_commands_dir//\//\\/}"
   sed -E "s/(\"--compile-commands-dir=)[^\"]*(\")/\1${escaped}\2/g" \
     "$settings_json" > "${settings_json}.tmp"
@@ -498,7 +498,7 @@ update_vscode_launch() {
     program_path="${BUILD_DIR}/bin/${app_name}"
   fi
 
-  cp -f "$launch_json" "${launch_json}.bak"
+#   cp -f "$launch_json" "${launch_json}.bak"
   escaped="${program_path//\//\\/}"
   sed -E "s/(\"program\"[[:space:]]*:[[:space:]]*\")[^\"]*(\")/\1${escaped}\2/g" \
     "$launch_json" > "${launch_json}.tmp"
@@ -706,7 +706,7 @@ run_conan_install() {
   fi
 
   if [[ -n "$toolchain_file" && -f "$toolchain_file" ]]; then
-    cp -f "$toolchain_file" "${toolchain_file}.bak"
+    # cp -f "$toolchain_file" "${toolchain_file}.bak"
     sed -E \
       -e 's/^(set\(CMAKE_GENERATOR_(PLATFORM|TOOLSET).*FORCE\))/# \1/' \
       -e 's/^(message\(STATUS "Conan toolchain: CMAKE_GENERATOR_TOOLSET=.*"\))/# \1/' \
