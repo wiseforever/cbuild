@@ -22,12 +22,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)           # 是否C++语言扩展
 # Enable compile command to ease indexing with e.g. clangd (compile_commands.json)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # 是否生成编译命令文件 compile_commands.json
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # 可执行文件输出目录
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # 动态库输出目录
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/static_lib) # 静态库输出目录
-# 如果需要，可以单独为 Debug/Release 设置 (MSVC需要这里设置)
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # 可执行文件输出目录
+# 如果需要，可执行文件输出目录可以单独为 Debug/Release 设置 (MSVC需要这里设置)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # 动态库输出目录
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/static_lib) # 静态库输出目录
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON) # 导出所有符号
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")

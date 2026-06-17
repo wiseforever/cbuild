@@ -194,6 +194,29 @@ def rm_rf(path):
     except Exception as e:
         log.warning(f"Failed to remove {path}: {e}")
 
+def get_bin_dir(app_name=None):
+    """从构建系统文件解析或搜索实际输出目录；失败则回退 BUILD_DIR/bin"""
+
+    # 1. Ninja: 解析 build.ninja
+    ninja_file = os.path.join(BUILD_DIR, "build.ninja")
+    if app_name and os.path.isfile(ninja_file):
+        with open(ninja_file, "r") as f:
+            for line in f:
+                if re.match(rf'^build\s+\S*?{re.escape(app_name)}\s*:\s*CXX_EXECUTABLE_LINKER__{re.escape(app_name)}[^a-zA-Z]', line):
+                    path_part = line.split()[1].rstrip(":")
+                    return os.path.join(BUILD_DIR, os.path.dirname(path_part))
+
+    # 2. Unix Makefiles: 解析 link.txt
+    link_file = os.path.join(BUILD_DIR, "CMakeFiles", f"{app_name}.dir", "link.txt") if app_name else None
+    if link_file and os.path.isfile(link_file):
+        with open(link_file, "r") as f:
+            m = re.search(r'-o\s+(\S+)', f.read())
+            if m:
+                return os.path.join(BUILD_DIR, os.path.dirname(m.group(1)))
+
+    # 3. 默认 fallback
+    return os.path.join(BUILD_DIR, "bin")
+
 def get_project_name_simple():
     cmakelists = os.path.join(SOURCE_DIR, "CMakeLists.txt")
     if not os.path.isfile(cmakelists):
@@ -230,11 +253,12 @@ def update_vscode_launch():
 
         app_name = get_project_name_simple()
         prepare_build_dir(create=False)
-        rel_path = os.path.relpath(BUILD_DIR, SOURCE_DIR).replace(os.sep, '/')
-        if rel_path.startswith('..'):
-            program_path = f"{BUILD_DIR}/bin/{app_name}"
+        bin_dir = get_bin_dir(app_name)
+        if os.path.abspath(bin_dir).startswith(os.path.abspath(SOURCE_DIR) + os.sep):
+            rel_path = os.path.relpath(bin_dir, SOURCE_DIR).replace(os.sep, '/')
+            program_path = f"${{workspaceFolder}}/{rel_path}/{app_name}"
         else:
-            program_path = f"${{workspaceFolder}}/{rel_path}/bin/{app_name}"
+            program_path = f"{bin_dir}/{app_name}"
 
         # 用正则匹配 "program": "xxx"
         # 保留前后的引号和 key，只替换路径
@@ -827,7 +851,8 @@ def run_msvc_build():
 
 def run_application():
     app_name = get_project_name_simple()
-    exe_path = os.path.join(BUILD_DIR, "bin", app_name + (".exe" if OS_TYPE == "windows" else "")).replace("\\", "/")
+    bin_dir = get_bin_dir(app_name)
+    exe_path = os.path.join(bin_dir, app_name + (".exe" if OS_TYPE == "windows" else "")).replace("\\", "/")
     if not os.path.isfile(exe_path):
         log.error(f"The executable file: {exe_path} cannot be found. ")
         sys.exit(1)
@@ -926,7 +951,8 @@ def run():
                 log.error("CMake build failed.")
         
         app_name = get_project_name_simple()
-        exe_path = os.path.join(BUILD_DIR, "bin", app_name + (".exe" if OS_TYPE == "windows" else "")).replace("\\", "/")
+        bin_dir = get_bin_dir(app_name)
+        exe_path = os.path.join(bin_dir, app_name + (".exe" if OS_TYPE == "windows" else "")).replace("\\", "/")
         if not os.path.isfile(exe_path):
             log.error(f"The executable file: {exe_path} cannot be found.")
             sys.exit(1)

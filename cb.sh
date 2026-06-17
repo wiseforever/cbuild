@@ -482,6 +482,39 @@ update_settings_json() {
   log_info "Updated .vscode/settings.json compile-commands-dir -> ${compile_commands_dir}"
 }
 
+get_bin_dir() {
+  local app_name="${1:-}"
+  local rule bin_dir
+
+  # 1) Ninja: 解析 build.ninja
+  if [[ -f "$BUILD_DIR/build.ninja" && -n "$app_name" ]]; then
+    rule="$(grep -m1 "^build.*: CXX_EXECUTABLE_LINKER__${app_name}[^a-zA-Z]" "$BUILD_DIR/build.ninja" 2>/dev/null || true)"
+    if [[ -n "$rule" ]]; then
+      rule="${rule#build }"
+      rule="${rule%%: *}"
+      bin_dir="$(dirname "$rule")"
+      printf '%s' "${BUILD_DIR}/${bin_dir}"
+      return
+    fi
+  fi
+
+  # 2) Unix Makefiles: 解析 link.txt
+  if [[ -n "$app_name" ]]; then
+    local link_file="${BUILD_DIR}/CMakeFiles/${app_name}.dir/link.txt"
+    if [[ -f "$link_file" ]]; then
+      bin_dir="$(grep -oP '(?<=-o )\S+' "$link_file" 2>/dev/null || true)"
+      if [[ -n "$bin_dir" ]]; then
+        bin_dir="$(dirname "$bin_dir")"
+        printf '%s' "${BUILD_DIR}/${bin_dir}"
+        return
+      fi
+    fi
+  fi
+
+  # 3) 默认 fallback
+  printf '%s' "${BUILD_DIR}/bin"
+}
+
 get_project_name_simple() {
   local cmakelists line name var_name
   cmakelists="$SOURCE_DIR/CMakeLists.txt"
@@ -510,11 +543,13 @@ update_vscode_launch() {
   prepare_build_dir false
   app_name="$(get_project_name_simple)"
 
-  if [[ "$BUILD_DIR" == "$SOURCE_DIR/"* ]]; then
-    rel_path="${BUILD_DIR#"$SOURCE_DIR"/}"
-    program_path="\${workspaceFolder}/${rel_path}/bin/${app_name}"
+  local bin_dir
+  bin_dir="$(get_bin_dir "$app_name")"
+  if [[ "$bin_dir" == "$SOURCE_DIR/"* ]]; then
+    rel_path="${bin_dir#"$SOURCE_DIR"/}"
+    program_path="\${workspaceFolder}/${rel_path}/${app_name}"
   else
-    program_path="${BUILD_DIR}/bin/${app_name}"
+    program_path="${bin_dir}/${app_name}"
   fi
 
 #   cp -f "$launch_json" "${launch_json}.bak"
@@ -824,10 +859,12 @@ run_cmake_build() {
 run_application() {
   local app_name exe_path
   app_name="$(get_project_name_simple)"
+  local bin_dir
+  bin_dir="$(get_bin_dir "$app_name")"
   if [[ "$OS_TYPE" == "windows" ]]; then
-    exe_path="$BUILD_DIR/bin/${app_name}.exe"
+    exe_path="${bin_dir}/${app_name}.exe"
   else
-    exe_path="$BUILD_DIR/bin/${app_name}"
+    exe_path="${bin_dir}/${app_name}"
   fi
   if [[ ! -f "$exe_path" ]]; then
     log_err "The executable file: $exe_path cannot be found."
@@ -913,12 +950,13 @@ main() {
   if [[ "$SHOULD_BUILD" == "true" ]]; then
     run_cmake_build
 
-    local app_name exe_path
+    local app_name exe_path bin_dir
     app_name="$(get_project_name_simple)"
+    bin_dir="$(get_bin_dir "$app_name")"
     if [[ "$OS_TYPE" == "windows" ]]; then
-      exe_path="$BUILD_DIR/bin/${app_name}.exe"
+      exe_path="${bin_dir}/${app_name}.exe"
     else
-      exe_path="$BUILD_DIR/bin/${app_name}"
+      exe_path="${bin_dir}/${app_name}"
     fi
     if [[ ! -f "$exe_path" ]]; then
       log_err "The executable file: $exe_path cannot be found."
