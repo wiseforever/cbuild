@@ -410,24 +410,26 @@ def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
 def prepare_build_dir(create=True):
     global BUILD_DIR
     if BUILD_DIR is None:
+        compiler_id = detect_compiler_version(
+            COMPILER_TYPE,
+            C_COMPILER_EXEC,
+            CXX_COMPILER_EXEC,
+            MSVC_ENV_SCRIPT,
+            HOST_ARCH or "x64"
+        )
+        if compiler_id:
+            suffix = f"{compiler_id}-{BUILD_TYPE}"
+        else:
+            suffix = BUILD_TYPE
+
         if OUTPUT_DIR:
             if os.path.isabs(OUTPUT_DIR):
-                BUILD_DIR = OUTPUT_DIR.replace("\\", "/")
+                BUILD_DIR = os.path.join(OUTPUT_DIR, suffix).replace("\\", "/")
             else:
-                BUILD_DIR = os.path.join(SOURCE_DIR, OUTPUT_DIR).replace("\\", "/")
+                BUILD_DIR = os.path.join(SOURCE_DIR, OUTPUT_DIR, suffix).replace("\\", "/")
         else:
-            compiler_id = detect_compiler_version(
-                COMPILER_TYPE,
-                C_COMPILER_EXEC,
-                CXX_COMPILER_EXEC,
-                MSVC_ENV_SCRIPT,
-                HOST_ARCH or "x64"
-            )
-            if compiler_id:
-                BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
-            else:
-                BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{BUILD_TYPE}").replace("\\", "/")
-    
+            BUILD_DIR = os.path.join(SOURCE_DIR, "build", suffix).replace("\\", "/")
+
     if create:
         os.makedirs(BUILD_DIR, exist_ok=True)
 

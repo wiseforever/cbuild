@@ -404,20 +404,22 @@ detect_compiler_version() {
 prepare_build_dir() {
   local create="${1:-true}"
   if [[ -z "$BUILD_DIR" ]]; then
+    local compiler_id
+    compiler_id="$(detect_compiler_version "$COMPILER_TYPE")"
+    if [[ -n "$compiler_id" ]]; then
+      local suffix="${compiler_id}-${BUILD_TYPE}"
+    else
+      local suffix="${BUILD_TYPE}"
+    fi
+
     if [[ -n "$OUTPUT_DIR" ]]; then
       if [[ "$OUTPUT_DIR" == /* ]] || is_windows_abs_path "$OUTPUT_DIR"; then
-        BUILD_DIR="$OUTPUT_DIR"
+        BUILD_DIR="${OUTPUT_DIR}/${suffix}"
       else
-        BUILD_DIR="$SOURCE_DIR/$OUTPUT_DIR"
+        BUILD_DIR="${SOURCE_DIR}/${OUTPUT_DIR}/${suffix}"
       fi
     else
-      local compiler_id
-      compiler_id="$(detect_compiler_version "$COMPILER_TYPE")"
-      if [[ -n "$compiler_id" ]]; then
-        BUILD_DIR="${SOURCE_DIR}/build/${compiler_id}-${BUILD_TYPE}"
-      else
-        BUILD_DIR="${SOURCE_DIR}/build/${BUILD_TYPE}"
-      fi
+      BUILD_DIR="${SOURCE_DIR}/build/${suffix}"
     fi
   fi
   if [[ "$create" == "true" ]]; then
