@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.10)
 
 # include ez_custom_func.cmake
 if(EXISTS "cmake/ez_custom_func.cmake")
