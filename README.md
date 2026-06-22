@@ -1,47 +1,37 @@
 # cbuild
 
-English documentation: [README_EN.md](README_EN.md)
+中文文档: [README_zhCN.md](README_zhCN.md)
 
-```
-    该仓库用于更方便的编译c、c++程序。
+This repository provides a lightweight build workflow for C/C++ projects, with optional VSCode integration and Conan support.
 
-    对vscode做了适配，依赖 VSCode 的 .vscode 目录下的 tasks.json、settings.json、c_cpp_properties.json + C/C++ 插件 + Task Buttons 插件；实现 在 VSCode 的左下角快速编译运行程序，以及代码的语法高亮与跳转。
+## How To Use
 
-    camke目录下提供了一些简易的cmake函数。
-
-    支持conan，但需要根据此脚本的说明使用 conanfile.py(推荐) 或者 conanfile.txt。
-
-    conan的知识需要自己学习，这里不做过多介绍。
-```
-
-## 如何使用
-
-### 1. 安装依赖
+### Prerequisites
 
 - python3 (required for `cb.py`)
-- CMake + make / Ninja
+- CMake + make/Ninja
 - MSVC / gcc / clang
-- conan (可选)
-- VSCode (可选)
-- C/C++ (VSCode插件、可选)
-- clangd + CodeLLDB (VSCode插件、可选)
-- Task Buttons (VSCode插件、可选)
+- Conan (optional)
+- VSCode (optional)
+- C/C++ extension (VSCode, optional)
+- clangd + CodeLLDB (VSCode, optional)
+- Task Buttons (VSCode, optional)
 
-环境建议：
+Environment notes:
 
-- Windows 下使用 Bash 版本（`install.sh` / `cb.sh`）时，建议在 Git Bash 终端执行。
-- 使用 Python 版本（`cb.py`）前，请先安装 Python（建议 Python 3.8+）。
-- Conan 建议通过 `pip` 安装：
+- On Windows, it is recommended to run Bash scripts (`install.sh`, `cb.sh`) in Git Bash.
+- For the Python workflow, install Python first.
+- Conan is recommended to be installed via pip:
 
 ```bash
 python -m pip install conan
 ```
 
-### 2. 搭建项目
+### Project Bootstrap
 
-首先进入自己项目的根目录，运行此仓库的install.sh脚本，脚本会自动搭建好。
+Run the install script in your project root.
 
-默认安装 Python 版本（会覆盖 `.vscode/tasks.json` 为 Python 任务）：
+Default install (Python version, replaces `.vscode/tasks.json` with Python tasks):
 
 ```bash
 # github
@@ -51,7 +41,7 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 ```
 
-安装 Bash 版本（会覆盖 `.vscode/tasks.json` 为 Bash 任务）：
+Install Bash version (replaces `.vscode/tasks.json` with Bash tasks):
 
 ```bash
 # github
@@ -61,21 +51,21 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
 ```
 
-全局安装（可在任意项目目录直接执行 `cb`）：
+Global install (use `cb` directly in any project directory):
 
 ```bash
-# 默认安装 Python 版本，全局命令为 cb
+# Python variant by default, command name: cb
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global
 
-# 安装 Bash 版本
+# Install Bash variant
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --bash
 
-# 自定义安装目录/命令目录/命令名
+# Customize install/bin/cmd paths
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
   bash -s -- --global --prefix ~/.local/share/cbuild --bin-dir ~/.local/bin --cmd cb
 ```
 
-仅拉取 `.clang-format`：
+Only pull `.clang-format`:
 
 ```bash
 # github
@@ -85,111 +75,79 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
 ```
 
-前提：
+Notes:
 
-- 项目根目录下应该不要存在.vscode目录，因为脚本会检查、备份以及看情况创建这个目录，为了避免冲突请在运行 install.sh 脚本的时候，请先清理好项目目录。
+- It is recommended to clean existing `.vscode` content before running `install.sh`.
+- If you do not use VSCode, only `cb.py` or `cb.sh` plus `cb_conf.ini` is required.
+- Task templates are split into `.vscode/tasks_python.json` and `.vscode/tasks_bash.json`; install will copy one of them to `tasks.json`.
 
-- 若不需要使用 vscode 可以不依赖 .vscode 目录，仅仅需要 cb.py 或 cb.sh 与 cb_conf.ini 文件即可。
+### `cb.py` / `cb.sh`
 
-- `.vscode/tasks.json` 已按模板拆分为 `.vscode/tasks_python.json` 与 `.vscode/tasks_bash.json`，安装时会按版本自动覆盖为对应的 `tasks.json`。
+Both scripts depend on `cb_conf.ini`, with this lookup order:
+
+1. current working directory: `./cb_conf.ini`
+2. script directory fallback: `cb_conf.ini`
+
+#### Regarding `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
+
+`cb.py` and `cb.sh` now behave as follows:
+
+- If `c_compiler` / `cpp_compiler` in `cb_conf.ini` is **empty**: no `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER` is injected; CMake uses the normal environment.
+- If `c_compiler` / `cpp_compiler` is **configured**:
+  - `-DCMAKE_C_COMPILER=...` / `-DCMAKE_CXX_COMPILER=...` is injected automatically.
+  - For absolute (or path-like) values, the compiler directory is temporarily prepended to `PATH` for this CMake subprocess only.
+  - For command names like `gcc`/`g++`/`clang`/`clang++`, the script first resolves the executable path, then temporarily prepends that directory to `PATH`.
+- In `MSVC` mode (`[msvc] enable=1` with valid `msvc_env_script`), behavior stays unchanged: environment is initialized via `vcvarsall.bat`, without the above injection flow.
+
+Note: this temporary `PATH` change is process-local and does not modify user/system persistent environment variables.
 
 
-### cb.py / cb.sh 的使用
-`cb.py` 与 `cb.sh` 都依赖 `cb_conf.ini`，查找顺序如下：
+#### Parameter description of cb_conf.ini
 
-1. 当前工作目录 `./cb_conf.ini`
-2. 脚本同级目录 `cb_conf.ini`（回退）
 
-#### 关于 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
-`cb.py` 与 `cb.sh` 的行为如下：
-
-- `cb_conf.ini` 中 `c_compiler` / `cpp_compiler` **留空**：不注入 `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER`，按系统环境正常调用 CMake。
-- `c_compiler` / `cpp_compiler` **已配置**：
-  - 自动注入 `-DCMAKE_C_COMPILER=...` / `-DCMAKE_CXX_COMPILER=...`。
-  - 若写的是绝对路径（或带目录的路径），会把其目录仅在本次 `cmake` 子进程临时补到 `PATH`。
-  - 若写的是 `gcc`/`g++`/`clang`/`clang++` 这类命令名，会先解析其实际路径，再把对应目录临时补到 `PATH`。
-- `MSVC` 模式（`[msvc] enable=1` 且 `msvc_env_script` 有效）保持原行为：通过 `vcvarsall.bat` 建环境，不走上述注入流程。
-
-说明：这里的 `PATH` 处理仅对当前 `cb.py`/`cb.sh` 启动的子进程生效，不会修改系统级或用户级环境变量。
-
-#### cb_conf.ini 参数说明
-
-cb_conf.ini 中的参数都可以自行进行合理的修改 ，以下是参数的说明：
+All the parameters in cb_conf.ini can be modified reasonably by yourself. The following is the description of the parameters:
 
 ```ini
 [build]
-build_type = Debug      # 编译类型为 Debug。目前可选 [Debug、Release]
-source_dir = .          # 源码目录，.表示当前目录
-generator = Ninja       # 构建工具，可选 [Ninja、Unix Makefiles ...]
-parallel_jobs = auto    # 并行编译的线程数，auto为自动选择cpu核心数
+build_type = Debug      # The compilation type is Debug. Currently, [Debug, Release]
+source_dir = .          # The source code directory, "."indicates the current directory
+output_dir = output     # Output directory. If not specified, it will default to "build"; the compiler suffix will be appended, such as "output/GCC-11.4.0-Release"
+generator = Ninja       # Build tools available: [Ninja, Unix Makefiles, ...]
+parallel_jobs = auto    # The number of threads for parallel compilation, where auto means the number of cpu cores is automatically selected
 
-[compiler]              # 编译器相关配置（不含MSVC），若msvc的enable生效则此项无效（linux下msvc项无效）
-c_compiler = gcc        # C 编译器（可写命令名或路径）；非空时会注入 CMAKE_C_COMPILER
-cpp_compiler = g++      # C++ 编译器（可写命令名或路径）；非空时会注入 CMAKE_CXX_COMPILER
-conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
-conan_build = gcc       # 对应 conan 的 profile build
-conan_host = gcc        # 对应 conan 的 profile host
+[compiler]              # Compact-related configuration (excluding MSVC), is invalid if the enable of msvc takes effect (the msvc item is invalid under linux).
+c_compiler = gcc        # C compiler (name or path); if non-empty, injects CMAKE_C_COMPILER
+cpp_compiler = g++      # C++ compiler (name or path); if non-empty, injects CMAKE_CXX_COMPILER
+conan_enable = 1        # Whether to use conan: 1, True, true indicates usage; 0, False, false indicates non-usage.
+conan_build = gcc       # The profile corresponding to conan's profile build
+conan_host = gcc        # The profile corresponding to conan's profile host
 
-[msvc]                  # msvc 编译器比较特殊，需要指定环境变量脚本vcvarsall.bat的路径
-enable = 1              # 是否使用MSVC编译器，1、True、true表示使用，0、False、false表示不使用
-msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC环境变量脚本路径
-host_arch = x64         # 编译可执行程序的位数，可选 [x86、x64]
-conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
-conan_build = default   # 对应 conan 的 profile build ，没有 conanfile.txt 或 conanfile.py 时，不生效
-conan_host = default    # 对应 conan 的 profile host ，没有 conanfile.txt 或 conanfile.py 时，不生效
+[msvc]                  # The msvc compiler is rather special and requires specifying the path of the environment variable script vcvarsall.bat
+enable = 1              # Whether to use the MSVC compiler or not, 1, True, true indicates usage, and 0, False, false indicates non-usage
+msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC environment variable script path
+host_arch = x64         # The number of bits for compiling the executable program can be selected as [x86, x64]
+conan_enable = 1        # Whether to use conan: 1, True, true indicates usage; 0, False, false indicates non-usage.
+conan_build = default   # The profile corresponding to conan's profile build , It does not take effect when there is no conanfile.txt or conanfile.py
+conan_host = default    # The profile corresponding to conan's profile host , It does not take effect when there is no conanfile.txt or conanfile.py
 
 ```
 
-#### cb.py / cb.sh 使用命令说明
+#### Command instructions for using cb.py/cb.sh
 
-cb.py  脚本依赖 cb_conf.ini 文件中的参数具有一些记忆功能，但也可以通过命令行让其不过分依赖。
-
-cb 脚本的使用方法如下：
+Python examples:
 
 ```bash
-# -t|--type 切换默认的编译类型
 python cb.py -t
-python cb.py -t Debug
-python cb.py -t Release
-python cb.py --type
-
-# --conan 使用 conan 构建依赖库
 python cb.py --conan
-python cb.py --conan Debug
-python cb.py --conan Release
-
-# -g|--generate 生成CMake缓存
 python cb.py -g
-python cb.py -g Debug
-python cb.py -g Release
-python cb.py --generate
-
-# -b|--build 编译
-python cb.py -b
-python cb.py -b Debug
-python cb.py -b Release
-python cb.py -b --target all # 指定编译目标 all
-python cb.py -b Debug --target all # 指定编译Debug编译类型，编译目标 all
-python cb.py -b Release --target all # 指定编译Release编译类型，编译目标 all
-python cb.py --build
-
-# -c|--clean 清理
+python cb.py -b --target all
 python cb.py -c
-python cb.py --clean
-
-# -r|--run 运行
 python cb.py -r
-python cb.py -r Debug
-python cb.py -r Release
-python cb.py --run
-
-# -h|--help 帮助
 python cb.py -h
-python cb.py --help
 ```
 
-`cb.sh` 参数与 `cb.py` 保持一致，用法示例：
+Bash examples:
 
 ```bash
 bash cb.sh -t
@@ -201,74 +159,57 @@ bash cb.sh -r
 bash cb.sh -h
 ```
 
-### vscode 配置
-.vscode 目录按照作者的习惯，做了一些配置，可以自行修改。
+### vscode configuration
+The.vscode directory has been configured according to the author's habits and can be modified by yourself.
 
 ![alt text](image.png)
 
-如上图的1-5按钮，分别对应了生成
+As shown in buttons 1 to 5 in the above figure, they respectively correspond to generation
 
-- 1.cmake generate；
-- 2.编译；
-- 3.运行；
-- 4.deploy（此处需要自己在CMakeLists.txt中根据自己项目定义一个deploy的target。若不需要请忽略）
-- 5.切换Debug/Release编译类型；
-- 6.清理。
+- 1.cmake generate;
+- 2.compiling;
+- 3.running
+- 4.deploy (Here, you need to define a "deploy" target in your CMakeLists.txt according to your project requirements. If not necessary, please ignore it.);
+- 5.Switch between Debug and Release compilation types;
+- 6.clean.
 
-也可以在终端中使用 cb.py/cb.sh 使用命令说明中的命令，也可以在 vscode 中使用 Task Buttons 插件，配置好快捷键，即可快速编译运行。
+You can also use the commands in the command description in cb.py/cb.sh in the terminal, or use the Task Buttons plugin in vscode. After configuring the shortcut keys, you can quickly compile and run.
 
+### Conan Usage
 
+- Create `conanfile.py` or `conanfile.txt` in the project root.
+- Enable Conan in `cb_conf.ini` (`conan_enable = 1`).
+- Set `conan_build` / `conan_host` profiles in `cb_conf.ini`.
+- Use `find_package()` and `target_link_libraries()` in `CMakeLists.txt`.
+- Do not override `CMAKE_TOOLCHAIN_FILE` manually when using this workflow.
 
-### 若使用 conan
-
-- 首先安装 conan
-- 然后在项目根目录下创建 conanfile.py 文件，并在其中定义依赖库
-- 在 conanfile.py 中，指定依赖库的名称、版本、路径等信息
-- 在 cb_conf.ini 中，将 conan_enable 设置为 1
-- 在 cb_conf.ini 中，指定 conan_build 和 conan_host 对应的 profile
-- conan的profile可以根据自己项目的需求进行修改，但需要注意，profile的名称必须与 cb_conf.ini中定义的名称一致（需要开发者自行了解相关知识）
-- 在CMakeLists.txt中，使用find_package()函数查找依赖库，并使用target_link_libraries()函数链接依赖库
-- cb.py 脚本会自动设置CMAKE_TOOLCHAIN_FILE变量，并使用conan的profile编译依赖库，请不要在CMakeLists.txt中覆盖CMAKE_TOOLCHAIN_FILE变量
-- 运行 cb.py 脚本，会自动使用 conan 编译依赖库
-
-#### conanfile.py 示例
+#### `conanfile.py` example
 
 ```python
 from conan import ConanFile
-# from conan.tools.cmake import cmake_layout
 from conan.tools.files import copy
 import os
 
 class MyProjectConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-
-    # 生成器
     generators = "CMakeToolchain", "CMakeDeps"
 
     def requirements(self):
-        self.requires("boost/1.84.0", options={"header_only": True}) # 仅头文件库
-        self.requires("jsoncpp/1.9.5", options={"shared": False}) # 静态库
+        self.requires("boost/1.84.0", options={"header_only": True})
+        self.requires("jsoncpp/1.9.5", options={"shared": False})
 
     def layout(self):
-        # cmake_layout(self)
-        # self.folders.build = os.path.join("build", str(self.settings.build_type))
         self.folders.build = ""
         self.folders.generators = os.path.join(self.folders.build, "generators")
         self.cpp.build.bindirs = ["bin"]
         self.cpp.build.libdirs = ["lib"]
 
     def generate(self):
-        # 这个位置可以自定义，self.build_folder是 构建目录，表示在构建目录下的bin目录
-        # 目的是将动态库直接拷贝到bin目录下，便于运行时直接加载
         build_bin = os.path.join(self.build_folder, "bin")
         os.makedirs(build_bin, exist_ok=True)
         for dep in self.dependencies.values():
             for shared_lib in dep.cpp_info.bindirs:
-                print(">>>")
-                print(">>>", shared_lib)
-                print(">>>")
                 copy(self, "*.dll", shared_lib, build_bin)
                 copy(self, "*.so", shared_lib, build_bin)
                 copy(self, "*.dylib", shared_lib, build_bin)
-
 ```
