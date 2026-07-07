@@ -27,6 +27,28 @@ else
     exit 1
 fi
 
+# Remove install dir from shell rc file
+clean_shell_rc() {
+  local dir_to_remove="$1"
+  local rc_file=""
+
+  case "${SHELL##*/}" in
+    bash) rc_file="${HOME}/.bashrc" ;;
+    zsh)  rc_file="${HOME}/.zshrc" ;;
+    fish) rc_file="${HOME}/.config/fish/config.fish" ;;
+    *)    return 0 ;;
+  esac
+
+  [[ -f "$rc_file" ]] || return 0
+
+  # Remove PATH line containing the install directory, and the comment above it
+  if grep -qF "${dir_to_remove}" "$rc_file" 2>/dev/null; then
+    sed -i "\|${dir_to_remove}|d" "$rc_file"
+    sed -i '/^# Added by cbuild install/d' "$rc_file"
+    echo "  ✓ Cleaned PATH from ${rc_file}"
+  fi
+}
+
 uninstall_global() {
     echo "========================================"
     echo "   cbuild Global Uninstall"
@@ -39,6 +61,8 @@ uninstall_global() {
 
     case "$confirm" in
         [yY]|[yY]es)
+            clean_shell_rc "$INSTALL_DIR"
+
             if [[ -d "$INSTALL_DIR" ]]; then
                 rm -rf "$INSTALL_DIR"
                 echo "  ✓ Removed install directory: ${INSTALL_DIR}"

@@ -167,6 +167,34 @@ if [[ "$mode" == "format" ]]; then
     exit 0
 fi
 
+# Auto-add install dir to PATH via shell rc file (Linux / macOS)
+update_shell_rc() {
+  local dir_to_add="$1"
+
+  # Already in PATH? skip
+  case ":${PATH}:" in
+    *":${dir_to_add}:"*) return 0 ;;
+  esac
+
+  local rc_file=""
+  case "${SHELL##*/}" in
+    bash) rc_file="${HOME}/.bashrc" ;;
+    zsh)  rc_file="${HOME}/.zshrc" ;;
+    fish) rc_file="${HOME}/.config/fish/config.fish" ;;
+    *)    return 1 ;;  # Unknown shell, skip
+  esac
+
+  # Check if line already exists in rc file
+  if [[ -f "$rc_file" ]] && grep -qF "${dir_to_add}" "$rc_file" 2>/dev/null; then
+    return 0
+  fi
+
+  # Append
+  { echo ""; echo "# Added by cbuild install"; echo "export PATH=\"${dir_to_add}:\$PATH\""; } >> "$rc_file"
+  echo "Added ${dir_to_add} to ${rc_file}"
+  echo "Run 'source ${rc_file}' or restart your terminal to use it."
+}
+
 if [[ "$mode" == "global" ]]; then
     mkdir -p "$global_install_dir"
 
@@ -205,12 +233,7 @@ EOF
 
     echo "Globally installed ${install_variant} variant to: ${global_install_dir}"
     echo "Uninstall: ${global_install_dir}/${tool_uninstall}"
-    case ":${PATH}:" in
-        *":${global_install_dir}:"*) ;;
-        *)
-            echo "Hint: Add ${global_install_dir} to your PATH to run cb.py directly."
-            ;;
-    esac
+    update_shell_rc "$global_install_dir"
     exit 0
 fi
 
