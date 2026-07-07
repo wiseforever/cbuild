@@ -27,7 +27,7 @@ CONFIG_FILE_CWD = os.path.join(os.getcwd(), "cb_conf.ini")
 CONFIG_FILE = CONFIG_FILE_CWD if os.path.isfile(CONFIG_FILE_CWD) else os.path.join(SCRIPT_DIR, "cb_conf.ini")
 
 # -------------------- 读取配置 --------------------
-CONFIG = configparser.ConfigParser()
+CONFIG = configparser.ConfigParser(inline_comment_prefixes=("#", ";"))
 CONFIG.read(CONFIG_FILE, encoding="utf-8")
 
 BUILD_TYPE = CONFIG.get("build", "build_type", fallback="Release")
