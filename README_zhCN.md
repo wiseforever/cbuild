@@ -130,7 +130,7 @@ python3 ~/.cbuild/cb.py -r    # 运行
 
 ```bash
 # 方式一：直接运行卸载脚本（在安装目录中）
-~/.cbuild/uninstall.sh
+~/.cbuild/cb_uninstall.sh
 
 # 方式二：使用 install.sh --uninstall
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --uninstall

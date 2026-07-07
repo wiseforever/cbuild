@@ -1,6 +1,6 @@
 #!/bin/bash
 # cbuild global uninstall script
-# Installed by install.sh --global, also runnable from repo: bash uninstall.sh
+# Installed by install.sh --global, also runnable from repo: bash cb_uninstall.sh
 
 set -euo pipefail
 

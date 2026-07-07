@@ -16,7 +16,7 @@ date_str=$(date "+%Y%m%d_%H%M%S")
 tool_python="cb.py"
 tool_bash="cb.sh"
 tool_conf="cb_conf.ini"
-tool_uninstall="uninstall.sh"
+tool_uninstall="cb_uninstall.sh"
 tasks_python=".vscode/tasks_python.json"
 tasks_bash=".vscode/tasks_bash.json"
 clang_format_file=".clang-format"
@@ -139,7 +139,7 @@ fi
 if [[ "$mode" == "uninstall" ]]; then
     # 尝试多个常见路径寻找已安装的卸载脚本
     for candidate_dir in "$global_install_dir"; do
-        candidate_uninstall="${candidate_dir}/uninstall.sh"
+        candidate_uninstall="${candidate_dir}/${tool_uninstall}"
         if [[ -f "$candidate_uninstall" ]]; then
             echo "Found cbuild installation at: ${candidate_dir}"
             exec bash "$candidate_uninstall"

@@ -129,7 +129,7 @@ The global install ships with an uninstall script. Run it directly:
 
 ```bash
 # Run the bundled uninstall script:
-~/.cbuild/uninstall.sh
+~/.cbuild/cb_uninstall.sh
 
 # Or use install.sh:
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --uninstall
