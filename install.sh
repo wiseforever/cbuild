@@ -10,6 +10,7 @@ fi
 
 # 默认下载源，可通过 --base-url 指定其他镜像
 raw_base_url="https://gitee.com/wiseforever/cbuild/raw/master"
+fallback_base_url="https://raw.githubusercontent.com/wiseforever/cbuild/master"
 bak_dir="${arg_path}/cbuild_bak"
 date_str=$(date "+%Y%m%d_%H%M%S")
 
@@ -50,27 +51,39 @@ EOF
 download_file() {
     local rel_path="$1"
     local dest_path="$2"
-    local url="${raw_base_url}/${rel_path}"
     local tmp_path="${dest_path}.cbtmp.$$"
 
     mkdir -p "$(dirname "$dest_path")"
 
+    # Try primary URL, fall back to mirror on failure
+    local url="${raw_base_url}/${rel_path}"
+    if ! _download_one "$url" "$tmp_path"; then
+        if [[ -n "$fallback_base_url" && "$raw_base_url" != "$fallback_base_url" ]]; then
+            url="${fallback_base_url}/${rel_path}"
+            _download_one "$url" "$tmp_path" || return 1
+        else
+            return 1
+        fi
+    fi
+
+    mv -f "$tmp_path" "$dest_path"
+}
+
+_download_one() {
+    local url="$1" tmp_path="$2"
+
     if command -v curl >/dev/null 2>&1; then
-        if ! curl -fsSL "$url" -o "$tmp_path"; then
-            rm -f "$tmp_path"
-            return 1
-        fi
+        curl -fsSL "$url" -o "$tmp_path" && return 0
+        rm -f "$tmp_path"
+        return 1
     elif command -v wget >/dev/null 2>&1; then
-        if ! wget -qO "$tmp_path" "$url"; then
-            rm -f "$tmp_path"
-            return 1
-        fi
+        wget -qO "$tmp_path" "$url" && return 0
+        rm -f "$tmp_path"
+        return 1
     else
         echo "Error: neither curl nor wget found. Cannot download files."
         return 1
     fi
-
-    mv -f "$tmp_path" "$dest_path"
 }
 
 while (($# > 0)); do
