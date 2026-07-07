@@ -8,6 +8,7 @@ if [[ $arg_path == /cygdrive/* ]]; then
     arg_path=${arg_path//\\//}
 fi
 
+# 默认下载源，可通过 --base-url 指定其他镜像
 raw_base_url="https://gitee.com/wiseforever/cbuild/raw/master"
 bak_dir="${arg_path}/cbuild_bak"
 date_str=$(date "+%Y%m%d_%H%M%S")
@@ -15,6 +16,7 @@ date_str=$(date "+%Y%m%d_%H%M%S")
 tool_python="cb.py"
 tool_bash="cb.sh"
 tool_conf="cb_conf.ini"
+tool_uninstall="uninstall.sh"
 tasks_python=".vscode/tasks_python.json"
 tasks_bash=".vscode/tasks_bash.json"
 clang_format_file=".clang-format"
@@ -22,27 +24,34 @@ cmake_file="cmake/ez_custom_func.cmake"
 
 mode="simple"
 install_variant="python"
-global_install_dir="${HOME}/.local/share/cbuild"
-global_bin_dir="${HOME}/.local/bin"
+global_install_dir="${HOME}/.cbuild"
+global_bin_dir="${HOME}/.cbuild/bin"
 global_cmd_name="cb"
 
 print_help() {
     cat <<'EOF'
-Usage:
+用法 / Usage:
   ./install.sh [--python|--bash] [--simple]
   ./install.sh [--python|--bash] --global [--prefix <dir>] [--bin-dir <dir>] [--cmd <name>]
+  ./install.sh --uninstall
   ./install.sh --format
 
-Options:
-  --bash            安装 Bash 版本
-  --python          安装 Python 版本（默认）
-  -s, --simple      普通安装模式（默认）
+选项 / Options:
+  --bash            安装 Bash 版本 / Install Bash variant
+  --python          安装 Python 版本（默认）/ Install Python variant (default)
+  -s, --simple      普通安装模式（默认）/ Install to current project (default)
   --global          全局安装模式（安装工具到共享目录并生成可执行命令）
-  --prefix <dir>    全局安装目录（默认: ~/.local/share/cbuild）
-  --bin-dir <dir>   全局命令目录（默认: ~/.local/bin）
+                    / Install globally (shared dir + executable launcher)
+  --prefix <dir>    全局安装目录（默认: ~/.cbuild）
+                    / Global install directory (default: ~/.cbuild)
+  --bin-dir <dir>   全局命令目录（默认: ~/.cbuild/bin）
+                    / Binary/launcher directory (default: ~/.cbuild/bin)
   --cmd <name>      全局命令名（默认: cb）
-  format, --format  仅拉取 .clang-format
-  -h, --help        显示帮助
+                    / Command name (default: cb)
+  --uninstall       卸载全局安装 / Uninstall global installation
+  --base-url <url>  自定义下载镜像地址 / Custom download base URL
+  format, --format  仅拉取 .clang-format / Fetch only .clang-format
+  -h, --help        显示帮助 / Show this help
 EOF
 }
 
@@ -87,6 +96,10 @@ while (($# > 0)); do
             mode="global"
             shift
             ;;
+        --uninstall|uninstall)
+            mode="uninstall"
+            shift
+            ;;
         python|--python|py|--py)
             install_variant="python"
             shift
@@ -119,6 +132,14 @@ while (($# > 0)); do
             global_cmd_name="$2"
             shift 2
             ;;
+        --base-url)
+            if (($# < 2)); then
+                echo "参数 --base-url 需要一个 URL"
+                exit 1
+            fi
+            raw_base_url="$2"
+            shift 2
+            ;;
         -h|--help)
             print_help
             exit 0
@@ -136,6 +157,24 @@ selected_tasks_template="$tasks_bash"
 if [[ "$install_variant" == "python" ]]; then
     selected_tool="$tool_python"
     selected_tasks_template="$tasks_python"
+fi
+
+# --- 卸载模式 ---
+if [[ "$mode" == "uninstall" ]]; then
+    # 尝试多个常见路径寻找已安装的卸载脚本
+    for candidate_dir in "$global_install_dir"; do
+        candidate_uninstall="${candidate_dir}/uninstall.sh"
+        if [[ -f "$candidate_uninstall" ]]; then
+            echo "找到已安装的 cbuild: ${candidate_dir}"
+            exec bash "$candidate_uninstall"
+        fi
+    done
+
+    echo "未找到已安装的 cbuild 全局安装。"
+    echo "如需手动卸载，请删除以下内容："
+    echo "  安装目录: ${global_install_dir}"
+    echo "  命令入口: ${global_bin_dir}/${global_cmd_name}"
+    exit 1
 fi
 
 if [[ "$mode" == "format" ]]; then
@@ -175,6 +214,13 @@ if [[ "$mode" == "global" ]]; then
         exit 1
     }
 
+    # 安装卸载脚本
+    download_file "$tool_uninstall" "$global_install_dir/$tool_uninstall" || {
+        echo "下载 ${tool_uninstall} 失败！"
+        exit 1
+    }
+    chmod +x "$global_install_dir/$tool_uninstall"
+
     launcher_path="${global_bin_dir}/${global_cmd_name}"
     if [[ "$install_variant" == "python" ]]; then
         cat > "$launcher_path" <<EOF
@@ -191,8 +237,18 @@ EOF
     fi
     chmod +x "$launcher_path"
 
+    # 写入安装清单，供卸载脚本使用
+    cat > "${global_install_dir}/.install.cfg" <<EOF
+# cbuild 安装配置 - 供卸载脚本使用
+LAUNCHER_PATH="${launcher_path}"
+INSTALL_DIR="${global_install_dir}"
+CMD_NAME="${global_cmd_name}"
+INSTALL_VARIANT="${install_variant}"
+EOF
+
     echo "已全局安装 ${install_variant} 版本到: ${global_install_dir}"
     echo "命令入口: ${launcher_path}"
+    echo "卸载方式: ${global_install_dir}/${tool_uninstall}"
     case ":${PATH}:" in
         *":${global_bin_dir}:"*) ;;
         *)

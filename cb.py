@@ -65,9 +65,9 @@ CONFIG_C_COMPILER = (CONFIG.get("compiler", "c_compiler", fallback="") or "").st
 CONFIG_CXX_COMPILER = (CONFIG.get("compiler", "cpp_compiler", fallback="") or "").strip()
 c_compiler = CONFIG_C_COMPILER or None
 cpp_compiler = CONFIG_CXX_COMPILER or None
-CONAN_ENABLER = CONFIG.getboolean("compiler", "conan_enable", fallback=False)
-CONAN_BUILD = CONFIG.get("compiler", "conan_build", fallback=None)
-CONAN_HOST = CONFIG.get("compiler", "conan_host", fallback=None)
+CONAN_ENABLER = CONFIG.getboolean("conan", "enable", fallback=False)
+CONAN_BUILD = CONFIG.get("conan", "build", fallback=None)
+CONAN_HOST = CONFIG.get("conan", "host", fallback=None)
 
 MSVC_ENABLE = False
 MSVC_ENV_SCRIPT = None
@@ -150,12 +150,20 @@ def prepare_cmake_compiler_env():
         return
 
     unique_dirs = list(dict.fromkeys(bin_dirs))
+
+    # 只注入不在当前 PATH 中的目录，避免无意义的提示
+    current_path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+    new_dirs = [d for d in unique_dirs if d not in current_path_dirs]
+    if not new_dirs:
+        CMAKE_RUN_ENV = None
+        return
+
     env = os.environ.copy()
     old_path = env.get("PATH", "")
-    env["PATH"] = os.pathsep.join(unique_dirs + ([old_path] if old_path else []))
+    env["PATH"] = os.pathsep.join(new_dirs + ([old_path] if old_path else []))
     CMAKE_RUN_ENV = env
 
-    log.info(f"Temporary PATH injection for CMake subprocess: {os.pathsep.join(unique_dirs)}")
+    log.info(f"Temporary PATH injection for CMake subprocess: {os.pathsep.join(new_dirs)}")
 
 def get_compiler_type(compiler):
     if MSVC_ENABLE and MSVC_ENV_SCRIPT:
@@ -233,6 +241,20 @@ def get_project_name_simple():
                 return m2.group(1)
         return name
     return "application"
+
+def run_cmd(cmd, **kwargs):
+    """Run a command; on failure print the command as a readable string instead of Python list format."""
+    try:
+        return subprocess.run(cmd, check=True, **kwargs)
+    except subprocess.CalledProcessError as e:
+        if isinstance(cmd, list):
+            cmd_str = " ".join(shlex.quote(c) if " " in c else c for c in cmd)
+        else:
+            cmd_str = str(cmd)
+        log.error(f"命令失败 (exit {e.returncode}):")
+        log.error(f"  {cmd_str}")
+        sys.exit(e.returncode)
+
 
 def save_config():
     if "build" not in CONFIG:
@@ -645,7 +667,7 @@ def prepare_conan_python_env(conanfile_path):
     if enable_conan_from_cli_python():
         return True
 
-    log.warning("The Conan module is not installed in current Python. Skip conanfile.py layout inspection.")
+    log.debug("The Conan module is not installed in current Python. Skip conanfile.py layout inspection.")
     return False
 
 def get_generators_folder(conanfile_path):
@@ -655,7 +677,7 @@ def get_generators_folder(conanfile_path):
     try:
         from conan import ConanFile
     except ModuleNotFoundError:
-        log.warning("The Conan module is not installed. Skip.")
+        log.debug("The Conan module is not installed. Skip.")
         return None
     
     spec = importlib.util.spec_from_file_location("conanfile_module", conanfile_path)
@@ -677,9 +699,6 @@ def get_generators_folder(conanfile_path):
 def run_conan_install():
     global CONAN_BUILD, CONAN_HOST, CONAN_ENABLER
 
-    if MSVC_ENABLE and MSVC_ENV_SCRIPT:
-        CONAN_ENABLER = CONFIG.getboolean("msvc", "conan_enable", fallback=False)
-
     if not CONAN_ENABLER:
         return
 
@@ -687,13 +706,6 @@ def run_conan_install():
     conan_file_py = os.path.join(SOURCE_DIR, "conanfile.py")
 
     if os.path.isfile(conan_file_txt) or os.path.isfile(conan_file_py):
-        # if os.path.isfile(conan_file_py):
-        #     prepare_conan_python_env(conan_file_py)
-
-        if MSVC_ENABLE and MSVC_ENV_SCRIPT:
-            CONAN_BUILD = CONFIG.get("msvc", "conan_build", fallback=None)
-            CONAN_HOST = CONFIG.get("msvc", "conan_host", fallback=None)
-
         cmd = ["conan", "install", SOURCE_DIR, "-s", f"build_type={BUILD_TYPE}", "--output-folder", BUILD_DIR, "--build=missing"]
         
         def is_valid_value(val):
@@ -721,7 +733,7 @@ def run_conan_install():
             cmd += options_list
 
         log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
-        subprocess.run(cmd, check=True)
+        run_cmd(cmd)
 
         # toolchain_file = os.path.join(BUILD_DIR, "generators/conan_toolchain.cmake")
         generators_folder = get_generators_folder(conan_file_py)
@@ -810,7 +822,7 @@ def run_cmake_configure():
         if CMAKE_TOOLCHAIN_FILE:
             cmd.append(f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_FILE}")
         log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
-        return subprocess.run(cmd, check=True, env=CMAKE_RUN_ENV)
+        return run_cmd(cmd, env=CMAKE_RUN_ENV)
 
 def run_cmake_build():
     if CMAKE_VERSION >= (3, 12):
@@ -819,7 +831,7 @@ def run_cmake_build():
         cmd = ["cmake", "--build", BUILD_DIR, "--target", BUILD_TARGET, "--", f"-j{PARALLEL_JOBS}"]
     # print(cmd)
     log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
-    return subprocess.run(cmd, check=True, env=CMAKE_RUN_ENV)
+    return run_cmd(cmd, env=CMAKE_RUN_ENV)
 
 def run_msvc_build():
     # 确保路径为反斜杠
@@ -912,7 +924,7 @@ def run():
     conan_file_txt = os.path.join(SOURCE_DIR, "conanfile.txt")
     conan_file_py = os.path.join(SOURCE_DIR, "conanfile.py")
 
-    if os.path.isfile(conan_file_txt) or os.path.isfile(conan_file_py):
+    if CONAN_ENABLER and (os.path.isfile(conan_file_txt) or os.path.isfile(conan_file_py)):
         if os.path.isfile(conan_file_py):
             prepare_conan_python_env(conan_file_py)
 

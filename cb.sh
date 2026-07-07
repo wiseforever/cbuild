@@ -167,16 +167,13 @@ load_config() {
   CONFIG_CXX_COMPILER="$(trim "$(ini_get compiler cpp_compiler "")")"
   C_COMPILER="$CONFIG_C_COMPILER"
   CXX_COMPILER="$CONFIG_CXX_COMPILER"
-  CONAN_ENABLE="$(to_bool "$(ini_get compiler conan_enable false)")"
-  CONAN_BUILD="$(ini_get compiler conan_build "")"
-  CONAN_HOST="$(ini_get compiler conan_host "")"
+  CONAN_ENABLE="$(to_bool "$(ini_get conan enable false)")"
+  CONAN_BUILD="$(ini_get conan build "")"
+  CONAN_HOST="$(ini_get conan host "")"
 
   MSVC_ENABLE="$(to_bool "$(ini_get msvc enable false)")"
   MSVC_ENV_SCRIPT="$(ini_get msvc msvc_env_script "")"
   HOST_ARCH="$(ini_get msvc host_arch x64)"
-  MSVC_CONAN_ENABLE="$(to_bool "$(ini_get msvc conan_enable false)")"
-  MSVC_CONAN_BUILD="$(ini_get msvc conan_build "")"
-  MSVC_CONAN_HOST="$(ini_get msvc conan_host "")"
 
   case "$OS_TYPE" in
   windows)
@@ -289,6 +286,23 @@ prepare_cmake_compiler_env() {
   done
 
   CMAKE_RUN_PATH_PREFIX="$(IFS=:; printf '%s' "${unique_dirs[*]}")"
+
+  # 只注入不在当前 PATH 中的目录，避免无意义的提示
+  local -a new_dirs=()
+  local dir
+  for dir in "${unique_dirs[@]}"; do
+    case ":${PATH}:" in
+      *":${dir}:"*) ;;
+      *) new_dirs+=("$dir") ;;
+    esac
+  done
+
+  if [[ ${#new_dirs[@]} -eq 0 ]]; then
+    CMAKE_RUN_PATH_PREFIX=""
+    return 0
+  fi
+
+  CMAKE_RUN_PATH_PREFIX="$(IFS=:; printf '%s' "${new_dirs[*]}")"
   log_info "Temporary PATH injection for CMake subprocess: $CMAKE_RUN_PATH_PREFIX"
 }
 
@@ -698,12 +712,6 @@ run_conan_install() {
   local conan_host="$CONAN_HOST"
   local conan_file_txt conan_file_py
   local cmd=() line key value
-
-  if [[ "$OS_TYPE" == "windows" && "$MSVC_ENABLE" == "true" && -n "$MSVC_ENV_SCRIPT" ]]; then
-    conan_enabled="$MSVC_CONAN_ENABLE"
-    conan_build="$MSVC_CONAN_BUILD"
-    conan_host="$MSVC_CONAN_HOST"
-  fi
 
   [[ "$conan_enabled" == "true" ]] || return 0
 

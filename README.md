@@ -1,12 +1,35 @@
 # cbuild
 
-中文文档: [README_zhCN.md](README_zhCN.md)
+[中文文档](README_zhCN.md)
 
 This repository provides a lightweight build workflow for C/C++ projects, with optional VSCode integration and Conan support.
 
-## How To Use
+## Table of Contents
 
-### Prerequisites
+- [Quick Start](#quick-start)
+- [Prerequisites](#prerequisites)
+- [Project Bootstrap](#project-bootstrap)
+- [Global Install](#global-install)
+- [Uninstall](#uninstall)
+- [cb.py / cb.sh Usage](#cbpy--cbsh-usage)
+  - [cb_conf.ini Parameters](#cb_confini-parameters)
+  - [Command Reference](#command-reference)
+- [VSCode Configuration](#vscode-configuration)
+- [Conan Usage](#conan-usage)
+
+## Quick Start
+
+```bash
+# Python variant — install into your project
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
+
+# Then configure, build and run:
+python cb.py -g    # CMake generate
+python cb.py -b    # build
+python cb.py -r    # run
+```
+
+## Prerequisites
 
 - python3 (required for `cb.py`)
 - CMake + make/Ninja
@@ -27,7 +50,7 @@ Environment notes:
 python -m pip install conan
 ```
 
-### Project Bootstrap
+## Project Bootstrap
 
 Run the install script in your project root.
 
@@ -51,20 +74,6 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
 ```
 
-Global install (use `cb` directly in any project directory):
-
-```bash
-# Python variant by default, command name: cb
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global
-
-# Install Bash variant
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --bash
-
-# Customize install/bin/cmd paths
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
-  bash -s -- --global --prefix ~/.local/share/cbuild --bin-dir ~/.local/bin --cmd cb
-```
-
 Only pull `.clang-format`:
 
 ```bash
@@ -81,14 +90,73 @@ Notes:
 - If you do not use VSCode, only `cb.py` or `cb.sh` plus `cb_conf.ini` is required.
 - Task templates are split into `.vscode/tasks_python.json` and `.vscode/tasks_bash.json`; install will copy one of them to `tasks.json`.
 
-### `cb.py` / `cb.sh`
+## Global Install
+
+Install to a shared directory and create an executable launcher (`cb` by default) so you can configure/build/run any project from anywhere. `-g` and `--global` are both accepted.
+
+```bash
+# Python variant by default, command name: cb
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g
+
+# Install Bash variant
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g --bash
+
+# Customize install/bin/cmd paths
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
+  bash -s -- -g --prefix ~/.cbuild --bin-dir ~/.cbuild/bin --cmd cb
+```
+
+After global install, you can use `cb` directly in any project directory that has a `cb_conf.ini` file:
+
+```bash
+cd my-project
+cb -g    # CMake generate
+cb -b    # build
+cb -r    # run
+```
+
+When using the global install, `cb.py` / `cb.sh` looks for `cb_conf.ini` in this order:
+
+1. Current working directory: `./cb_conf.ini`
+2. Script installation directory (fallback)
+
+## Uninstall
+
+### Uninstall Global Installation
+
+The global install ships with an uninstall script. Run it directly:
+
+```bash
+# If `~/.cbuild` is in your PATH or you know the install directory:
+~/.cbuild/uninstall.sh
+
+# Or use install.sh:
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --uninstall
+```
+
+The uninstall script will remove:
+
+- The global installation directory (`~/.cbuild/`)
+- The launcher command (`~/.cbuild/bin/cb`)
+- All installed scripts and config files
+
+### Uninstall Project-local Installation
+
+For a project-local (simple) install, simply delete the installed files from your project directory:
+
+```bash
+rm cb.py cb.sh cb_conf.ini
+rm -rf .vscode/cmake/cbuild_bak/
+```
+
+## cb.py / cb.sh Usage
 
 Both scripts depend on `cb_conf.ini`, with this lookup order:
 
 1. current working directory: `./cb_conf.ini`
 2. script directory fallback: `cb_conf.ini`
 
-#### Regarding `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
+### Regarding `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
 `cb.py` and `cb.sh` now behave as follows:
 
@@ -101,12 +169,9 @@ Both scripts depend on `cb_conf.ini`, with this lookup order:
 
 Note: this temporary `PATH` change is process-local and does not modify user/system persistent environment variables.
 
+### cb_conf.ini Parameters
 
-#### Parameter description of cb_conf.ini
-
-
-
-All the parameters in cb_conf.ini can be modified reasonably by yourself. The following is the description of the parameters:
+All the parameters in `cb_conf.ini` can be modified according to your needs.
 
 ```ini
 [build]
@@ -119,6 +184,8 @@ parallel_jobs = auto    # The number of threads for parallel compilation, where 
 [compiler]              # Compact-related configuration (excluding MSVC), is invalid if the enable of msvc takes effect (the msvc item is invalid under linux).
 c_compiler = gcc        # C compiler (name or path); if non-empty, injects CMAKE_C_COMPILER
 cpp_compiler = g++      # C++ compiler (name or path); if non-empty, injects CMAKE_CXX_COMPILER
+
+[conan]                 # Conan package manager settings
 conan_enable = 1        # Whether to use conan: 1, True, true indicates usage; 0, False, false indicates non-usage.
 conan_build = gcc       # The profile corresponding to conan's profile build
 conan_host = gcc        # The profile corresponding to conan's profile host
@@ -127,55 +194,86 @@ conan_host = gcc        # The profile corresponding to conan's profile host
 enable = 1              # Whether to use the MSVC compiler or not, 1, True, true indicates usage, and 0, False, false indicates non-usage
 msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC environment variable script path
 host_arch = x64         # The number of bits for compiling the executable program can be selected as [x86, x64]
-conan_enable = 1        # Whether to use conan: 1, True, true indicates usage; 0, False, false indicates non-usage.
-conan_build = default   # The profile corresponding to conan's profile build , It does not take effect when there is no conanfile.txt or conanfile.py
-conan_host = default    # The profile corresponding to conan's profile host , It does not take effect when there is no conanfile.txt or conanfile.py
-
 ```
 
-#### Command instructions for using cb.py/cb.sh
+### Command Reference
 
 Python examples:
 
 ```bash
+# -t|--type     Toggle or set build type
 python cb.py -t
+python cb.py -t Debug
+python cb.py -t Release
+
+# --conan       Build Conan dependencies
 python cb.py --conan
+python cb.py --conan Debug
+
+# -g|--generate CMake generate
 python cb.py -g
+python cb.py -g Debug
+
+# -b|--build    Compile
+python cb.py -b
 python cb.py -b --target all
-python cb.py -c
+python cb.py -b Debug --target all
+
+# -r|--run      Run the built executable
 python cb.py -r
+python cb.py -r Debug
+
+# -c|--clean    Clean build directory
+python cb.py -c
+
+# -h|--help     Show help
 python cb.py -h
 ```
 
 Bash examples:
 
 ```bash
+# -t|--type     Toggle or set build type
 bash cb.sh -t
+bash cb.sh -t Debug
+
+# --conan       Build Conan dependencies
 bash cb.sh --conan
+
+# -g|--generate CMake generate
 bash cb.sh -g
+
+# -b|--build    Compile
 bash cb.sh -b --target all
-bash cb.sh -c
+
+# -r|--run      Run the built executable
 bash cb.sh -r
+
+# -c|--clean    Clean build directory
+bash cb.sh -c
+
+# -h|--help     Show help
 bash cb.sh -h
 ```
 
-### vscode configuration
-The.vscode directory has been configured according to the author's habits and can be modified by yourself.
+## VSCode Configuration
+
+The `.vscode` directory is pre-configured with tasks, debug launch configs, snippets and settings, ready for customisation.
 
 ![alt text](image.png)
 
-As shown in buttons 1 to 5 in the above figure, they respectively correspond to generation
+As shown in buttons 1 to 6 in the above figure, they respectively correspond to:
 
-- 1.cmake generate;
-- 2.compiling;
-- 3.running
-- 4.deploy (Here, you need to define a "deploy" target in your CMakeLists.txt according to your project requirements. If not necessary, please ignore it.);
-- 5.Switch between Debug and Release compilation types;
-- 6.clean.
+1. CMake generate;
+2. Build / compile;
+3. Run;
+4. Deploy (requires a `deploy` target defined in your `CMakeLists.txt`);
+5. Toggle between Debug and Release build types;
+6. Clean.
 
-You can also use the commands in the command description in cb.py/cb.sh in the terminal, or use the Task Buttons plugin in vscode. After configuring the shortcut keys, you can quickly compile and run.
+You can also use the commands listed in [Command Reference](#command-reference) in the terminal, or use the Task Buttons plugin in VSCode with configured shortcuts.
 
-### Conan Usage
+## Conan Usage
 
 - Create `conanfile.py` or `conanfile.txt` in the project root.
 - Enable Conan in `cb_conf.ini` (`conan_enable = 1`).
@@ -183,7 +281,7 @@ You can also use the commands in the command description in cb.py/cb.sh in the t
 - Use `find_package()` and `target_link_libraries()` in `CMakeLists.txt`.
 - Do not override `CMAKE_TOOLCHAIN_FILE` manually when using this workflow.
 
-#### `conanfile.py` example
+### conanfile.py example
 
 ```python
 from conan import ConanFile
