@@ -582,13 +582,14 @@ print_help() {
   cat <<'EOF'
 Usage: cb.sh [options]
 Options:
-  -h, --help                     显示帮助信息
-  -t | --type [Debug|Release]    不带参数时在 Debug/Release 间切换，并保存到 cb_conf.ini
-  --conan [<type>]               使用 Conan 构建依赖库
-  -g | --generate                仅运行 CMake 配置
-  -b | --build [<type>] [--target <target>]      构建项目
-  -r | --run [<type>]            运行程序
-  -c | --clean [<type>]          清理构建目录
+  -h, --help                     显示帮助 / Show this help
+  -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb_conf.ini
+                                 / Toggle or set build type, saves to cb_conf.ini
+  --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies
+  -g | --generate                运行 CMake 配置 / Run CMake configure only
+  -b | --build [<type>] [--target <target>]  构建项目 / Build the project
+  -r | --run [<type>]            运行程序 / Run the application
+  -c | --clean [<type>]          清理构建目录 / Clean build directory
 EOF
 }
 
@@ -984,7 +985,7 @@ main() {
     exit 0
   fi
 
-  printf '请使用 -h 查看使用帮助\n'
+  printf 'Use -h for help.\n'
 }
 
 main "$@"

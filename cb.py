@@ -251,7 +251,7 @@ def run_cmd(cmd, **kwargs):
             cmd_str = " ".join(shlex.quote(c) if " " in c else c for c in cmd)
         else:
             cmd_str = str(cmd)
-        log.error(f"命令失败 (exit {e.returncode}):")
+        log.error(f"Command failed (exit {e.returncode}):")
         log.error(f"  {cmd_str}")
         sys.exit(e.returncode)
 
@@ -336,13 +336,14 @@ def parse_args():
         if arg in ("-h", "--help"):
             print("Usage: cb.py [options]")
             print("Options:")
-            print("  -h, --help                     显示帮助信息")
-            print("  -t | --type [Debug|Release]    不带参数时在 Debug/Release 间切换，并保存到 cb_conf.ini")
-            print("  --conan [<type>]               使用 Conan 构建依赖库")
-            print("  -g | --generate                仅运行 CMake 配置")
-            print("  -b | --build [<type>] [--target <target>]      构建项目")
-            print("  -r | --run [<type>]            运行程序")
-            print("  -c | --clean [<type>]          清理构建目录")
+            print("  -h, --help                     显示帮助 / Show this help")
+            print("  -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb_conf.ini")
+            print("                                 / Toggle or set build type, saves to cb_conf.ini")
+            print("  --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies")
+            print("  -g | --generate                运行 CMake 配置 / Run CMake configure only")
+            print("  -b | --build [<type>] [--target <target>]  构建项目 / Build the project")
+            print("  -r | --run [<type>]            运行程序 / Run the application")
+            print("  -c | --clean [<type>]          清理构建目录 / Clean build directory")
             sys.exit(0)
 
         elif arg in ("-t", "--type"):
@@ -979,7 +980,7 @@ def run():
         run_application()
         return
 
-    print("请使用 -h 查看使用帮助")
+    print("Use -h for help.")
 
 if __name__ == "__main__":
     try:

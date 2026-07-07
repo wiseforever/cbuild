@@ -92,30 +92,30 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 
 ## 全局安装
 
-安装到共享目录并创建可执行命令（默认为 `cb`），可在任意项目目录下直接使用：
-`-g` 与 `--global` 均可。
+安装到共享目录，可在任意项目目录下使用。`-g` 与 `--global` 均可。
 
 ```bash
-# -g / --global 均可使用
-# 默认安装 Python 版本，全局命令为 cb
+# 默认安装 Python 版本
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g
 
 # 安装 Bash 版本
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g --bash
 
-# 自定义安装目录/命令目录/命令名
+# 自定义安装目录
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
-  bash -s -- -g --prefix ~/.cbuild --bin-dir ~/.cbuild/bin --cmd cb
+  bash -s -- -g --prefix ~/.cbuild
 ```
 
-全局安装后，可在含有 `cb_conf.ini` 的项目目录中直接使用 `cb` 命令：
+全局安装后，在项目目录中通过完整路径使用：
 
 ```bash
 cd my-project
-cb -g    # CMake 生成
-cb -b    # 编译
-cb -r    # 运行
+python3 ~/.cbuild/cb.py -g    # CMake 生成
+python3 ~/.cbuild/cb.py -b    # 编译
+python3 ~/.cbuild/cb.py -r    # 运行
 ```
+
+也可将 `~/.cbuild` 加入 `PATH` 后直接用 `python3 cb.py` 执行。
 
 全局安装时，`cb.py` / `cb.sh` 查找 `cb_conf.ini` 的顺序：
 
@@ -139,7 +139,6 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 卸载脚本会移除以下内容：
 
 - 全局安装目录（`~/.cbuild/`）
-- 命令入口（`~/.cbuild/bin/cb`）
 - 所有已安装的脚本和配置文件
 
 ### 卸载项目级安装

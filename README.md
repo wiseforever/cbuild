@@ -92,28 +92,30 @@ Notes:
 
 ## Global Install
 
-Install to a shared directory and create an executable launcher (`cb` by default) so you can configure/build/run any project from anywhere. `-g` and `--global` are both accepted.
+Install `cb.py` / `cb.sh` and config to a shared directory so you can use them from any project. `-g` and `--global` are both accepted.
 
 ```bash
-# Python variant by default, command name: cb
+# Install Python variant (default)
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g
 
 # Install Bash variant
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g --bash
 
-# Customize install/bin/cmd paths
+# Customize install directory
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
-  bash -s -- -g --prefix ~/.cbuild --bin-dir ~/.cbuild/bin --cmd cb
+  bash -s -- -g --prefix ~/.cbuild
 ```
 
-After global install, you can use `cb` directly in any project directory that has a `cb_conf.ini` file:
+After global install, use the full path to run it from any project directory:
 
 ```bash
 cd my-project
-cb -g    # CMake generate
-cb -b    # build
-cb -r    # run
+python3 ~/.cbuild/cb.py -g    # CMake generate
+python3 ~/.cbuild/cb.py -b    # build
+python3 ~/.cbuild/cb.py -r    # run
 ```
+
+Or add `~/.cbuild` to your `PATH` and run `python3 cb.py` from any project directory.
 
 When using the global install, `cb.py` / `cb.sh` looks for `cb_conf.ini` in this order:
 
@@ -123,11 +125,10 @@ When using the global install, `cb.py` / `cb.sh` looks for `cb_conf.ini` in this
 ## Uninstall
 
 ### Uninstall Global Installation
-
 The global install ships with an uninstall script. Run it directly:
 
 ```bash
-# If `~/.cbuild` is in your PATH or you know the install directory:
+# Run the bundled uninstall script:
 ~/.cbuild/uninstall.sh
 
 # Or use install.sh:
@@ -137,7 +138,6 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 The uninstall script will remove:
 
 - The global installation directory (`~/.cbuild/`)
-- The launcher command (`~/.cbuild/bin/cb`)
 - All installed scripts and config files
 
 ### Uninstall Project-local Installation
