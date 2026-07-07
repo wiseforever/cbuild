@@ -173,6 +173,13 @@ Note: this temporary `PATH` change is process-local and does not modify user/sys
 
 All the parameters in `cb_conf.ini` can be modified according to your needs.
 
+> **Global install path note:**
+> `cb.py` / `cb.sh` looks for `cb_conf.ini` in the following order:
+> 1. **Current working directory** `./cb_conf.ini` (project-local config)
+> 2. **Script directory** (fallback, i.e. `~/.cbuild/cb_conf.ini`)
+>
+> When modifying config (`-t` / `--config`), the script always writes to whichever file was actually loaded — project-local first, global fallback otherwise. They do not interfere with each other.
+
 ```ini
 [build]
 build_type = Debug      # The compilation type is Debug. Currently, [Debug, Release]

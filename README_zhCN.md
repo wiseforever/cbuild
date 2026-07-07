@@ -174,6 +174,15 @@ rm -rf .vscode/ cmake/cbuild_bak/
 
 `cb_conf.ini` 中的参数都可以自行进行合理的修改，以下是参数的说明：
 
+> **全局安装路径说明：**
+> `cb.py` / `cb.sh` 按以下顺序查找 `cb_conf.ini`：
+> 1. **当前工作目录** `./cb_conf.ini`（项目级配置）
+> 2. **脚本所在目录**（回退，即 `~/.cbuild/cb_conf.ini`）
+>
+> 修改配置时（`-t` / `--config`），始终修改**实际加载的那个文件**——
+> 项目目录有就改项目目录的，没有则改全局的，互不干扰。
+>
+
 ```ini
 [build]
 build_type = Debug      # 编译类型为 Debug。目前可选 [Debug、Release]
