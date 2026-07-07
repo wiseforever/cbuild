@@ -217,12 +217,12 @@ if [[ "$mode" == "global" ]]; then
         exit 1
     }
 
-    # Install uninstall script alongside
-    download_file "$tool_uninstall" "$global_install_dir/$tool_uninstall" || {
-        echo "Failed to download ${tool_uninstall}!"
-        exit 1
-    }
-    chmod +x "$global_install_dir/$tool_uninstall"
+    # Install uninstall script alongside (optional, warn on failure)
+    if download_file "$tool_uninstall" "$global_install_dir/$tool_uninstall"; then
+        chmod +x "$global_install_dir/$tool_uninstall"
+    else
+        echo "Warning: Failed to download ${tool_uninstall}, skipping."
+    fi
 
     # Write install manifest for uninstall.sh
     cat > "${global_install_dir}/.install.cfg" <<EOF
