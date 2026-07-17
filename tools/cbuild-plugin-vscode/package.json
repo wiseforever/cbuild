@@ -65,6 +65,14 @@
                 "title": "CBuild: Refresh Buttons"
             }
         ],
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "cbuild.bootstrapProject",
+                    "group": "navigation@99"
+                }
+            ]
+        },
         "configuration": {
             "title": "CBuild",
             "properties": {
@@ -88,10 +96,30 @@
                     "default": "bash",
                     "description": "Bash command used to run cb.sh."
                 },
-                "cbuild.bootstrapCommand": {
-                    "type": "string",
-                    "default": "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash",
-                    "description": "Shell command used by CBuild: Bootstrap Project when cb.py/cb.sh is missing."
+                "cbuild.bootstrapCommands": {
+                    "type": "array",
+                    "default": [],
+                    "description": "Bootstrap commands offered by CBuild: Bootstrap Project. Leave empty to use the built-in GitHub and Gitee sources.",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "command"
+                        ],
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "description": "Source name shown in the bootstrap source picker."
+                            },
+                            "command": {
+                                "type": "string",
+                                "description": "Shell command sent to the cbuild terminal after confirmation."
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Additional source information shown in the bootstrap source picker."
+                            }
+                        }
+                    }
                 },
                 "cbuild.showButtons": {
                     "type": "array",

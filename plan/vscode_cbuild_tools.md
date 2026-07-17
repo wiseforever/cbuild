@@ -18,7 +18,10 @@
 - 已将插件打包说明迁移到 `tools/cbuild-plugin-vscode/docs/package.md`。
 - 已调整 `install.sh`，安装时不再下载 task 模板，也不再生成或覆盖 `.vscode/tasks.json`。
 - 确认 `cbuild.targets` 专用于 CMake target；新增 `cbuild.commands` 支持自定义 shell 命令按钮。
-- 确认插件检测到当前 workspace 缺少 `cb.py` / `cb.sh` 时，可以弹窗询问是否运行 `install.sh`，但不能静默执行。
+- 确认插件不能静默运行 `install.sh`。
+- 已将 bootstrap 改为常驻命令面板入口和资源管理器右键菜单入口，并移除启动时弹窗提示。
+- 已实现 GitHub / Gitee 安装源选择、执行前确认和 `cbuild.bootstrapCommands` 自定义安装源列表。
+- 已对 bootstrap 改造重新执行编译、依赖审计和 VSIX 打包验证，结果通过。
 
 ## 结论
 
@@ -98,7 +101,7 @@ Bash 执行器：
 - `cbuild.showButtons`: 可配置显示哪些基础按钮；不配置时默认显示全部基础按钮
 - `cbuild.targets`: 自定义 target 列表
 - `cbuild.commands`: 自定义 shell 命令列表
-- `cbuild.bootstrapCommand`: bootstrap 命令；默认 `curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash`
+- `cbuild.bootstrapCommands`: bootstrap 命令列表；未配置时内置 GitHub 与 Gitee 两个安装源
 
 基础按钮包括：
 
@@ -113,7 +116,36 @@ Bash 执行器：
 
 插件复用一个 VS Code terminal 执行命令。该 terminal 在 VS Code 终端面板中的显示名称固定为 `cbuild`，用户通常不需要配置。
 
-当 workspace 根目录不存在 `cb.py` 和 `cb.sh` 时，插件显示确认弹窗：`当前项目未安装 cbuild，是否运行 install.sh？`。用户选择确认后，插件才会在 `cbuild` terminal 中执行 `cbuild.bootstrapCommand`。
+bootstrap 入口方案：
+
+- 命令面板常驻入口：`CBuild: Bootstrap Project`。
+- 资源管理器右键菜单入口：`CBuild: Bootstrap Project`。
+- 不在插件启动时自动弹窗提示。
+- 不设置常驻状态栏 bootstrap 入口，避免状态栏长期占位。
+- 用户从命令面板或右键菜单触发后，先选择安装源：
+  - GitHub：`curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash`
+  - Gitee：`curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash`
+- 用户选择安装源后，再显示确认弹窗：`是否运行 cbuild install.sh？`
+- 用户确认后，插件在 `cbuild` terminal 中执行选中的 bootstrap 命令。
+- 用户取消时不执行任何命令。
+- 右键菜单入口应出现在资源管理器文件夹/文件上下文中；执行目录仍使用当前 workspace 根目录。
+
+默认 bootstrap 命令列表：
+
+```jsonc
+[
+    {
+        "label": "GitHub",
+        "command": "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash"
+    },
+    {
+        "label": "Gitee",
+        "command": "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash"
+    }
+]
+```
+
+若用户配置 `cbuild.bootstrapCommands`，则使用用户配置覆盖内置列表。这样可以支持内网镜像、本地脚本或固定安装参数。
 
 `cbuild.targets` 示例：
 
@@ -180,8 +212,11 @@ Python 命令选择规则：
 - 自定义 target 的 `target` 为空时跳过该项并给出配置提示。
 - 自定义命令按钮由 `cbuild.commands` 配置生成。
 - 自定义命令的 `command` 为空时跳过该项并给出配置提示。
-- 缺少 `cb.py` / `cb.sh` 时弹窗询问是否运行 `install.sh`。
-- 用户确认后通过 `cbuild.bootstrapCommand` 在 `cbuild` terminal 中执行 bootstrap。
+- 已实现命令面板常驻 bootstrap 入口。
+- 已实现资源管理器右键菜单 bootstrap 入口。
+- 已实现触发 bootstrap 入口后选择 GitHub / Gitee 安装源。
+- 已实现选择安装源后弹窗确认是否运行 `install.sh`。
+- 已实现用户确认后在 `cbuild` terminal 中执行选中的 bootstrap 命令。
 - 找不到 `cb.py` / `cb.sh` 时，通过 `showErrorMessage` 给出提示。
 - 插件不解析 `cb_conf.ini`，构建逻辑继续由 `cb.py` / `cb.sh` 负责。
 - 插件不读取或执行 `.vscode/tasks.json`。
@@ -222,7 +257,7 @@ tools/cbuild-plugin-vscode/
 - [x] 实现按钮到 `cb.py` / `cb.sh` 参数的映射。
 - [x] 实现 `cbuild.targets`，支持多个自定义 target 按钮。
 - [x] 实现 `cbuild.commands`，支持多个自定义命令按钮。
-- [x] 实现缺少 `cb.py` / `cb.sh` 时的 bootstrap 确认提示。
+- [x] 将 bootstrap 改造为命令面板入口和资源管理器右键菜单入口。
 - [x] 实现 terminal 复用和错误提示。
 - [x] 通过编译、审计和打包验证。
 
@@ -256,7 +291,10 @@ tools/cbuild-plugin-vscode/docs/package.md
 - 固定 `deploy` 按钮不再作为默认按钮出现。
 - 用户可以通过 `cbuild.targets` 配置多个自定义 target 入口。
 - 用户可以通过 `cbuild.commands` 配置多个自定义 shell 命令入口。
-- 缺少 `cb.py` / `cb.sh` 时，插件会提示用户确认是否运行 `install.sh`，不会静默执行。
+- bootstrap 命令面板入口常驻。
+- bootstrap 资源管理器右键菜单入口可用。
+- 触发 bootstrap 后可以选择 GitHub / Gitee 安装源。
+- 选择安装源后提示用户确认是否运行 `install.sh`，不会静默执行。
 - `python`、`bash`、`auto` 三种执行器模式可用。
 - 找不到 `cb.py` / `cb.sh` 时有明确错误提示。
 - 插件不依赖 `.vscode/tasks.json`。

@@ -23,13 +23,30 @@ interface CommandConfig {
     tooltip?: string;
 }
 
+interface BootstrapCommandConfig {
+    label?: string;
+    command?: string;
+    description?: string;
+}
+
 interface ResolvedRunner {
     command: string;
     script: "cb.py" | "cb.sh";
 }
 
 const terminalName = "cbuild";
-const defaultBootstrapCommand = "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash";
+const defaultBootstrapCommands: Required<BootstrapCommandConfig>[] = [
+    {
+        label: "GitHub",
+        command: "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash",
+        description: "github.com/wiseforever/cbuild"
+    },
+    {
+        label: "Gitee",
+        command: "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash",
+        description: "gitee.com/wiseforever/cbuild"
+    }
+];
 
 const baseActions: BaseAction[] = [
     {
@@ -92,7 +109,6 @@ export function activate(context: vscode.ExtensionContext): void {
         }),
         vscode.workspace.onDidChangeWorkspaceFolders(() => {
             refreshButtons(context);
-            void promptBootstrapIfNeeded(context);
         }),
         vscode.window.onDidCloseTerminal((closedTerminal) => {
             if (closedTerminal === terminal) {
@@ -102,7 +118,6 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 
     refreshButtons(context);
-    void promptBootstrapIfNeeded(context);
 }
 
 export function deactivate(): void {
@@ -204,34 +219,23 @@ async function bootstrapProject(): Promise<void> {
         return;
     }
 
-    runTerminalCommand(getBootstrapCommand());
-}
-
-async function promptBootstrapIfNeeded(context: vscode.ExtensionContext): Promise<void> {
-    const workspaceFolder = getWorkspaceFolder();
-    if (!workspaceFolder) {
+    const bootstrapCommand = await pickBootstrapCommand();
+    if (!bootstrapCommand) {
         return;
     }
 
-    if (await hasCbuildScript(workspaceFolder)) {
-        return;
-    }
-
-    const promptKey = `bootstrapPrompted:${workspaceFolder.uri.toString()}`;
-    if (context.workspaceState.get<boolean>(promptKey, false)) {
-        return;
-    }
-
-    await context.workspaceState.update(promptKey, true);
-    const runInstall = "运行 install.sh";
-    const picked = await vscode.window.showInformationMessage(
-        "当前项目未安装 cbuild，是否运行 install.sh？",
+    const runInstall = "运行";
+    const picked = await vscode.window.showWarningMessage(
+        `是否运行 cbuild install.sh？\n\n${bootstrapCommand.command}`,
+        {
+            modal: true
+        },
         runInstall,
         "取消"
     );
 
     if (picked === runInstall) {
-        await bootstrapProject();
+        runTerminalCommand(bootstrapCommand.command);
     }
 }
 
@@ -415,11 +419,6 @@ function getBashCommand(): string {
     return configured || "bash";
 }
 
-function getBootstrapCommand(): string {
-    const configured = vscode.workspace.getConfiguration("cbuild").get<string>("bootstrapCommand", "").trim();
-    return configured || defaultBootstrapCommand;
-}
-
 function getVisibleBaseActions(): BaseAction[] {
     const configured = vscode.workspace.getConfiguration("cbuild").get<string[]>("showButtons", []);
     if (!configured || configured.length === 0) {
@@ -436,6 +435,15 @@ function getTargets(): TargetConfig[] {
 
 function getCommands(): CommandConfig[] {
     return vscode.workspace.getConfiguration("cbuild").get<CommandConfig[]>("commands", []);
+}
+
+function getBootstrapCommands(): Required<BootstrapCommandConfig>[] {
+    const configured = vscode.workspace.getConfiguration("cbuild").get<BootstrapCommandConfig[]>("bootstrapCommands", []);
+    const normalized = configured
+        .map((command) => normalizeBootstrapCommand(command))
+        .filter((command): command is Required<BootstrapCommandConfig> => Boolean(command));
+
+    return normalized.length > 0 ? normalized : defaultBootstrapCommands;
 }
 
 function normalizeTarget(target: TargetConfig): Required<TargetConfig> | undefined {
@@ -466,6 +474,41 @@ function normalizeCommand(command: CommandConfig): Required<CommandConfig> | und
     };
 }
 
+function normalizeBootstrapCommand(command: BootstrapCommandConfig): Required<BootstrapCommandConfig> | undefined {
+    const commandLine = command.command?.trim();
+    if (!commandLine) {
+        void vscode.window.showWarningMessage("Skipped a cbuild bootstrap command because its command is empty.");
+        return undefined;
+    }
+
+    return {
+        command: commandLine,
+        label: command.label?.trim() || commandLine,
+        description: command.description?.trim() || commandLine
+    };
+}
+
+async function pickBootstrapCommand(): Promise<Required<BootstrapCommandConfig> | undefined> {
+    const commands = getBootstrapCommands();
+    if (commands.length === 1) {
+        return commands[0];
+    }
+
+    const picked = await vscode.window.showQuickPick(
+        commands.map((command) => ({
+            label: command.label,
+            description: command.description,
+            detail: command.command,
+            command
+        })),
+        {
+            title: "CBuild bootstrap source",
+            placeHolder: "Select install.sh source"
+        }
+    );
+    return picked?.command;
+}
+
 function getWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
     return vscode.workspace.workspaceFolders?.[0];
 }
@@ -494,10 +537,6 @@ async function fileExists(workspaceFolder: vscode.WorkspaceFolder, filename: str
     } catch {
         return false;
     }
-}
-
-async function hasCbuildScript(workspaceFolder: vscode.WorkspaceFolder): Promise<boolean> {
-    return (await fileExists(workspaceFolder, "cb.py")) || (await fileExists(workspaceFolder, "cb.sh"));
 }
 
 function commandExists(command: string): Promise<boolean> {
