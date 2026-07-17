@@ -17,6 +17,8 @@
 - 已补充插件 `.vsix` 打包和安装说明。
 - 已将插件打包说明迁移到 `tools/cbuild-plugin-vscode/docs/package.md`。
 - 已调整 `install.sh`，安装时不再下载 task 模板，也不再生成或覆盖 `.vscode/tasks.json`。
+- 确认 `cbuild.targets` 专用于 CMake target；新增 `cbuild.commands` 支持自定义 shell 命令按钮。
+- 确认插件检测到当前 workspace 缺少 `cb.py` / `cb.sh` 时，可以弹窗询问是否运行 `install.sh`，但不能静默执行。
 
 ## 结论
 
@@ -30,6 +32,8 @@
 - 保留状态栏按钮体验。
 - 保留 `conan`、`generate`、`build`、`run`、`switch`、`clean` 这些基础操作入口。
 - 支持用户配置多个自定义 CMake target 操作入口，用于替代固定 `deploy` 按钮。
+- 支持用户配置多个自定义 shell 命令入口。
+- 支持缺少 `cb.py` / `cb.sh` 时提示用户确认并运行 bootstrap 命令。
 - 插件直接调用 `cb.py` / `cb.sh`，不通过 VS Code task 间接执行。
 - 不改变 `cb.py` / `cb.sh` 的命令语义。
 - Python 与 Bash 两套使用方式都能支持。
@@ -58,6 +62,8 @@
 
 除基础按钮外，插件支持按配置生成多个自定义 target 入口。每个自定义 target 对应一次 `cb.py -b --target <name>` 或 `cb.sh -b --target <name>` 调用。
 
+插件还支持按配置生成多个自定义命令入口。每个自定义命令会直接发送到名为 `cbuild` 的 VS Code terminal，在 workspace 根目录执行。
+
 ## 命令映射
 
 Python 执行器，其中 `<python-command>` 来自 `cbuild.pythonCommand` 或自动探测结果：
@@ -69,6 +75,7 @@ Python 执行器，其中 `<python-command>` 来自 `cbuild.pythonCommand` 或�
 - `switch` -> `<python-command> cb.py -t`
 - `clean` -> `<python-command> cb.py -c`
 - 自定义 target -> `<python-command> cb.py -b --target <target>`
+- 自定义命令 -> `<command>`
 
 Bash 执行器：
 
@@ -79,6 +86,7 @@ Bash 执行器：
 - `switch` -> `bash cb.sh -t`
 - `clean` -> `bash cb.sh -c`
 - 自定义 target -> `bash cb.sh -b --target <target>`
+- 自定义命令 -> `<command>`
 
 ## 执行器选择
 
@@ -89,6 +97,8 @@ Bash 执行器：
 - `cbuild.bashCommand`: 默认 `bash`
 - `cbuild.showButtons`: 可配置显示哪些基础按钮；不配置时默认显示全部基础按钮
 - `cbuild.targets`: 自定义 target 列表
+- `cbuild.commands`: 自定义 shell 命令列表
+- `cbuild.bootstrapCommand`: bootstrap 命令；默认 `curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash`
 
 基础按钮包括：
 
@@ -99,9 +109,11 @@ Bash 执行器：
 - `switch`
 - `clean`
 
-`cbuild.showButtons` 不影响 `cbuild.targets`。自定义 target 是否显示由 `cbuild.targets` 决定。
+`cbuild.showButtons` 不影响 `cbuild.targets` 或 `cbuild.commands`。自定义 target 是否显示由 `cbuild.targets` 决定，自定义命令是否显示由 `cbuild.commands` 决定。
 
 插件复用一个 VS Code terminal 执行命令。该 terminal 在 VS Code 终端面板中的显示名称固定为 `cbuild`，用户通常不需要配置。
+
+当 workspace 根目录不存在 `cb.py` 和 `cb.sh` 时，插件显示确认弹窗：`当前项目未安装 cbuild，是否运行 install.sh？`。用户选择确认后，插件才会在 `cbuild` terminal 中执行 `cbuild.bootstrapCommand`。
 
 `cbuild.targets` 示例：
 
@@ -116,6 +128,18 @@ Bash 执行器：
         "label": "$(beaker)",
         "target": "test",
         "tooltip": "build test target"
+    }
+]
+```
+
+`cbuild.commands` 示例：
+
+```jsonc
+[
+    {
+        "label": "$(terminal)",
+        "command": "echo hello",
+        "tooltip": "run custom command"
     }
 ]
 ```
@@ -154,6 +178,10 @@ Python 命令选择规则：
 - 基础按钮由插件内置命令映射生成。
 - 自定义 target 按钮由 `cbuild.targets` 配置生成。
 - 自定义 target 的 `target` 为空时跳过该项并给出配置提示。
+- 自定义命令按钮由 `cbuild.commands` 配置生成。
+- 自定义命令的 `command` 为空时跳过该项并给出配置提示。
+- 缺少 `cb.py` / `cb.sh` 时弹窗询问是否运行 `install.sh`。
+- 用户确认后通过 `cbuild.bootstrapCommand` 在 `cbuild` terminal 中执行 bootstrap。
 - 找不到 `cb.py` / `cb.sh` 时，通过 `showErrorMessage` 给出提示。
 - 插件不解析 `cb_conf.ini`，构建逻辑继续由 `cb.py` / `cb.sh` 负责。
 - 插件不读取或执行 `.vscode/tasks.json`。
@@ -193,6 +221,8 @@ tools/cbuild-plugin-vscode/
 - [x] 实现 `python` / `bash` / `auto` 执行器选择。
 - [x] 实现按钮到 `cb.py` / `cb.sh` 参数的映射。
 - [x] 实现 `cbuild.targets`，支持多个自定义 target 按钮。
+- [x] 实现 `cbuild.commands`，支持多个自定义命令按钮。
+- [x] 实现缺少 `cb.py` / `cb.sh` 时的 bootstrap 确认提示。
 - [x] 实现 terminal 复用和错误提示。
 - [x] 通过编译、审计和打包验证。
 
@@ -225,6 +255,8 @@ tools/cbuild-plugin-vscode/docs/package.md
 - 点击按钮会在 workspace 根目录执行对应 `cb.py` 或 `cb.sh` 命令。
 - 固定 `deploy` 按钮不再作为默认按钮出现。
 - 用户可以通过 `cbuild.targets` 配置多个自定义 target 入口。
+- 用户可以通过 `cbuild.commands` 配置多个自定义 shell 命令入口。
+- 缺少 `cb.py` / `cb.sh` 时，插件会提示用户确认是否运行 `install.sh`，不会静默执行。
 - `python`、`bash`、`auto` 三种执行器模式可用。
 - 找不到 `cb.py` / `cb.sh` 时有明确错误提示。
 - 插件不依赖 `.vscode/tasks.json`。

@@ -53,6 +53,14 @@
                 "title": "CBuild: Run Custom Target"
             },
             {
+                "command": "cbuild.runCommand",
+                "title": "CBuild: Run Custom Command"
+            },
+            {
+                "command": "cbuild.bootstrapProject",
+                "title": "CBuild: Bootstrap Project"
+            },
+            {
                 "command": "cbuild.refreshButtons",
                 "title": "CBuild: Refresh Buttons"
             }
@@ -79,6 +87,11 @@
                     "type": "string",
                     "default": "bash",
                     "description": "Bash command used to run cb.sh."
+                },
+                "cbuild.bootstrapCommand": {
+                    "type": "string",
+                    "default": "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash",
+                    "description": "Shell command used by CBuild: Bootstrap Project when cb.py/cb.sh is missing."
                 },
                 "cbuild.showButtons": {
                     "type": "array",
@@ -113,6 +126,31 @@
                             "target": {
                                 "type": "string",
                                 "description": "CMake target passed to cb.py/cb.sh with --target."
+                            },
+                            "tooltip": {
+                                "type": "string",
+                                "description": "Tooltip shown when hovering the status bar item."
+                            }
+                        }
+                    }
+                },
+                "cbuild.commands": {
+                    "type": "array",
+                    "default": [],
+                    "description": "Custom shell commands shown as additional cbuild status bar buttons. Commands run in the workspace root.",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "command"
+                        ],
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "description": "Status bar label. Codicons such as $(terminal) are supported."
+                            },
+                            "command": {
+                                "type": "string",
+                                "description": "Shell command sent to the cbuild terminal."
                             },
                             "tooltip": {
                                 "type": "string",
