@@ -251,8 +251,7 @@ def run_cmd(cmd, **kwargs):
             cmd_str = " ".join(shlex.quote(c) if " " in c else c for c in cmd)
         else:
             cmd_str = str(cmd)
-        log.error(f"Command failed (exit {e.returncode}):")
-        log.error(f"  {cmd_str}")
+        log.error(f"command failed (exit {e.returncode}):{cmd_str}")
         sys.exit(e.returncode)
 
 

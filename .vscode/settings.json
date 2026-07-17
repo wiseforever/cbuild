@@ -100,47 +100,59 @@
     "[c]": {
         "editor.defaultFormatter": "xaver.clang-format"
     },
-    "VsCodeTaskButtons.showCounter": false,
-    "VsCodeTaskButtons.tasks": [
-        {
-            "label": "$(archive)",
-            "task": "conan",
-            "tooltip": "conan"
-        },
-        {
-            "label": "$(gear)",
-            "task": "generate",
-            "tooltip": "generate cmake cache"
-        },
-        {
-            "label": "$(wrench)",
-            "task": "build",
-            "tooltip": "build"
-        },
-        {
-            "label": "$(run)",
-            "task": "run",
-            "tooltip": "run"
-        },
+    "cbuild.targets": [
         {
             "label": "$(package)",
-            "task": "deploy",
-            "tooltip": "deploy"
+            "target": "deploy",
+            "tooltip": "build deploy target"
         },
         {
-            "label": "$(arrow-swap)    |",
-            "task": "switch",
-            "tooltip": "Debug/Release switch"
-        },
-        {
-            "label": "$(trash)",
-            "task": "clean",
-            "tooltip": "clean"
-        },
-        /* 
-        
-        */
+            "label": "$(beaker)",
+            "target": "test",
+            "tooltip": "build test target"
+        }
     ],
+    // "VsCodeTaskButtons.showCounter": false,
+    // "VsCodeTaskButtons.tasks": [
+    //     {
+    //         "label": "$(archive)",
+    //         "task": "conan",
+    //         "tooltip": "conan"
+    //     },
+    //     {
+    //         "label": "$(gear)",
+    //         "task": "generate",
+    //         "tooltip": "generate cmake cache"
+    //     },
+    //     {
+    //         "label": "$(wrench)",
+    //         "task": "build",
+    //         "tooltip": "build"
+    //     },
+    //     {
+    //         "label": "$(run)",
+    //         "task": "run",
+    //         "tooltip": "run"
+    //     },
+    //     {
+    //         "label": "$(package)",
+    //         "task": "deploy",
+    //         "tooltip": "deploy"
+    //     },
+    //     {
+    //         "label": "$(arrow-swap)    |",
+    //         "task": "switch",
+    //         "tooltip": "Debug/Release switch"
+    //     },
+    //     {
+    //         "label": "$(trash)",
+    //         "task": "clean",
+    //         "tooltip": "clean"
+    //     },
+    //     /* 
+        
+    //     */
+    // ],
     "files.associations": {
         "*.json": "jsonc",
         "*.c": "c",

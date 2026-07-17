@@ -54,7 +54,7 @@ python -m pip install conan
 
 首先进入自己项目的根目录，运行此仓库的 `install.sh` 脚本，脚本会自动搭建好。
 
-默认安装 Python 版本（会覆盖 `.vscode/tasks.json` 为 Python 任务）：
+默认安装 Python 版本：
 
 ```bash
 # github
@@ -64,7 +64,7 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 ```
 
-安装 Bash 版本（会覆盖 `.vscode/tasks.json` 为 Bash 任务）：
+安装 Bash 版本：
 
 ```bash
 # github
@@ -88,7 +88,7 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 
 - 项目根目录下应该不要存在 `.vscode` 目录，因为脚本会检查、备份以及看情况创建这个目录，为避免冲突请在运行 `install.sh` 脚本的时候，请先清理好项目目录。
 - 若不需要使用 VSCode 可以不依赖 `.vscode` 目录，仅仅需要 `cb.py` 或 `cb.sh` 与 `cb_conf.ini` 文件即可。
-- `.vscode/tasks.json` 已按模板拆分为 `.vscode/tasks_python.json` 与 `.vscode/tasks_bash.json`，安装时会按版本自动覆盖为对应的 `tasks.json`。
+- `install.sh` 不再生成或覆盖 `.vscode/tasks.json`。仓库中仍保留 task 文件，供仍需要 VS Code 内置 Tasks 的用户手动参考或使用。
 
 ## 全局安装
 

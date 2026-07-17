@@ -18,8 +18,6 @@ tool_python="cb.py"
 tool_bash="cb.sh"
 tool_conf="cb_conf.ini"
 tool_uninstall="cb_uninstall.sh"
-tasks_python=".vscode/tasks_python.json"
-tasks_bash=".vscode/tasks_bash.json"
 clang_format_file=".clang-format"
 cmake_file="cmake/ez_custom_func.cmake"
 
@@ -142,10 +140,8 @@ while (($# > 0)); do
 done
 
 selected_tool="$tool_bash"
-selected_tasks_template="$tasks_bash"
 if [[ "$install_variant" == "python" ]]; then
     selected_tool="$tool_python"
-    selected_tasks_template="$tasks_python"
 fi
 
 # --- 卸载模式 ---
@@ -292,14 +288,6 @@ if [[ "$mode" == "simple" ]]; then
         echo "Failed to download .vscode/settings.json!"
         exit 1
     }
-    download_file "$tasks_bash" "${arg_path}/$tasks_bash" || {
-        echo "Failed to download ${tasks_bash}!"
-        exit 1
-    }
-    download_file "$tasks_python" "${arg_path}/$tasks_python" || {
-        echo "Failed to download ${tasks_python}!"
-        exit 1
-    }
     download_file "$selected_tool" "${arg_path}/$selected_tool" || {
         echo "Failed to download ${selected_tool}!"
         exit 1
@@ -313,7 +301,6 @@ if [[ "$mode" == "simple" ]]; then
         exit 1
     }
 
-    cp -a "${arg_path}/$selected_tasks_template" "${arg_path}/.vscode/tasks.json"
 fi
 
-echo "Installed ${install_variant} variant: .vscode (with tasks.json), ${selected_tool}, ${tool_conf}, ${cmake_file}"
+echo "Installed ${install_variant} variant: .vscode, ${selected_tool}, ${tool_conf}, ${cmake_file}"

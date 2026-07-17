@@ -54,7 +54,7 @@ python -m pip install conan
 
 Run the install script in your project root.
 
-Default install (Python version, replaces `.vscode/tasks.json` with Python tasks):
+Default install (Python version):
 
 ```bash
 # github
@@ -64,7 +64,7 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 ```
 
-Install Bash version (replaces `.vscode/tasks.json` with Bash tasks):
+Install Bash version:
 
 ```bash
 # github
@@ -88,7 +88,7 @@ Notes:
 
 - It is recommended to clean existing `.vscode` content before running `install.sh`.
 - If you do not use VSCode, only `cb.py` or `cb.sh` plus `cb_conf.ini` is required.
-- Task templates are split into `.vscode/tasks_python.json` and `.vscode/tasks_bash.json`; install will copy one of them to `tasks.json`.
+- `install.sh` does not generate or overwrite `.vscode/tasks.json`. The repository keeps the task files for users who still want to use VS Code's built-in Tasks manually.
 
 ## Global Install
 

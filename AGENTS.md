@@ -24,4 +24,12 @@
 - Write commit messages that are concise but specific enough to describe the actual user-facing or code-level changes.
 - Prefer Chinese commit messages unless the user explicitly asks for another language.
 
+## Planning Records
+
+- Use `PLAN.md` as the project-level planning index and operation record entry point.
+- Put concrete planning details under `plan/`, one Markdown file per topic.
+- Keep implementation steps, validation criteria, risks, and operation traces in the topic file under `plan/`.
+- Do not turn `PLAN.md` into a detailed design document for a single topic.
+- Do not require dates in planning files unless the user explicitly asks for them.
+- After completing key implementation or verification steps, update the corresponding topic file under `plan/` so the work remains traceable.
 

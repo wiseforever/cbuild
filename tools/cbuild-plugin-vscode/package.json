@@ -1,0 +1,139 @@
+{
+    "name": "cbuild-plugin-vscode",
+    "displayName": "CBuild Tools",
+    "description": "Status bar buttons for cbuild projects.",
+    "version": "0.1.0",
+    "publisher": "cbuild",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/wiseforever/cbuild.git",
+        "directory": "tools/cbuild-plugin-vscode"
+    },
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished",
+        "workspaceContains:cb.py",
+        "workspaceContains:cb.sh"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "cbuild.conan",
+                "title": "CBuild: Conan"
+            },
+            {
+                "command": "cbuild.generate",
+                "title": "CBuild: Generate"
+            },
+            {
+                "command": "cbuild.build",
+                "title": "CBuild: Build"
+            },
+            {
+                "command": "cbuild.run",
+                "title": "CBuild: Run"
+            },
+            {
+                "command": "cbuild.switch",
+                "title": "CBuild: Switch Debug/Release"
+            },
+            {
+                "command": "cbuild.clean",
+                "title": "CBuild: Clean"
+            },
+            {
+                "command": "cbuild.runTarget",
+                "title": "CBuild: Run Custom Target"
+            },
+            {
+                "command": "cbuild.refreshButtons",
+                "title": "CBuild: Refresh Buttons"
+            }
+        ],
+        "configuration": {
+            "title": "CBuild",
+            "properties": {
+                "cbuild.executor": {
+                    "type": "string",
+                    "enum": [
+                        "auto",
+                        "python",
+                        "bash"
+                    ],
+                    "default": "auto",
+                    "description": "Select which cbuild script to run. In auto mode, cb.py is preferred when present; otherwise cb.sh is used."
+                },
+                "cbuild.pythonCommand": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Python command used to run cb.py. Leave empty to prefer python3 and fall back to python."
+                },
+                "cbuild.bashCommand": {
+                    "type": "string",
+                    "default": "bash",
+                    "description": "Bash command used to run cb.sh."
+                },
+                "cbuild.showButtons": {
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "conan",
+                            "generate",
+                            "build",
+                            "run",
+                            "switch",
+                            "clean"
+                        ]
+                    },
+                    "description": "Base buttons to show. Leave empty to show all base buttons."
+                },
+                "cbuild.targets": {
+                    "type": "array",
+                    "default": [],
+                    "description": "Custom CMake targets shown as additional cbuild status bar buttons.",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "target"
+                        ],
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "description": "Status bar label. Codicons such as $(package) are supported."
+                            },
+                            "target": {
+                                "type": "string",
+                                "description": "CMake target passed to cb.py/cb.sh with --target."
+                            },
+                            "tooltip": {
+                                "type": "string",
+                                "description": "Tooltip shown when hovering the status bar item."
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "scripts": {
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "package": "vsce package",
+        "vscode:prepublish": "npm run compile"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "@types/vscode": "^1.85.0",
+        "@vscode/vsce": "^3.9.2",
+        "typescript": "^5.3.0"
+    }
+}
