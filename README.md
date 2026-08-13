@@ -193,9 +193,18 @@ c_compiler = gcc        # C compiler (name or path); if non-empty, injects CMAKE
 cpp_compiler = g++      # C++ compiler (name or path); if non-empty, injects CMAKE_CXX_COMPILER
 
 [conan]                 # Conan package manager settings
-conan_enable = 1        # Whether to use conan: 1, True, true indicates usage; 0, False, false indicates non-usage.
-conan_build = gcc       # The profile corresponding to conan's profile build
-conan_host = gcc        # The profile corresponding to conan's profile host
+enable = 1              # Whether to use Conan
+build = gcc             # Conan build profile
+host = gcc              # Conan host profile
+
+[vcpkg]                 # vcpkg package manager settings
+enable = 1              # Enable the vcpkg toolchain
+root = /path/to/vcpkg   # Optional; falls back to the VCPKG_ROOT environment variable
+toolchain_file =        # Direct vcpkg.cmake path; takes precedence over root
+triplet =               # Empty lets vcpkg infer it from the active compiler
+
+[toolchain]
+custom_file = cbuild_custom.cmake  # User-maintained CMake toolchain extension
 
 [msvc]                  # The msvc compiler is rather special and requires specifying the path of the environment variable script vcvarsall.bat
 enable = 1              # Whether to use the MSVC compiler or not, 1, True, true indicates usage, and 0, False, false indicates non-usage
@@ -283,8 +292,8 @@ You can also use the commands listed in [Command Reference](#command-reference) 
 ## Conan Usage
 
 - Create `conanfile.py` or `conanfile.txt` in the project root.
-- Enable Conan in `cb_conf.ini` (`conan_enable = 1`).
-- Set `conan_build` / `conan_host` profiles in `cb_conf.ini`.
+- Enable Conan in the `[conan]` section of `cb_conf.ini` (`enable = 1`).
+- Set `[conan] build` / `host` profiles in `cb_conf.ini`.
 - Use `find_package()` and `target_link_libraries()` in `CMakeLists.txt`.
 - Do not override `CMAKE_TOOLCHAIN_FILE` manually when using this workflow.
 
@@ -301,7 +310,6 @@ class MyProjectConan(ConanFile):
 
     def requirements(self):
         self.requires("boost/1.84.0", options={"header_only": True})
-        self.requires("jsoncpp/1.9.5", options={"shared": False})
 
     def layout(self):
         self.folders.build = ""
@@ -317,4 +325,26 @@ class MyProjectConan(ConanFile):
                 copy(self, "*.dll", shared_lib, build_bin)
                 copy(self, "*.so", shared_lib, build_bin)
                 copy(self, "*.dylib", shared_lib, build_bin)
+```
+
+## Combined Conan and vcpkg Usage
+
+`CMAKE_TOOLCHAIN_FILE` accepts only one file. When `[vcpkg]` is enabled, cbuild generates `cbuild_toolchain.cmake` in the current build directory and passes it as the single entry point. The wrapper loads `[toolchain] custom_file` first, then vcpkg chainloads Conan's generated `conan_toolchain.cmake`.
+
+Use a project-root `vcpkg.json` to declare manifest dependencies. This repository's demo keeps Boost in `conanfile.py` and declares JsonCpp in `vcpkg.json`. For a first build, run:
+
+```bash
+python cb.py --conan
+python cb.py -g
+python cb.py -b
+```
+
+The vcpkg path resolution order is `toolchain_file` > `root` > `VCPKG_ROOT`. If `triplet` is empty, vcpkg infers it from the active compiler. Set it explicitly for cross builds, static linkage, or custom runtimes.
+
+When first enabling, disabling, or changing a toolchain for an existing build directory, run `cb.py -c` (or `cb.sh -c`) first to clear its old CMake cache.
+
+Do not edit the generated `cbuild_toolchain.cmake`. Put project-specific additions in `cbuild_custom.cmake`, for example:
+
+```cmake
+set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_LIST_DIR}/triplets")
 ```

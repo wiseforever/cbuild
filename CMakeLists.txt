@@ -134,6 +134,13 @@ add_executable(${PROJECT_NAME}
     ${src_files}
 )
 
+# Boost is supplied by Conan/CMakeDeps; JsonCpp is supplied by vcpkg manifest mode.
+find_package(jsoncpp CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+    JsonCpp::JsonCpp
+)
+
 if(WIN32)
     add_definitions(-D_WIN32_WINNT=0x0601 -DWIN32_LEAN_AND_MEAN)
 
@@ -194,7 +201,7 @@ foreach(_boost_path IN LISTS CMAKE_INCLUDE_PATH)
     endif()
 endforeach()
 
-find_package(Boost REQUIRED COMPONENTS)
+find_package(Boost CONFIG REQUIRED)
 if(Boost_FOUND)
     message(STATUS "Boost version: ${Boost_VERSION}")
     # message(STATUS "Boost include dir: ${Boost_INCLUDE_DIRS}")
@@ -202,6 +209,10 @@ if(Boost_FOUND)
 
     include_directories(
         ${Boost_INCLUDE_DIRS}
+    )
+    target_link_libraries(${PROJECT_NAME}
+        PRIVATE
+        boost::boost
     )
 else()
     message(FATAL_ERROR "Boost not found")

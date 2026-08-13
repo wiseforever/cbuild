@@ -196,9 +196,18 @@ c_compiler = gcc        # C 编译器（可写命令名或路径）；非空时�
 cpp_compiler = g++      # C++ 编译器（可写命令名或路径）；非空时会注入 CMAKE_CXX_COMPILER
 
 [conan]                 # Conan 包管理器配置
-conan_enable = 1        # 是否使用conan，1、True、true表示使用，0、False、false表示不使用
-conan_build = gcc       # 对应 conan 的 profile build
-conan_host = gcc        # 对应 conan 的 profile host
+enable = 1              # 是否使用 Conan
+build = gcc             # 对应 Conan 的 build profile
+host = gcc              # 对应 Conan 的 host profile
+
+[vcpkg]                 # vcpkg 包管理器配置
+enable = 1              # 是否启用 vcpkg toolchain
+root = /path/to/vcpkg   # 可留空，留空时读取环境变量 VCPKG_ROOT
+toolchain_file =        # 可直接指定 vcpkg.cmake；非空时优先于 root
+triplet =               # 留空时由 vcpkg 根据当前编译器自动推断
+
+[toolchain]
+custom_file = cbuild_custom.cmake  # 用户维护的 CMake 工具链扩展文件
 
 [msvc]                  # msvc 编译器比较特殊，需要指定环境变量脚本vcvarsall.bat的路径
 enable = 1              # 是否使用MSVC编译器，1、True、true表示使用，0、False、false表示不使用
@@ -288,8 +297,8 @@ bash cb.sh -h
 - 首先安装 conan
 - 然后在项目根目录下创建 `conanfile.py` 文件，并在其中定义依赖库
 - 在 `conanfile.py` 中，指定依赖库的名称、版本、路径等信息
-- 在 `cb_conf.ini` 中，将 `conan_enable` 设置为 1
-- 在 `cb_conf.ini` 中，指定 `conan_build` 和 `conan_host` 对应的 profile
+- 在 `cb_conf.ini` 的 `[conan]` 中，将 `enable` 设置为 1
+- 在 `[conan]` 中指定 `build` 和 `host` 对应的 profile
 - Conan 的 profile 可以根据自己项目的需求进行修改，但需要注意，profile 的名称必须与 `cb_conf.ini` 中定义的名称一致（需要开发者自行了解相关知识）
 - 在 `CMakeLists.txt` 中，使用 `find_package()` 函数查找依赖库，并使用 `target_link_libraries()` 函数链接依赖库
 - `cb.py` 脚本会自动设置 `CMAKE_TOOLCHAIN_FILE` 变量，并使用 conan 的 profile 编译依赖库，请不要在 `CMakeLists.txt` 中覆盖 `CMAKE_TOOLCHAIN_FILE` 变量
@@ -310,7 +319,6 @@ class MyProjectConan(ConanFile):
 
     def requirements(self):
         self.requires("boost/1.84.0", options={"header_only": True})  # 仅头文件库
-        self.requires("jsoncpp/1.9.5", options={"shared": False})     # 静态库
 
     def layout(self):
         self.folders.build = ""
@@ -327,4 +335,26 @@ class MyProjectConan(ConanFile):
                 copy(self, "*.dll", shared_lib, build_bin)
                 copy(self, "*.so", shared_lib, build_bin)
                 copy(self, "*.dylib", shared_lib, build_bin)
+```
+
+## Conan 与 vcpkg 混用
+
+`CMAKE_TOOLCHAIN_FILE` 只能传入一个文件。启用 `[vcpkg]` 后，cbuild 会在当前构建目录生成 `cbuild_toolchain.cmake`，并将它作为唯一入口：它先加载 `[toolchain] custom_file`，再由 vcpkg chainload Conan 生成的 `conan_toolchain.cmake`。
+
+项目根目录的 `vcpkg.json` 使用 vcpkg manifest 模式声明依赖；本仓库示例将 Boost 保留在 `conanfile.py`，将 JsonCpp 放在 `vcpkg.json`。首次构建依次执行：
+
+```bash
+python cb.py --conan
+python cb.py -g
+python cb.py -b
+```
+
+`root`、`toolchain_file` 和环境变量 `VCPKG_ROOT` 的优先级为：`toolchain_file` > `root` > `VCPKG_ROOT`。若 `triplet` 留空，由 vcpkg 根据当前编译器自动推断；交叉编译、静态库或自定义运行时应显式填写。
+
+首次为某个构建目录启用、禁用或切换 toolchain 时，需先执行 `cb.py -c`（或 `cb.sh -c`）清理旧 CMake cache。
+
+不要编辑构建目录内自动生成的 `cbuild_toolchain.cmake`。项目需要额外工具链设置时，编辑 `cbuild_custom.cmake`，例如：
+
+```cmake
+set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_LIST_DIR}/triplets")
 ```

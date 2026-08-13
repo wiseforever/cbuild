@@ -1,4 +1,5 @@
-﻿#include <algorithm>
+#include <algorithm>
+#include <boost/version.hpp>
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>
@@ -7,6 +8,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <json/json.h>
 
 namespace demo {
 
@@ -70,6 +73,16 @@ int main(int argc, char* argv[]) {
     std::cout << "Count: " << data.size() << '\n';
     std::cout << "Sum: " << sum << '\n';
     std::cout << "Max: " << max_value << '\n';
+
+    Json::Value summary;
+    summary["boost_version"] = BOOST_LIB_VERSION;
+    summary["count"] = static_cast<Json::UInt64>(data.size());
+    summary["sum"] = sum;
+    summary["max"] = max_value;
+
+    Json::StreamWriterBuilder writer;
+    writer["indentation"] = "  ";
+    std::cout << "Dependencies:\n" << Json::writeString(writer, summary) << '\n';
     std::cout << "Tip: pass a positive integer argument, e.g. ./application 5\n";
 
     return EXIT_SUCCESS;

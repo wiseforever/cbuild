@@ -17,6 +17,7 @@
 ## 规划索引
 
 - [自研轻量 VS Code 插件](plan/vscode_cbuild_tools.md)
+- [Conan 与 vcpkg 组合工具链](plan/conan_vcpkg_toolchain.md)
 
 ## 当前关键状态
 
