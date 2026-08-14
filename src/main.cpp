@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <json/json.h>
+#include <json/version.h>
 
 namespace demo {
 
@@ -76,6 +77,7 @@ int main(int argc, char* argv[]) {
 
     Json::Value summary;
     summary["boost_version"] = BOOST_LIB_VERSION;
+    summary["jsoncpp_version"] = JSONCPP_VERSION_STRING;
     summary["count"] = static_cast<Json::UInt64>(data.size());
     summary["sum"] = sum;
     summary["max"] = max_value;
