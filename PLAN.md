@@ -18,9 +18,11 @@
 
 - [自研轻量 VS Code 插件](plan/vscode_cbuild_tools.md)
 - [Conan 与 vcpkg 组合工具链](plan/conan_vcpkg_toolchain.md)
+- [CMake 自定义宏与插件终端行为](plan/cmake_defines_and_plugin_terminals.md)
 
 ## 当前关键状态
 
 - Task Buttons 替换方向已确定为自研轻量 VS Code 插件。
 - 插件规划放在 `plan/vscode_cbuild_tools.md`。
 - 插件应直接调用 `cb.py` / `cb.sh`，不依赖 `.vscode/tasks.json`。
+- 已实现：`cb.py` / `cb.sh` 的 CMake `-D` 宏透传、项目安装后的 Unix 可执行权限，以及插件 Bootstrap 的 Bash 选择和独立 `run` 终端。

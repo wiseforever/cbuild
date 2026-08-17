@@ -239,6 +239,10 @@ python cb.py -g Debug
 python cb.py -g Release
 python cb.py --generate
 
+# 仅在生成阶段向 CMake 传递自定义宏
+python cb.py -g -DMY_OPTION=ON -DMY_VALUE=example
+python cb.py -g -D MY_OPTION=ON
+
 # -b|--build 编译
 python cb.py -b
 python cb.py -b Debug
@@ -269,11 +273,14 @@ Bash 版本参数与 Python 版本保持一致：
 bash cb.sh -t
 bash cb.sh --conan
 bash cb.sh -g
+bash cb.sh -g -DMY_OPTION=ON -DMY_VALUE=example
 bash cb.sh -b --target all
 bash cb.sh -c
 bash cb.sh -r
 bash cb.sh -h
 ```
+
+`-D` 是 CMake 配置阶段参数，只能与 `-g` / `--generate` 一起使用；执行 `-b` 或 `-r` 时不会隐式重新配置。
 
 ## VSCode 配置
 

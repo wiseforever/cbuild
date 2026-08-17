@@ -22,6 +22,8 @@
 - 已将 bootstrap 改为常驻命令面板入口和资源管理器右键菜单入口，并移除启动时弹窗提示。
 - 已实现 GitHub / Gitee 安装源选择、执行前确认和 `cbuild.bootstrapCommands` 自定义安装源列表。
 - 已对 bootstrap 改造重新执行编译、依赖审计和 VSIX 打包验证，结果通过。
+- 已补充 Bootstrap 的 Python/Bash 脚本选择；默认源提供两套安装命令，自定义源通过 `bashCommand` 提供 Bash 安装命令。
+- 已将基础 `run` 操作调整到独立 `run` 终端，其余插件操作继续复用 `cbuild` 终端。
 
 ## 结论
 

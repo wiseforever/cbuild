@@ -230,6 +230,10 @@ python cb.py --conan Debug
 python cb.py -g
 python cb.py -g Debug
 
+# Pass custom definitions to CMake during generate
+python cb.py -g -DMY_OPTION=ON -DMY_VALUE=example
+python cb.py -g -D MY_OPTION=ON
+
 # -b|--build    Compile
 python cb.py -b
 python cb.py -b --target all
@@ -258,6 +262,7 @@ bash cb.sh --conan
 
 # -g|--generate CMake generate
 bash cb.sh -g
+bash cb.sh -g -DMY_OPTION=ON -DMY_VALUE=example
 
 # -b|--build    Compile
 bash cb.sh -b --target all
@@ -271,6 +276,8 @@ bash cb.sh -c
 # -h|--help     Show help
 bash cb.sh -h
 ```
+
+`-D` definitions are configuration-time options. They must be used with `-g` / `--generate`; cbuild does not silently reconfigure when building or running.
 
 ## VSCode Configuration
 

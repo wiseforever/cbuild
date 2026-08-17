@@ -42,6 +42,7 @@ COMPILER_TYPE="unknown"
 CMAKE_TOOLCHAIN_FILE=""
 CMAKE_RUN_PATH_PREFIX=""
 declare -a CMAKE_COMPILER_ARGS=()
+declare -a CMAKE_DEFINE_ARGS=()
 BUILD_TARGET="all"
 
 SHOULD_CONAN_BUILD="false"
@@ -598,6 +599,8 @@ Options:
                                  / Toggle or set build type, saves to cb_conf.ini
   --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies
   -g | --generate                运行 CMake 配置 / Run CMake configure only
+  -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）
+  -D <name>=<value>              Pass a CMake definition (only with -g/--generate)
   -b | --build [<type>] [--target <target>]  构建项目 / Build the project
   -r | --run [<type>]            运行程序 / Run the application
   -c | --clean [<type>]          清理构建目录 / Clean build directory
@@ -668,6 +671,17 @@ parse_args() {
       SHOULD_CONFIGURE="true"
       had_action="true"
       ;;
+    -D)
+      if (( i + 1 >= ${#args[@]} )) || [[ -z "${args[i+1]}" ]]; then
+        log_err "-D requires a definition, for example: -DMY_OPTION=ON"
+        exit 1
+      fi
+      CMAKE_DEFINE_ARGS+=("-D${args[i+1]}")
+      i=$((i + 1))
+      ;;
+    -D?*)
+      CMAKE_DEFINE_ARGS+=("$arg")
+      ;;
     -b|--build)
       SHOULD_BUILD="true"
       had_action="true"
@@ -712,6 +726,11 @@ parse_args() {
     esac
     i=$((i + 1))
   done
+
+  if (( ${#CMAKE_DEFINE_ARGS[@]} > 0 )) && [[ "$SHOULD_CONFIGURE" != "true" ]]; then
+    log_err "CMake definitions (-D...) are only valid together with -g or --generate"
+    exit 1
+  fi
 
   if [[ "$type_changed" == "true" && "$had_action" == "false" ]]; then
     EXIT_AFTER_TYPE_CHANGE="true"
@@ -962,6 +981,9 @@ run_cmake_configure() {
     if [[ -n "$CMAKE_TOOLCHAIN_FILE" ]]; then
       cmake_cmd+=" -DCMAKE_TOOLCHAIN_FILE=\"${CMAKE_TOOLCHAIN_FILE}\""
     fi
+    if (( ${#CMAKE_DEFINE_ARGS[@]} > 0 )); then
+      cmake_cmd+=" $(cmd_array_to_cmdline "${CMAKE_DEFINE_ARGS[@]}")"
+    fi
     run_with_msvc_env "$cmake_cmd"
     return 0
   fi
@@ -974,6 +996,7 @@ run_cmake_configure() {
   if [[ -n "$CMAKE_TOOLCHAIN_FILE" ]]; then
     cmd+=("-DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE")
   fi
+  cmd+=("${CMAKE_DEFINE_ARGS[@]}")
   log_info "$(cmd_array_to_cmdline "${cmd[@]}")"
   if [[ -n "$CMAKE_RUN_PATH_PREFIX" ]]; then
     PATH="$CMAKE_RUN_PATH_PREFIX${PATH:+:$PATH}" "${cmd[@]}"

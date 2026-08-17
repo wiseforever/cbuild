@@ -339,12 +339,14 @@ SHOULD_RUN = False
 SHOULD_CLEAN = False
 BUILD_TARGET = "all"
 EXIT_AFTER_TYPE_CHANGE = False  # 仅切换类型时立即退出
+CMAKE_DEFINE_ARGS = []
 
 def parse_args():
-    global BUILD_TYPE, SHOULD_CONAN_BUILD, SHOULD_CONFIGURE, SHOULD_BUILD, SHOULD_RUN, SHOULD_CLEAN, BUILD_TARGET, EXIT_AFTER_TYPE_CHANGE
+    global BUILD_TYPE, SHOULD_CONAN_BUILD, SHOULD_CONFIGURE, SHOULD_BUILD, SHOULD_RUN, SHOULD_CLEAN, BUILD_TARGET, EXIT_AFTER_TYPE_CHANGE, CMAKE_DEFINE_ARGS
     args = sys.argv[1:]
     i = 0
     BUILD_TARGET = "all"
+    CMAKE_DEFINE_ARGS = []
 
     type_changed = False
     had_action = False
@@ -359,6 +361,8 @@ def parse_args():
             print("                                 / Toggle or set build type, saves to cb_conf.ini")
             print("  --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies")
             print("  -g | --generate                运行 CMake 配置 / Run CMake configure only")
+            print("  -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）")
+            print("  -D <name>=<value>              Pass a CMake definition (only with -g/--generate)")
             print("  -b | --build [<type>] [--target <target>]  构建项目 / Build the project")
             print("  -r | --run [<type>]            运行程序 / Run the application")
             print("  -c | --clean [<type>]          清理构建目录 / Clean build directory")
@@ -404,6 +408,16 @@ def parse_args():
             SHOULD_CONFIGURE = True
             had_action = True
 
+        elif arg == "-D":
+            if i + 1 >= len(args) or not args[i + 1]:
+                log.error("-D requires a definition, for example: -DMY_OPTION=ON")
+                sys.exit(1)
+            CMAKE_DEFINE_ARGS.append(f"-D{args[i + 1]}")
+            i += 1
+
+        elif arg.startswith("-D") and len(arg) > 2:
+            CMAKE_DEFINE_ARGS.append(arg)
+
         elif arg in ("-b", "--build"):
             SHOULD_BUILD = True
             had_action = True
@@ -433,6 +447,10 @@ def parse_args():
             sys.exit(1)
 
         i += 1
+
+    if CMAKE_DEFINE_ARGS and not SHOULD_CONFIGURE:
+        log.error("CMake definitions (-D...) are only valid together with -g or --generate")
+        sys.exit(1)
 
     EXIT_AFTER_TYPE_CHANGE = (type_changed and not had_action)
 
@@ -960,6 +978,8 @@ def run_cmake_configure():
             cmake_configure_cmd += " " + " ".join(COMPILER_EXEC_P)
         if CMAKE_TOOLCHAIN_FILE:
             cmake_configure_cmd += f' -DCMAKE_TOOLCHAIN_FILE="{CMAKE_TOOLCHAIN_FILE}"'
+        if CMAKE_DEFINE_ARGS:
+            cmake_configure_cmd += " " + subprocess.list2cmdline(CMAKE_DEFINE_ARGS)
 
         # 在 cmd 中调用 vcvarsall.bat，然后执行 cmake 配置
         log.info(cmake_configure_cmd)
@@ -970,6 +990,7 @@ def run_cmake_configure():
             cmd += COMPILER_EXEC_P
         if CMAKE_TOOLCHAIN_FILE:
             cmd.append(f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_FILE}")
+        cmd += CMAKE_DEFINE_ARGS
         log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
         return run_cmd(cmd, env=CMAKE_RUN_ENV)
 

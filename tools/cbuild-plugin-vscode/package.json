@@ -112,7 +112,11 @@
                             },
                             "command": {
                                 "type": "string",
-                                "description": "Shell command sent to the cbuild terminal after confirmation."
+                                "description": "Python cb.py installation command sent to the cbuild terminal after confirmation."
+                            },
+                            "bashCommand": {
+                                "type": "string",
+                                "description": "Optional Bash cb.sh installation command. The plugin offers it when the user selects Bash during bootstrap."
                             },
                             "description": {
                                 "type": "string",

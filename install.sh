@@ -67,6 +67,15 @@ download_file() {
     mv -f "$tmp_path" "$dest_path"
 }
 
+make_executable_on_unix() {
+    local file_path="$1"
+    case "$(uname -s)" in
+        Linux|Darwin)
+            chmod +x "$file_path"
+            ;;
+    esac
+}
+
 _download_one() {
     local url="$1" tmp_path="$2"
 
@@ -292,6 +301,7 @@ if [[ "$mode" == "simple" ]]; then
         echo "Failed to download ${selected_tool}!"
         exit 1
     }
+    make_executable_on_unix "${arg_path}/$selected_tool"
     download_file "$tool_conf" "${arg_path}/$tool_conf" || {
         echo "Failed to download ${tool_conf}!"
         exit 1

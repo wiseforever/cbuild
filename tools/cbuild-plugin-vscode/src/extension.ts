@@ -26,7 +26,15 @@ interface CommandConfig {
 interface BootstrapCommandConfig {
     label?: string;
     command?: string;
+    bashCommand?: string;
     description?: string;
+}
+
+interface ResolvedBootstrapCommand {
+    label: string;
+    command: string;
+    bashCommand?: string;
+    description: string;
 }
 
 interface ResolvedRunner {
@@ -34,16 +42,19 @@ interface ResolvedRunner {
     script: "cb.py" | "cb.sh";
 }
 
-const terminalName = "cbuild";
-const defaultBootstrapCommands: Required<BootstrapCommandConfig>[] = [
+const cbuildTerminalName = "cbuild";
+const runTerminalName = "run";
+const defaultBootstrapCommands: ResolvedBootstrapCommand[] = [
     {
         label: "GitHub",
         command: "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash",
+        bashCommand: "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --bash",
         description: "github.com/wiseforever/cbuild"
     },
     {
         label: "Gitee",
         command: "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash",
+        bashCommand: "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --bash",
         description: "gitee.com/wiseforever/cbuild"
     }
 ];
@@ -88,7 +99,8 @@ const baseActions: BaseAction[] = [
 ];
 
 let statusItems: vscode.StatusBarItem[] = [];
-let terminal: vscode.Terminal | undefined;
+let cbuildTerminal: vscode.Terminal | undefined;
+let runTerminal: vscode.Terminal | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
     for (const action of baseActions) {
@@ -111,8 +123,11 @@ export function activate(context: vscode.ExtensionContext): void {
             refreshButtons(context);
         }),
         vscode.window.onDidCloseTerminal((closedTerminal) => {
-            if (closedTerminal === terminal) {
-                terminal = undefined;
+            if (closedTerminal === cbuildTerminal) {
+                cbuildTerminal = undefined;
+            }
+            if (closedTerminal === runTerminal) {
+                runTerminal = undefined;
             }
         })
     );
@@ -191,7 +206,7 @@ async function runBaseAction(id: BaseActionId): Promise<void> {
         return;
     }
 
-    await runCbuild(action.args);
+    await runCbuild(action.args, action.id === "run" ? "run" : "cbuild");
 }
 
 async function runTarget(value?: TargetConfig | string): Promise<void> {
@@ -224,9 +239,14 @@ async function bootstrapProject(): Promise<void> {
         return;
     }
 
+    const selectedCommand = await pickBootstrapVariant(bootstrapCommand);
+    if (!selectedCommand) {
+        return;
+    }
+
     const runInstall = "运行";
     const picked = await vscode.window.showWarningMessage(
-        `是否运行 cbuild install.sh？\n\n${bootstrapCommand.command}`,
+        `是否运行 cbuild install.sh？\n\n${selectedCommand}`,
         {
             modal: true
         },
@@ -235,7 +255,7 @@ async function bootstrapProject(): Promise<void> {
     );
 
     if (picked === runInstall) {
-        runTerminalCommand(bootstrapCommand.command);
+        runTerminalCommand(selectedCommand);
     }
 }
 
@@ -313,7 +333,7 @@ async function resolveCommand(value?: CommandConfig | string): Promise<string | 
     return input?.trim() || undefined;
 }
 
-async function runCbuild(args: string[]): Promise<void> {
+async function runCbuild(args: string[], terminalKind: "cbuild" | "run" = "cbuild"): Promise<void> {
     const workspaceFolder = getWorkspaceFolder();
     if (!workspaceFolder) {
         void vscode.window.showErrorMessage("CBuild requires an open workspace folder.");
@@ -326,17 +346,17 @@ async function runCbuild(args: string[]): Promise<void> {
     }
 
     const commandLine = `${runner.command} ${[runner.script, ...args].map(quoteShellArg).join(" ")}`;
-    runTerminalCommand(commandLine);
+    runTerminalCommand(commandLine, terminalKind);
 }
 
-function runTerminalCommand(commandLine: string): void {
+function runTerminalCommand(commandLine: string, terminalKind: "cbuild" | "run" = "cbuild"): void {
     const workspaceFolder = getWorkspaceFolder();
     if (!workspaceFolder) {
         void vscode.window.showErrorMessage("CBuild requires an open workspace folder.");
         return;
     }
 
-    const activeTerminal = getOrCreateTerminal(workspaceFolder);
+    const activeTerminal = getOrCreateTerminal(workspaceFolder, terminalKind);
     activeTerminal.show();
     activeTerminal.sendText(commandLine);
 }
@@ -437,11 +457,11 @@ function getCommands(): CommandConfig[] {
     return vscode.workspace.getConfiguration("cbuild").get<CommandConfig[]>("commands", []);
 }
 
-function getBootstrapCommands(): Required<BootstrapCommandConfig>[] {
+function getBootstrapCommands(): ResolvedBootstrapCommand[] {
     const configured = vscode.workspace.getConfiguration("cbuild").get<BootstrapCommandConfig[]>("bootstrapCommands", []);
     const normalized = configured
         .map((command) => normalizeBootstrapCommand(command))
-        .filter((command): command is Required<BootstrapCommandConfig> => Boolean(command));
+        .filter((command): command is ResolvedBootstrapCommand => Boolean(command));
 
     return normalized.length > 0 ? normalized : defaultBootstrapCommands;
 }
@@ -474,7 +494,7 @@ function normalizeCommand(command: CommandConfig): Required<CommandConfig> | und
     };
 }
 
-function normalizeBootstrapCommand(command: BootstrapCommandConfig): Required<BootstrapCommandConfig> | undefined {
+function normalizeBootstrapCommand(command: BootstrapCommandConfig): ResolvedBootstrapCommand | undefined {
     const commandLine = command.command?.trim();
     if (!commandLine) {
         void vscode.window.showWarningMessage("Skipped a cbuild bootstrap command because its command is empty.");
@@ -483,12 +503,13 @@ function normalizeBootstrapCommand(command: BootstrapCommandConfig): Required<Bo
 
     return {
         command: commandLine,
+        bashCommand: command.bashCommand?.trim() || undefined,
         label: command.label?.trim() || commandLine,
         description: command.description?.trim() || commandLine
     };
 }
 
-async function pickBootstrapCommand(): Promise<Required<BootstrapCommandConfig> | undefined> {
+async function pickBootstrapCommand(): Promise<ResolvedBootstrapCommand | undefined> {
     const commands = getBootstrapCommands();
     if (commands.length === 1) {
         return commands[0];
@@ -509,25 +530,69 @@ async function pickBootstrapCommand(): Promise<Required<BootstrapCommandConfig> 
     return picked?.command;
 }
 
+async function pickBootstrapVariant(command: ResolvedBootstrapCommand): Promise<string | undefined> {
+    const picked = await vscode.window.showQuickPick(
+        [
+            {
+                label: "Python (cb.py)",
+                description: "Install cb.py",
+                detail: command.command,
+                command: command.command
+            },
+            {
+                label: "Bash (cb.sh)",
+                description: command.bashCommand ? "Install cb.sh" : "Configure bashCommand for this source",
+                detail: command.bashCommand || "No Bash bootstrap command is configured for this source.",
+                command: command.bashCommand
+            }
+        ],
+        {
+            title: "CBuild bootstrap script",
+            placeHolder: "Select Python or Bash script"
+        }
+    );
+
+    if (!picked) {
+        return undefined;
+    }
+    if (!picked.command) {
+        void vscode.window.showErrorMessage("This bootstrap source has no Bash command. Add cbuild.bootstrapCommands[].bashCommand first.");
+        return undefined;
+    }
+    return picked.command;
+}
+
 function getWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
     return vscode.workspace.workspaceFolders?.[0];
 }
 
-function getOrCreateTerminal(workspaceFolder: vscode.WorkspaceFolder): vscode.Terminal {
-    if (terminal) {
-        return terminal;
+function getOrCreateTerminal(workspaceFolder: vscode.WorkspaceFolder, terminalKind: "cbuild" | "run"): vscode.Terminal {
+    const existingTerminal = terminalKind === "run" ? runTerminal : cbuildTerminal;
+    if (existingTerminal) {
+        return existingTerminal;
     }
 
-    terminal = vscode.window.terminals.find((candidate) => candidate.name === terminalName);
-    if (terminal) {
-        return terminal;
+    const terminalName = terminalKind === "run" ? runTerminalName : cbuildTerminalName;
+    const foundTerminal = vscode.window.terminals.find((candidate) => candidate.name === terminalName);
+    if (foundTerminal) {
+        if (terminalKind === "run") {
+            runTerminal = foundTerminal;
+        } else {
+            cbuildTerminal = foundTerminal;
+        }
+        return foundTerminal;
     }
 
-    terminal = vscode.window.createTerminal({
+    const createdTerminal = vscode.window.createTerminal({
         name: terminalName,
         cwd: workspaceFolder.uri
     });
-    return terminal;
+    if (terminalKind === "run") {
+        runTerminal = createdTerminal;
+    } else {
+        cbuildTerminal = createdTerminal;
+    }
+    return createdTerminal;
 }
 
 async function fileExists(workspaceFolder: vscode.WorkspaceFolder, filename: string): Promise<boolean> {
