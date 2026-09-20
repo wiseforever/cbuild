@@ -26,3 +26,5 @@
 - 已定位：`get_bin_dir` 对绝对 Ninja/Makefile 输出路径无条件拼接 `BUILD_DIR`，导致 Ubuntu 18 的错误路径。
 - 已在 `cb.sh` 与 `cb.py` 中实现绝对路径保留、相对路径拼接的统一处理；`-b`、`-r` 和 `-t` 更新 VS Code 启动路径会复用该逻辑。
 - 已通过 `bash -n cb.sh`、`python3 -m py_compile cb.py`、`git diff --check` 以及绝对/相对路径解析模拟验证。
+- 已补充路径词法规范化：构建元数据拼接为完整路径后会清理冗余的 `/./` 与可折叠的 `..`，使日志、运行命令和 VS Code 启动配置不再包含冗余目录段；独立的 `./`、`../`、`../../` 等相对路径前缀不作为此规范化目标。
+- 已验证 Bash 与 Python 的根目录、`/./`、内部 `..`、Windows 风格绝对路径及独立相对前缀样例；同时通过 `bash -n cb.sh`、`python3 -m py_compile cb.py` 和 `git diff --check`。

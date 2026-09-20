@@ -225,10 +225,12 @@ def get_bin_dir(app_name=None):
     """从构建系统文件解析或搜索实际输出目录；失败则回退 BUILD_DIR/bin"""
 
     def resolve_output_dir(path):
-        """Keep absolute paths emitted by older CMake generators absolute."""
+        """Keep absolute paths emitted by older CMake generators absolute and clean."""
         if os.path.isabs(path) or re.match(r"^[A-Za-z]:[\\/]", path):
-            return path
-        return os.path.join(BUILD_DIR, path)
+            return os.path.normpath(path)
+        # BUILD_DIR is absolute. Normalizing the completed path removes
+        # redundant '/./' and embedded '..' segments from CMake metadata.
+        return os.path.normpath(os.path.join(BUILD_DIR, path))
 
     # 1. Ninja: 解析 build.ninja
     ninja_file = os.path.join(BUILD_DIR, "build.ninja")
@@ -248,7 +250,7 @@ def get_bin_dir(app_name=None):
                 return resolve_output_dir(os.path.dirname(m.group(1)))
 
     # 3. 默认 fallback
-    return os.path.join(BUILD_DIR, "bin")
+    return os.path.normpath(os.path.join(BUILD_DIR, "bin"))
 
 def get_project_name_simple():
     cmakelists = os.path.join(SOURCE_DIR, "CMakeLists.txt")

@@ -132,6 +132,49 @@ is_windows_abs_path() {
   [[ "$path" =~ ^[A-Za-z]:[\\/].* ]]
 }
 
+normalize_path() {
+  # Normalize absolute paths lexically: do not resolve symlinks and do not
+  # require the path to exist. Standalone relative prefixes such as ./ and ../
+  # are returned unchanged.
+  local path="$1" prefix="" rest component joined
+  local -a parts=() components=()
+
+  if [[ "$path" =~ ^[A-Za-z]:[\\/] ]]; then
+    path="${path//\\//}"
+    prefix="${path:0:3}"
+    rest="${path:3}"
+  elif [[ "$path" == /* ]]; then
+    prefix="/"
+    rest="${path#/}"
+  else
+    printf '%s' "$path"
+    return
+  fi
+
+  IFS='/' read -r -a components <<< "$rest"
+  for component in "${components[@]}"; do
+    case "$component" in
+      ''|.)
+        ;;
+      ..)
+        if (( ${#parts[@]} > 0 )); then
+          unset "parts[$(( ${#parts[@]} - 1 ))]"
+        fi
+        ;;
+      *)
+        parts+=("$component")
+        ;;
+    esac
+  done
+
+  joined="$(IFS=/; printf '%s' "${parts[*]}")"
+  if [[ -n "$joined" ]]; then
+    printf '%s%s' "$prefix" "$joined"
+  else
+    printf '%s' "$prefix"
+  fi
+}
+
 resolve_config_path() {
   local value
   value="$(trim "$1")"
@@ -532,9 +575,9 @@ get_bin_dir() {
       rule="${rule%%: *}"
       bin_dir="$(dirname "$rule")"
       if [[ "$bin_dir" == /* ]] || is_windows_abs_path "$bin_dir"; then
-        printf '%s' "$bin_dir"
+        normalize_path "$bin_dir"
       else
-        printf '%s' "${BUILD_DIR}/${bin_dir}"
+        normalize_path "${BUILD_DIR}/${bin_dir}"
       fi
       return
     fi
@@ -548,9 +591,9 @@ get_bin_dir() {
       if [[ -n "$bin_dir" ]]; then
         bin_dir="$(dirname "$bin_dir")"
         if [[ "$bin_dir" == /* ]] || is_windows_abs_path "$bin_dir"; then
-          printf '%s' "$bin_dir"
+          normalize_path "$bin_dir"
         else
-          printf '%s' "${BUILD_DIR}/${bin_dir}"
+          normalize_path "${BUILD_DIR}/${bin_dir}"
         fi
         return
       fi
@@ -558,7 +601,7 @@ get_bin_dir() {
   fi
 
   # 3) 默认 fallback
-  printf '%s' "${BUILD_DIR}/bin"
+  normalize_path "${BUILD_DIR}/bin"
 }
 
 get_project_name_simple() {
