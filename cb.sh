@@ -519,7 +519,11 @@ get_bin_dir() {
       rule="${rule#build }"
       rule="${rule%%: *}"
       bin_dir="$(dirname "$rule")"
-      printf '%s' "${BUILD_DIR}/${bin_dir}"
+      if [[ "$bin_dir" == /* ]] || is_windows_abs_path "$bin_dir"; then
+        printf '%s' "$bin_dir"
+      else
+        printf '%s' "${BUILD_DIR}/${bin_dir}"
+      fi
       return
     fi
   fi
@@ -531,7 +535,11 @@ get_bin_dir() {
       bin_dir="$(grep -oP '(?<=-o )\S+' "$link_file" 2>/dev/null || true)"
       if [[ -n "$bin_dir" ]]; then
         bin_dir="$(dirname "$bin_dir")"
-        printf '%s' "${BUILD_DIR}/${bin_dir}"
+        if [[ "$bin_dir" == /* ]] || is_windows_abs_path "$bin_dir"; then
+          printf '%s' "$bin_dir"
+        else
+          printf '%s' "${BUILD_DIR}/${bin_dir}"
+        fi
         return
       fi
     fi
@@ -911,28 +919,33 @@ write_cbuild_toolchain() {
   log_info "Generated cbuild toolchain: $CMAKE_TOOLCHAIN_FILE"
 }
 
-ensure_cached_toolchain_matches() {
+reset_cmake_cache_for_toolchain_change() {
   local cache_file="${BUILD_DIR}/CMakeCache.txt"
   local cache_line=""
   local cached_toolchain=""
   local desired_toolchain="${CMAKE_TOOLCHAIN_FILE:-}"
+  local reset_required="false"
 
   [[ -f "$cache_file" ]] || return 0
   cache_line="$(grep -m1 '^CMAKE_TOOLCHAIN_FILE:[^=]*=' "$cache_file" || true)"
-  if [[ -n "$cache_line" ]]; then
+
+  if [[ -z "$cache_line" ]]; then
+    [[ -n "$desired_toolchain" ]] && reset_required="true"
+  elif [[ "$cache_line" == CMAKE_TOOLCHAIN_FILE:UNINITIALIZED=* ]]; then
+    # CMake records a newly supplied toolchain this way when a previous cache
+    # prevented it from being loaded during the initial configuration.
+    reset_required="true"
+  else
     cached_toolchain="${cache_line#*=}"
     cached_toolchain="$(cmake_path "$cached_toolchain")"
+    [[ "$cached_toolchain" != "$desired_toolchain" ]] && reset_required="true"
   fi
 
-  if [[ "$cached_toolchain" == "$desired_toolchain" ]]; then
-    return 0
-  fi
-  if [[ -z "$cache_line" && -z "$desired_toolchain" ]]; then
-    return 0
-  fi
+  [[ "$reset_required" == "true" ]] || return 0
 
-  log_err "CMake toolchain changed after this build directory was configured. Run cb.py -c (or cb.sh -c), then install Conan dependencies again if needed."
-  exit 1
+  log_info "Resetting stale CMake cache so the current toolchain can be loaded"
+  rm -f "$cache_file"
+  rm -rf "${BUILD_DIR}/CMakeFiles"
 }
 
 prepare_cmake_toolchain() {
@@ -961,7 +974,7 @@ prepare_cmake_toolchain() {
   else
     CMAKE_TOOLCHAIN_FILE="$conan_toolchain_file"
   fi
-  ensure_cached_toolchain_matches
+  reset_cmake_cache_for_toolchain_change
 }
 
 detect_toolchain_file() {

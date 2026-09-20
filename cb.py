@@ -224,6 +224,12 @@ def rm_rf(path):
 def get_bin_dir(app_name=None):
     """从构建系统文件解析或搜索实际输出目录；失败则回退 BUILD_DIR/bin"""
 
+    def resolve_output_dir(path):
+        """Keep absolute paths emitted by older CMake generators absolute."""
+        if os.path.isabs(path) or re.match(r"^[A-Za-z]:[\\/]", path):
+            return path
+        return os.path.join(BUILD_DIR, path)
+
     # 1. Ninja: 解析 build.ninja
     ninja_file = os.path.join(BUILD_DIR, "build.ninja")
     if app_name and os.path.isfile(ninja_file):
@@ -231,7 +237,7 @@ def get_bin_dir(app_name=None):
             for line in f:
                 if re.match(rf'^build\s+\S*?{re.escape(app_name)}\s*:\s*CXX_EXECUTABLE_LINKER__{re.escape(app_name)}[^a-zA-Z]', line):
                     path_part = line.split()[1].rstrip(":")
-                    return os.path.join(BUILD_DIR, os.path.dirname(path_part))
+                    return resolve_output_dir(os.path.dirname(path_part))
 
     # 2. Unix Makefiles: 解析 link.txt
     link_file = os.path.join(BUILD_DIR, "CMakeFiles", f"{app_name}.dir", "link.txt") if app_name else None
@@ -239,7 +245,7 @@ def get_bin_dir(app_name=None):
         with open(link_file, "r") as f:
             m = re.search(r'-o\s+(\S+)', f.read())
             if m:
-                return os.path.join(BUILD_DIR, os.path.dirname(m.group(1)))
+                return resolve_output_dir(os.path.dirname(m.group(1)))
 
     # 3. 默认 fallback
     return os.path.join(BUILD_DIR, "bin")
@@ -921,33 +927,40 @@ def write_cbuild_toolchain(vcpkg_toolchain_file, conan_toolchain_file, custom_to
     log.info(f"Generated cbuild toolchain: {toolchain_file}")
     return toolchain_file
 
-def ensure_cached_toolchain_matches():
-    """Prevent CMake from silently ignoring a new toolchain in an old cache."""
+def reset_cmake_cache_for_toolchain_change():
+    """Reset only CMake state when it has not loaded the selected toolchain."""
     cache_file = os.path.join(BUILD_DIR, "CMakeCache.txt")
     if not os.path.isfile(cache_file):
         return
 
-    cached_toolchain = None
+    cache_line = None
     with open(cache_file, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
             if line.startswith("CMAKE_TOOLCHAIN_FILE:") and "=" in line:
-                cached_toolchain = line.split("=", 1)[1].strip()
+                cache_line = line.strip()
                 break
 
     desired_toolchain = CMAKE_TOOLCHAIN_FILE or ""
-    if cached_toolchain is not None:
-        cached_toolchain = cmake_path(cached_toolchain) if cached_toolchain else ""
+    reset_required = False
+    if cache_line is None:
+        reset_required = bool(desired_toolchain)
+    elif cache_line.startswith("CMAKE_TOOLCHAIN_FILE:UNINITIALIZED="):
+        # CMake leaves this marker when an older cache prevented the newly
+        # supplied toolchain from being read during initial configuration.
+        reset_required = True
+    else:
+        cached_toolchain = cache_line.split("=", 1)[1].strip()
+        reset_required = cmake_path(cached_toolchain) != desired_toolchain
 
-    if cached_toolchain == desired_toolchain:
-        return
-    if cached_toolchain is None and not desired_toolchain:
+    if not reset_required:
         return
 
-    log.error(
-        "CMake toolchain changed after this build directory was configured. "
-        "Run cb.py -c (or cb.sh -c), then install Conan dependencies again if needed."
-    )
-    sys.exit(1)
+    log.info("Resetting stale CMake cache so the current toolchain can be loaded")
+    if os.path.isfile(cache_file):
+        os.remove(cache_file)
+    cmake_files_dir = os.path.join(BUILD_DIR, "CMakeFiles")
+    if os.path.isdir(cmake_files_dir):
+        shutil.rmtree(cmake_files_dir)
 
 def prepare_cmake_toolchain():
     """Select or create the one toolchain file passed to CMake configure."""
@@ -965,7 +978,7 @@ def prepare_cmake_toolchain():
         )
     else:
         CMAKE_TOOLCHAIN_FILE = conan_toolchain_file
-    ensure_cached_toolchain_matches()
+    reset_cmake_cache_for_toolchain_change()
 
 # -------------------- 配置 & 构建 --------------------
 def run_cmake_configure():
