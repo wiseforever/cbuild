@@ -17,7 +17,8 @@ date_str=$(date "+%Y%m%d_%H%M%S")
 tool_python="cb.py"
 tool_bash="cb.sh"
 tool_conf="cb_conf.ini"
-tool_install="install.sh"
+tool_install_source="install.sh"
+tool_global_install="cb_install.sh"
 tool_uninstall="cb_uninstall.sh"
 clang_format_file=".clang-format"
 cmake_file="cmake/ez_custom_func.cmake"
@@ -215,7 +216,7 @@ update_shell_rc() {
     bash) rc_file="${HOME}/.bashrc" ;;
     zsh)  rc_file="${HOME}/.zshrc" ;;
     fish) rc_file="${HOME}/.config/fish/config.fish" ;;
-    *)    return 1 ;;  # Unknown shell, skip
+    *)    return 0 ;;  # Unknown shell, skip without failing the installation
   esac
 
   # Check if line already exists in rc file
@@ -251,7 +252,7 @@ install_vscode_templates() {
 if [[ "$mode" == "global" ]]; then
     mkdir -p "$global_install_dir"
 
-    if [[ -e "$global_install_dir/$tool_bash" || -e "$global_install_dir/$tool_python" || -e "$global_install_dir/$tool_install" ]]; then
+    if [[ -e "$global_install_dir/$tool_bash" || -e "$global_install_dir/$tool_python" || -e "$global_install_dir/$tool_global_install" ]]; then
         echo "Updating global installation: ${global_install_dir}"
     fi
     rm -f "$global_install_dir/$tool_bash" "$global_install_dir/$tool_python"
@@ -270,11 +271,11 @@ if [[ "$mode" == "global" ]]; then
         chmod +x "$global_install_dir/$tool_bash"
     fi
 
-    download_file "$tool_install" "$global_install_dir/$tool_install" || {
-        echo "Failed to download ${tool_install}!"
+    download_file "$tool_install_source" "$global_install_dir/$tool_global_install" || {
+        echo "Failed to download ${tool_install_source}!"
         exit 1
     }
-    chmod +x "$global_install_dir/$tool_install"
+    chmod +x "$global_install_dir/$tool_global_install"
 
     # Install uninstall script alongside (optional, warn on failure)
     if download_file "$tool_uninstall" "$global_install_dir/$tool_uninstall"; then
@@ -283,11 +284,11 @@ if [[ "$mode" == "global" ]]; then
         echo "Warning: Failed to download ${tool_uninstall}, skipping."
     fi
 
-    # Write install manifest for uninstall.sh
+    # Write install manifest for cb_uninstall.sh. It distinguishes a global
+    # installation from the repository copy of the uninstall script.
     cat > "${global_install_dir}/.install.cfg" <<EOF
-# cbuild install config - used by uninstall.sh
+# cbuild install manifest - used by cb_uninstall.sh
 INSTALL_DIR="${global_install_dir}"
-INSTALL_VARIANT="${install_variant}"
 EOF
 
     echo "Globally installed ${install_variant} variant to: ${global_install_dir}"

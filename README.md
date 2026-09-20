@@ -52,7 +52,7 @@ python -m pip install conan
 
 ## Global Install
 
-The default installation is global: it installs `cb.py` or `cb.sh`, `install.sh`, and the uninstall script to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb_conf.ini`.
+The default installation is global: it installs `cb.py` or `cb.sh`, `cb_install.sh`, and the uninstall script to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb_conf.ini`.
 
 ### GitHub
 
@@ -88,6 +88,8 @@ cd my-project
 ```
 
 The installer changes your shell rc file only when the install directory is absent from both the current `PATH` and its configured PATH entries. Then add `~/.cbuild` to your `PATH` and run `cb.sh` from any project directory.
+
+The globally installed updater is named `cb_install.sh`; for example, run `~/.cbuild/cb_install.sh --python` to update the global installation and switch to the Python variant.
 
 When using the global install, `cb.py` / `cb.sh` looks for `cb_conf.ini` in this order:
 
@@ -149,7 +151,10 @@ The global install ships with an uninstall script. Run it directly:
 # Run the bundled uninstall script:
 ~/.cbuild/cb_uninstall.sh
 
-# Or use install.sh:
+# Or use the globally installed updater:
+~/.cbuild/cb_install.sh --uninstall
+
+# Or download the repository installer:
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --uninstall
 ```
 

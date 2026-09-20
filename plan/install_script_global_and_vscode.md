@@ -15,7 +15,7 @@
 
 ## 验收标准
 
-- 全局默认安装下载 `cb.sh`、`install.sh` 与卸载脚本，不下载 `cb_conf.ini`。
+- 全局默认安装下载 `cb.sh`、`cb_install.sh` 与卸载脚本，不下载 `cb_conf.ini`。
 - 重复执行全局安装不重复增加 shell rc 的 PATH 条目。
 - `--vscode` 只安装四个模板文件，并备份原 `.vscode`。
 
@@ -32,3 +32,4 @@
 - 已通过本地 HTTP 下载源模拟首次安装、从已安装的 `install.sh` 重复更新以及 Python 变体切换：默认安装为 Bash，`install.sh` 可自更新，旧变体被清理，手动回退配置保留，shell rc PATH 条目数量保持为 1。
 - 已将 README 的全局安装章节前置，并明确项目级 `--simple` 安装会备份既有项目文件。
 - 已通过隔离临时项目验证 `--simple`：原有 `.vscode`、`cb.py`、`cb.sh`、`cb_conf.ini` 与 `cmake/ez_custom_func.cmake` 均进入时间戳备份目录，替换文件安装成功。
+- 全局安装的自更新副本改名为 `cb_install.sh`；`.install.cfg` 保留为卸载脚本识别全局安装的标记，不再记录未使用的安装变体。

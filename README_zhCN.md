@@ -52,7 +52,7 @@ python -m pip install conan
 
 ## 全局安装
 
-默认安装方式是全局安装：会将 `cb.py` 或 `cb.sh`、`install.sh` 与卸载脚本安装到共享目录。`-g` 与 `--global` 也可显式使用。全局安装不会安装 `cb_conf.ini`。
+默认安装方式是全局安装：会将 `cb.py` 或 `cb.sh`、`cb_install.sh` 与卸载脚本安装到共享目录。`-g` 与 `--global` 也可显式使用。全局安装不会安装 `cb_conf.ini`。
 
 ### GitHub
 
@@ -90,6 +90,8 @@ cd my-project
 ```
 
 安装脚本仅在安装目录不在当前 `PATH`，且 shell rc 文件没有对应 PATH 配置时才会写入 shell rc 文件。之后也可将 `~/.cbuild` 加入 `PATH` 后直接用 `cb.sh` 执行。
+
+全局安装目录中的更新脚本名为 `cb_install.sh`；例如执行 `~/.cbuild/cb_install.sh --python` 可更新全局安装并切换到 Python 版本。
 
 全局安装时，`cb.py` / `cb.sh` 查找 `cb_conf.ini` 的顺序：
 
@@ -152,7 +154,10 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 # 方式一：直接运行卸载脚本（在安装目录中）
 ~/.cbuild/cb_uninstall.sh
 
-# 方式二：使用 install.sh --uninstall
+# 方式二：使用全局安装的更新脚本
+~/.cbuild/cb_install.sh --uninstall
+
+# 方式三：重新下载仓库安装脚本
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --uninstall
 ```
 
