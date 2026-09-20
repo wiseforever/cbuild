@@ -518,11 +518,11 @@ def prepare_build_dir(create=True):
 
         if OUTPUT_DIR:
             if os.path.isabs(OUTPUT_DIR):
-                BUILD_DIR = os.path.join(OUTPUT_DIR, suffix).replace("\\", "/")
+                BUILD_DIR = os.path.normpath(os.path.join(OUTPUT_DIR, suffix)).replace("\\", "/")
             else:
-                BUILD_DIR = os.path.join(SOURCE_DIR, OUTPUT_DIR, suffix).replace("\\", "/")
+                BUILD_DIR = os.path.normpath(os.path.join(SOURCE_DIR, OUTPUT_DIR, suffix)).replace("\\", "/")
         else:
-            BUILD_DIR = os.path.join(SOURCE_DIR, "build", suffix).replace("\\", "/")
+            BUILD_DIR = os.path.normpath(os.path.join(SOURCE_DIR, "build", suffix)).replace("\\", "/")
 
     if create:
         os.makedirs(BUILD_DIR, exist_ok=True)
@@ -1079,9 +1079,9 @@ def clean_build():
             HOST_ARCH or "x64"
         )
         if compiler_id:
-            BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}").replace("\\", "/")
+            BUILD_DIR = os.path.normpath(os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}")).replace("\\", "/")
         else:
-            BUILD_DIR = os.path.join(SOURCE_DIR, "build", f"{BUILD_TYPE}").replace("\\", "/")
+            BUILD_DIR = os.path.normpath(os.path.join(SOURCE_DIR, "build", f"{BUILD_TYPE}")).replace("\\", "/")
 
     if os.path.isdir(BUILD_DIR):
         log.info(f"Cleaning {BUILD_DIR}")

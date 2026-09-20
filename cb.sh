@@ -181,9 +181,9 @@ resolve_config_path() {
   [[ -n "$value" ]] || return 0
 
   if [[ "$value" == /* ]] || is_windows_abs_path "$value"; then
-    printf '%s' "$value"
+    normalize_path "$value"
   else
-    printf '%s/%s' "$(cd "$(dirname "$CONFIG_FILE")" && pwd -P)" "$value"
+    normalize_path "$(cd "$(dirname "$CONFIG_FILE")" && pwd -P)/$value"
   fi
 }
 
@@ -502,6 +502,7 @@ prepare_build_dir() {
     else
       BUILD_DIR="${SOURCE_DIR}/build/${suffix}"
     fi
+    BUILD_DIR="$(normalize_path "$BUILD_DIR")"
   fi
   if [[ "$create" == "true" ]]; then
     mkdir -p "$BUILD_DIR"

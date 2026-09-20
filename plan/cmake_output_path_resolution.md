@@ -28,3 +28,5 @@
 - 已通过 `bash -n cb.sh`、`python3 -m py_compile cb.py`、`git diff --check` 以及绝对/相对路径解析模拟验证。
 - 已补充路径词法规范化：构建元数据拼接为完整路径后会清理冗余的 `/./` 与可折叠的 `..`，使日志、运行命令和 VS Code 启动配置不再包含冗余目录段；独立的 `./`、`../`、`../../` 等相对路径前缀不作为此规范化目标。
 - 已验证 Bash 与 Python 的根目录、`/./`、内部 `..`、Windows 风格绝对路径及独立相对前缀样例；同时通过 `bash -n cb.sh`、`python3 -m py_compile cb.py` 和 `git diff --check`。
+- 已将同一规范化规则应用到配置阶段的 `SOURCE_DIR`、`BUILD_DIR`，覆盖 `-g` 的 CMake `-H/-B` 参数与 `-c` 的清理日志。
+- 已通过 Bash/Python 的 `source_dir = .`、`output_dir = ./build` 模拟验证，二者均生成不含 `/./` 的构建目录；并再次通过语法与 diff 检查。
