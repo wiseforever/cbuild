@@ -8,8 +8,8 @@ This repository provides a lightweight build workflow for C/C++ projects, with o
 
 - [Quick Start](#quick-start)
 - [Prerequisites](#prerequisites)
-- [Project Bootstrap](#project-bootstrap)
 - [Global Install](#global-install)
+- [Project Bootstrap](#project-bootstrap)
 - [Uninstall](#uninstall)
 - [cb.py / cb.sh Usage](#cbpy--cbsh-usage)
   - [cb_conf.ini Parameters](#cb_confini-parameters)
@@ -20,13 +20,13 @@ This repository provides a lightweight build workflow for C/C++ projects, with o
 ## Quick Start
 
 ```bash
-# Python variant — install into your project
+# Bash variant (default) — install globally
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 
-# Then configure, build and run:
-python cb.py -g    # CMake generate
-python cb.py -b    # build
-python cb.py -r    # run
+# Then, from a project that has cb_conf.ini:
+~/.cbuild/cb.sh -g    # CMake generate
+~/.cbuild/cb.sh -b    # build
+~/.cbuild/cb.sh -r    # run
 ```
 
 ## Prerequisites
@@ -50,77 +50,95 @@ Environment notes:
 python -m pip install conan
 ```
 
-## Project Bootstrap
-
-Run the install script in your project root.
-
-Default install (Python version):
-
-```bash
-# github
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
-
-# gitee
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
-```
-
-Install Bash version:
-
-```bash
-# github
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
-
-# gitee
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
-```
-
-Only pull `.clang-format`:
-
-```bash
-# github
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
-
-# gitee
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
-```
-
-Notes:
-
-- It is recommended to clean existing `.vscode` content before running `install.sh`.
-- If you do not use VSCode, only `cb.py` or `cb.sh` plus `cb_conf.ini` is required.
-- `install.sh` does not generate or overwrite `.vscode/tasks.json`. The repository keeps the task files for users who still want to use VS Code's built-in Tasks manually.
-
 ## Global Install
 
-Install `cb.py` or `cb.sh` to a shared directory so you can use it from any project. `-g` and `--global` are both accepted. Global installation does not install `cb_conf.ini`.
+The default installation is global: it installs `cb.py` or `cb.sh`, `install.sh`, and the uninstall script to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb_conf.ini`.
+
+### GitHub
 
 ```bash
-# Install Python variant (default)
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g
+# Install Bash variant (default)
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 
-# Install Bash variant
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g --bash
+# Install Python variant
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --python
 
 # Customize install directory
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
-  bash -s -- -g --prefix ~/.cbuild
+  bash -s -- --prefix ~/.cbuild
+```
+
+### Gitee
+
+```bash
+# Install Bash variant (default)
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
+
+# Install Python variant
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --python
 ```
 
 After global install, use the full path to run it from any project directory:
 
 ```bash
 cd my-project
-python3 ~/.cbuild/cb.py -g    # CMake generate
-python3 ~/.cbuild/cb.py -b    # build
-python3 ~/.cbuild/cb.py -r    # run
+~/.cbuild/cb.sh -g    # CMake generate
+~/.cbuild/cb.sh -b    # build
+~/.cbuild/cb.sh -r    # run
 ```
 
-Or add `~/.cbuild` to your `PATH` and run `python3 cb.py` from any project directory.
+The installer changes your shell rc file only when the install directory is absent from both the current `PATH` and its configured PATH entries. Then add `~/.cbuild` to your `PATH` and run `cb.sh` from any project directory.
 
 When using the global install, `cb.py` / `cb.sh` looks for `cb_conf.ini` in this order:
 
 1. Current working directory: `./cb_conf.ini`
 2. Script installation directory (fallback, only if you manually create `~/.cbuild/cb_conf.ini`)
+
+## Project Bootstrap
+
+Run the install script in your project root. The default is a global Bash installation; use `--simple` to install files into the current project.
+
+### GitHub
+
+```bash
+# Install Bash variant into the current project
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple
+
+# Install Python variant into the current project
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple --python
+
+# Install only .vscode templates to the current directory
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode
+
+# Install only .vscode templates to another project root
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode /path/to/project
+
+# Only pull .clang-format
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
+```
+
+### Gitee
+
+```bash
+# Install Bash variant into the current project
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple
+
+# Install Python variant into the current project
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple --python
+
+# Install only .vscode templates to the current directory
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode
+
+# Only pull .clang-format
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
+```
+
+Notes:
+
+- A simple install moves existing `.vscode`, `cb.py`, `cb.sh`, `cb_conf.ini`, and `cmake/ez_custom_func.cmake` to `cbuild_bak/` before installing replacements.
+- `--vscode [directory]` installs only the four VS Code templates. When `.vscode` already exists, it is moved to `<directory>/cbuild_bak/` first.
+- If you do not use VSCode, only `cb.py` or `cb.sh` plus `cb_conf.ini` is required.
+- `install.sh` does not generate or overwrite `.vscode/tasks.json`. The repository keeps the task files for users who still want to use VS Code's built-in Tasks manually.
 
 ## Uninstall
 

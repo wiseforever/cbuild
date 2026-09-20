@@ -8,8 +8,8 @@
 
 - [快速开始](#快速开始)
 - [安装依赖](#1-安装依赖)
-- [搭建项目](#2-搭建项目)
 - [全局安装](#全局安装)
+- [搭建项目](#2-搭建项目)
 - [卸载](#卸载)
 - [cb.py / cb.sh 使用说明](#cbpy--cbsh-的使用)
   - [参数说明](#cb_confini-参数说明)
@@ -20,13 +20,13 @@
 ## 快速开始
 
 ```bash
-# Python 版本 — 安装到你的项目
+# Bash 版本（默认）— 全局安装
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 
-# 然后配置、编译并运行：
-python cb.py -g    # CMake 生成
-python cb.py -b    # 编译
-python cb.py -r    # 运行
+# 然后在包含 cb_conf.ini 的项目中配置、编译并运行：
+~/.cbuild/cb.sh -g    # CMake 生成
+~/.cbuild/cb.sh -b    # 编译
+~/.cbuild/cb.sh -r    # 运行
 ```
 
 ## 1. 安装依赖
@@ -50,77 +50,97 @@ python cb.py -r    # 运行
 python -m pip install conan
 ```
 
-## 2. 搭建项目
-
-首先进入自己项目的根目录，运行此仓库的 `install.sh` 脚本，脚本会自动搭建好。
-
-默认安装 Python 版本：
-
-```bash
-# github
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
-
-# gitee
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
-```
-
-安装 Bash 版本：
-
-```bash
-# github
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
-
-# gitee
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s sh
-```
-
-仅拉取 `.clang-format`：
-
-```bash
-# github
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
-
-# gitee
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
-```
-
-前提：
-
-- 项目根目录下应该不要存在 `.vscode` 目录，因为脚本会检查、备份以及看情况创建这个目录，为避免冲突请在运行 `install.sh` 脚本的时候，请先清理好项目目录。
-- 若不需要使用 VSCode 可以不依赖 `.vscode` 目录，仅仅需要 `cb.py` 或 `cb.sh` 与 `cb_conf.ini` 文件即可。
-- `install.sh` 不再生成或覆盖 `.vscode/tasks.json`。仓库中仍保留 task 文件，供仍需要 VS Code 内置 Tasks 的用户手动参考或使用。
-
 ## 全局安装
 
-安装 `cb.py` 或 `cb.sh` 到共享目录，可在任意项目目录下使用。`-g` 与 `--global` 均可。全局安装不会安装 `cb_conf.ini`。
+默认安装方式是全局安装：会将 `cb.py` 或 `cb.sh`、`install.sh` 与卸载脚本安装到共享目录。`-g` 与 `--global` 也可显式使用。全局安装不会安装 `cb_conf.ini`。
+
+### GitHub
 
 ```bash
-# 默认安装 Python 版本
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g
+# 安装 Bash 版本（默认）
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 
-# 安装 Bash 版本
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- -g --bash
+# 安装 Python 版本
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --python
 
 # 自定义安装目录
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
-  bash -s -- -g --prefix ~/.cbuild
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --prefix ~/.cbuild
+```
+
+### Gitee
+
+```bash
+# 安装 Bash 版本（默认）
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
+
+# 安装 Python 版本
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --python
+
+# 自定义安装目录
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --prefix ~/.cbuild
 ```
 
 全局安装后，在项目目录中通过完整路径使用：
 
 ```bash
 cd my-project
-python3 ~/.cbuild/cb.py -g    # CMake 生成
-python3 ~/.cbuild/cb.py -b    # 编译
-python3 ~/.cbuild/cb.py -r    # 运行
+~/.cbuild/cb.sh -g    # CMake 生成
+~/.cbuild/cb.sh -b    # 编译
+~/.cbuild/cb.sh -r    # 运行
 ```
 
-也可将 `~/.cbuild` 加入 `PATH` 后直接用 `python3 cb.py` 执行。
+安装脚本仅在安装目录不在当前 `PATH`，且 shell rc 文件没有对应 PATH 配置时才会写入 shell rc 文件。之后也可将 `~/.cbuild` 加入 `PATH` 后直接用 `cb.sh` 执行。
 
 全局安装时，`cb.py` / `cb.sh` 查找 `cb_conf.ini` 的顺序：
 
 1. 当前工作目录 `./cb_conf.ini`
 2. 脚本安装目录（作为回退；仅在手动创建 `~/.cbuild/cb_conf.ini` 时可用）
+
+## 2. 搭建项目
+
+进入项目根目录运行安装脚本。默认是全局 Bash 安装；使用 `--simple` 才将文件安装到当前项目。
+
+### GitHub
+
+```bash
+# 安装 Bash 版本到当前项目
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple
+
+# 安装 Python 版本到当前项目
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple --python
+
+# 只安装 VS Code 模板到当前目录
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode
+
+# 只安装 VS Code 模板到指定项目根目录
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode /path/to/project
+
+# 仅拉取 .clang-format
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
+```
+
+### Gitee
+
+```bash
+# 安装 Bash 版本到当前项目
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple
+
+# 安装 Python 版本到当前项目
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple --python
+
+# 只安装 VS Code 模板到当前目录
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode
+
+# 仅拉取 .clang-format
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
+```
+
+前提：
+
+- 项目级 `--simple` 安装会先将已有 `.vscode`、`cb.py`、`cb.sh`、`cb_conf.ini` 和 `cmake/ez_custom_func.cmake` 移至 `cbuild_bak/`，再安装新文件。
+- `--vscode [目录]` 仅安装四个 VS Code 模板；若 `.vscode` 已存在，会先移至 `<目录>/cbuild_bak/`。
+- 若不需要使用 VSCode 可以不依赖 `.vscode` 目录，仅仅需要 `cb.py` 或 `cb.sh` 与 `cb_conf.ini` 文件即可。
+- `install.sh` 不再生成或覆盖 `.vscode/tasks.json`。仓库中仍保留 task 文件，供仍需要 VS Code 内置 Tasks 的用户手动参考或使用。
 
 ## 卸载
 

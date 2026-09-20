@@ -17,29 +17,33 @@ date_str=$(date "+%Y%m%d_%H%M%S")
 tool_python="cb.py"
 tool_bash="cb.sh"
 tool_conf="cb_conf.ini"
+tool_install="install.sh"
 tool_uninstall="cb_uninstall.sh"
 clang_format_file=".clang-format"
 cmake_file="cmake/ez_custom_func.cmake"
 
-mode="simple"
-install_variant="python"
+mode="global"
+install_variant="bash"
 global_install_dir="${HOME}/.cbuild"
+vscode_target_dir="${arg_path}"
 
 print_help() {
     cat <<'EOF'
 Usage:
-  ./install.sh [--python|--bash] [--simple]
-  ./install.sh [--python|--bash] --global [--prefix <dir>]
+  ./install.sh [--python|--bash] [--global] [--prefix <dir>]
+  ./install.sh [--python|--bash] --simple
+  ./install.sh --vscode [<directory>]
   ./install.sh --uninstall
   ./install.sh --format
 
 Options:
-  --bash            Install Bash variant
-  --python          Install Python variant (default)
-  -s, --simple      Install to current project (default)
-  --global          Install globally (shared directory)
-  --prefix <dir>    Install directory (default: ~/.cbuild) (default: ~/.cbuild)
+  --bash            Install Bash variant (default)
+  --python          Install Python variant
+  -s, --simple      Install to current project
+  --global          Install globally (default; shared directory)
+  --prefix <dir>    Install directory (default: ~/.cbuild)
   --uninstall       Uninstall global installation
+  --vscode [dir]    Install only .vscode templates to dir (default: current directory)
   --base-url <url>  Custom download base URL
   format, --format  Fetch only .clang-format
   -h, --help        Show this help
@@ -111,6 +115,15 @@ while (($# > 0)); do
         --uninstall|uninstall)
             mode="uninstall"
             shift
+            ;;
+        --vscode|vscode)
+            mode="vscode"
+            if (($# > 1)) && [[ "$2" != -* ]]; then
+                vscode_target_dir="$2"
+                shift 2
+            else
+                shift
+            fi
             ;;
         python|--python|py|--py)
             install_variant="python"
@@ -191,7 +204,10 @@ update_shell_rc() {
 
   # Already in PATH? skip
   case ":${PATH}:" in
-    *":${dir_to_add}:"*) return 0 ;;
+    *":${dir_to_add}:"*)
+      echo "PATH already contains ${dir_to_add}; no shell configuration changes needed."
+      return 0
+      ;;
   esac
 
   local rc_file=""
@@ -204,6 +220,7 @@ update_shell_rc() {
 
   # Check if line already exists in rc file
   if [[ -f "$rc_file" ]] && grep -qF "${dir_to_add}" "$rc_file" 2>/dev/null; then
+    echo "PATH entry for ${dir_to_add} already exists in ${rc_file}; no changes needed."
     return 0
   fi
 
@@ -213,8 +230,31 @@ update_shell_rc() {
   echo "Run 'source ${rc_file}' or restart your terminal to use it."
 }
 
+install_vscode_templates() {
+    local target_dir="$1"
+    local target_vscode_dir="${target_dir}/.vscode"
+    local target_bak_dir="${target_dir}/cbuild_bak/bak_${date_str}"
+
+    if [[ -d "$target_vscode_dir" ]]; then
+        mkdir -p "$target_bak_dir"
+        mv "$target_vscode_dir" "$target_bak_dir/"
+    fi
+
+    download_file ".vscode/c_cpp_header.code-snippets" "${target_vscode_dir}/c_cpp_header.code-snippets" || return 1
+    download_file ".vscode/c_cpp_properties.json" "${target_vscode_dir}/c_cpp_properties.json" || return 1
+    download_file ".vscode/launch.json" "${target_vscode_dir}/launch.json" || return 1
+    download_file ".vscode/settings.json" "${target_vscode_dir}/settings.json" || return 1
+
+    echo "Installed .vscode templates to: ${target_vscode_dir}"
+}
+
 if [[ "$mode" == "global" ]]; then
     mkdir -p "$global_install_dir"
+
+    if [[ -e "$global_install_dir/$tool_bash" || -e "$global_install_dir/$tool_python" || -e "$global_install_dir/$tool_install" ]]; then
+        echo "Updating global installation: ${global_install_dir}"
+    fi
+    rm -f "$global_install_dir/$tool_bash" "$global_install_dir/$tool_python"
 
     if [[ "$install_variant" == "python" ]]; then
         download_file "$tool_python" "$global_install_dir/$tool_python" || {
@@ -229,6 +269,12 @@ if [[ "$mode" == "global" ]]; then
         }
         chmod +x "$global_install_dir/$tool_bash"
     fi
+
+    download_file "$tool_install" "$global_install_dir/$tool_install" || {
+        echo "Failed to download ${tool_install}!"
+        exit 1
+    }
+    chmod +x "$global_install_dir/$tool_install"
 
     # Install uninstall script alongside (optional, warn on failure)
     if download_file "$tool_uninstall" "$global_install_dir/$tool_uninstall"; then
@@ -251,9 +297,12 @@ EOF
     exit 0
 fi
 
-if [[ -d "${arg_path}/.vscode" ]]; then
-    mkdir -p "${bak_dir}/bak_${date_str}"
-    mv "${arg_path}/.vscode" "${bak_dir}/bak_${date_str}/"
+if [[ "$mode" == "vscode" ]]; then
+    install_vscode_templates "$vscode_target_dir" || {
+        echo "Failed to install .vscode templates. Please check network or repository URL."
+        exit 1
+    }
+    exit 0
 fi
 
 if [[ -f "${arg_path}/$cmake_file" ]]; then
@@ -277,20 +326,8 @@ if [[ -f "${arg_path}/$tool_conf" ]]; then
 fi
 
 if [[ "$mode" == "simple" ]]; then
-    download_file ".vscode/c_cpp_header.code-snippets" "${arg_path}/.vscode/c_cpp_header.code-snippets" || {
-        echo "Failed to download .vscode/c_cpp_header.code-snippets!"
-        exit 1
-    }
-    download_file ".vscode/c_cpp_properties.json" "${arg_path}/.vscode/c_cpp_properties.json" || {
-        echo "Failed to download .vscode/c_cpp_properties.json!"
-        exit 1
-    }
-    download_file ".vscode/launch.json" "${arg_path}/.vscode/launch.json" || {
-        echo "Failed to download .vscode/launch.json!"
-        exit 1
-    }
-    download_file ".vscode/settings.json" "${arg_path}/.vscode/settings.json" || {
-        echo "Failed to download .vscode/settings.json!"
+    install_vscode_templates "$arg_path" || {
+        echo "Failed to install .vscode templates. Please check network or repository URL."
         exit 1
     }
     download_file "$selected_tool" "${arg_path}/$selected_tool" || {
