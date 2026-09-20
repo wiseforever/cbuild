@@ -127,6 +127,23 @@ to_bool() {
   esac
 }
 
+is_windows_abs_path() {
+  local path="$1"
+  [[ "$path" =~ ^[A-Za-z]:[\\/].* ]]
+}
+
+resolve_config_path() {
+  local value
+  value="$(trim "$1")"
+  [[ -n "$value" ]] || return 0
+
+  if [[ "$value" == /* ]] || is_windows_abs_path "$value"; then
+    printf '%s' "$value"
+  else
+    printf '%s/%s' "$(cd "$(dirname "$CONFIG_FILE")" && pwd -P)" "$value"
+  fi
+}
+
 ini_get() {
   local section="$1" key="$2" default="${3:-}" in_section="false"
   local line sec lhs rhs
@@ -165,7 +182,7 @@ load_config() {
   fi
 
   BUILD_TYPE="$(ini_get build build_type Release)"
-  SOURCE_DIR="$(ini_get build source_dir .)"
+  SOURCE_DIR="$(resolve_config_path "$(ini_get build source_dir .)")"
   GENERATOR="$(ini_get build generator Ninja)"
   PARALLEL_JOBS_RAW="$(ini_get build parallel_jobs auto)"
   OUTPUT_DIR="$(ini_get build output_dir "")"
@@ -205,11 +222,6 @@ load_config() {
     exit 1
     ;;
   esac
-}
-
-is_windows_abs_path() {
-  local path="$1"
-  [[ "$path" =~ ^[A-Za-z]:[\\/].* ]]
 }
 
 resolve_compiler_and_bin_dir() {
@@ -606,7 +618,7 @@ Options:
   -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb_conf.ini
                                  / Toggle or set build type, saves to cb_conf.ini
   --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies
-  -g | --generate                运行 CMake 配置 / Run CMake configure only
+  -g | --generate [<type>]       运行 CMake 配置 / Run CMake configure only
   -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）
   -D <name>=<value>              Pass a CMake definition (only with -g/--generate)
   -b | --build [<type>] [--target <target>]  构建项目 / Build the project
@@ -678,6 +690,13 @@ parse_args() {
     -g|--generate)
       SHOULD_CONFIGURE="true"
       had_action="true"
+      if (( i + 1 < ${#args[@]} )) && [[ "${args[i+1]}" != -* ]]; then
+        type="${args[i+1]^}"
+        if is_build_type "$type"; then
+          BUILD_TYPE="$type"
+          i=$((i + 1))
+        fi
+      fi
       ;;
     -D)
       if (( i + 1 >= ${#args[@]} )) || [[ -z "${args[i+1]}" ]]; then
@@ -831,18 +850,6 @@ patch_conan_toolchain() {
       log_info "Patched CMake version check in $(basename "$cfg")"
     fi
   done < <(find "$gen_dir" -maxdepth 1 -name '*Config.cmake' -print0 2>/dev/null)
-}
-
-resolve_config_path() {
-  local value
-  value="$(trim "$1")"
-  [[ -n "$value" ]] || return 0
-
-  if [[ "$value" == /* ]] || is_windows_abs_path "$value"; then
-    printf '%s' "$value"
-  else
-    printf '%s/%s' "$(cd "$(dirname "$CONFIG_FILE")" && pwd -P)" "$value"
-  fi
 }
 
 cmake_path() {

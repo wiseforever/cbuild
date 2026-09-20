@@ -92,7 +92,7 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 
 ## 全局安装
 
-安装到共享目录，可在任意项目目录下使用。`-g` 与 `--global` 均可。
+安装 `cb.py` 或 `cb.sh` 到共享目录，可在任意项目目录下使用。`-g` 与 `--global` 均可。全局安装不会安装 `cb_conf.ini`。
 
 ```bash
 # 默认安装 Python 版本
@@ -120,7 +120,7 @@ python3 ~/.cbuild/cb.py -r    # 运行
 全局安装时，`cb.py` / `cb.sh` 查找 `cb_conf.ini` 的顺序：
 
 1. 当前工作目录 `./cb_conf.ini`
-2. 脚本安装目录（作为回退）
+2. 脚本安装目录（作为回退；仅在手动创建 `~/.cbuild/cb_conf.ini` 时可用）
 
 ## 卸载
 
@@ -182,6 +182,8 @@ rm -rf .vscode/ cmake/cbuild_bak/
 > 修改配置时（`-t` / `--config`），始终修改**实际加载的那个文件**——
 > 项目目录有就改项目目录的，没有则改全局的，互不干扰。
 >
+> 相对 `source_dir` 以实际加载的 `cb_conf.ini` 所在目录为基准；相对 `output_dir` 以 `source_dir` 为基准。
+>
 
 ```ini
 [build]
@@ -233,10 +235,11 @@ python cb.py --conan
 python cb.py --conan Debug
 python cb.py --conan Release
 
-# -g|--generate 生成CMake缓存
+# -g|--generate [Debug|Release] 生成 CMake 缓存；类型不区分大小写
 python cb.py -g
 python cb.py -g Debug
 python cb.py -g Release
+python cb.py -g release
 python cb.py --generate
 
 # 仅在生成阶段向 CMake 传递自定义宏
@@ -273,6 +276,8 @@ Bash 版本参数与 Python 版本保持一致：
 bash cb.sh -t
 bash cb.sh --conan
 bash cb.sh -g
+bash cb.sh -g Debug
+bash cb.sh -g release
 bash cb.sh -g -DMY_OPTION=ON -DMY_VALUE=example
 bash cb.sh -b --target all
 bash cb.sh -c

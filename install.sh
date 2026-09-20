@@ -230,11 +230,6 @@ if [[ "$mode" == "global" ]]; then
         chmod +x "$global_install_dir/$tool_bash"
     fi
 
-    download_file "$tool_conf" "$global_install_dir/$tool_conf" || {
-        echo "Failed to download ${tool_conf}!"
-        exit 1
-    }
-
     # Install uninstall script alongside (optional, warn on failure)
     if download_file "$tool_uninstall" "$global_install_dir/$tool_uninstall"; then
         chmod +x "$global_install_dir/$tool_uninstall"
@@ -250,6 +245,7 @@ INSTALL_VARIANT="${install_variant}"
 EOF
 
     echo "Globally installed ${install_variant} variant to: ${global_install_dir}"
+    echo "Create cb_conf.ini in each project, or add one manually in ${global_install_dir} as a fallback."
     echo "Uninstall: ${global_install_dir}/${tool_uninstall}"
     update_shell_rc "$global_install_dir"
     exit 0

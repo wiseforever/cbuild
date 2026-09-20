@@ -92,7 +92,7 @@ Notes:
 
 ## Global Install
 
-Install `cb.py` / `cb.sh` and config to a shared directory so you can use them from any project. `-g` and `--global` are both accepted.
+Install `cb.py` or `cb.sh` to a shared directory so you can use it from any project. `-g` and `--global` are both accepted. Global installation does not install `cb_conf.ini`.
 
 ```bash
 # Install Python variant (default)
@@ -120,7 +120,7 @@ Or add `~/.cbuild` to your `PATH` and run `python3 cb.py` from any project direc
 When using the global install, `cb.py` / `cb.sh` looks for `cb_conf.ini` in this order:
 
 1. Current working directory: `./cb_conf.ini`
-2. Script installation directory (fallback)
+2. Script installation directory (fallback, only if you manually create `~/.cbuild/cb_conf.ini`)
 
 ## Uninstall
 
@@ -179,6 +179,8 @@ All the parameters in `cb_conf.ini` can be modified according to your needs.
 > 2. **Script directory** (fallback, i.e. `~/.cbuild/cb_conf.ini`)
 >
 > When modifying config (`-t` / `--config`), the script always writes to whichever file was actually loaded — project-local first, global fallback otherwise. They do not interfere with each other.
+>
+> Relative `source_dir` is resolved from the directory of the active `cb_conf.ini`; a relative `output_dir` is resolved from `source_dir`.
 
 ```ini
 [build]
@@ -226,9 +228,10 @@ python cb.py -t Release
 python cb.py --conan
 python cb.py --conan Debug
 
-# -g|--generate CMake generate
+# -g|--generate [Debug|Release] CMake generate; build type is case-insensitive
 python cb.py -g
 python cb.py -g Debug
+python cb.py -g release
 
 # Pass custom definitions to CMake during generate
 python cb.py -g -DMY_OPTION=ON -DMY_VALUE=example
@@ -262,6 +265,8 @@ bash cb.sh --conan
 
 # -g|--generate CMake generate
 bash cb.sh -g
+bash cb.sh -g Debug
+bash cb.sh -g release
 bash cb.sh -g -DMY_OPTION=ON -DMY_VALUE=example
 
 # -b|--build    Compile

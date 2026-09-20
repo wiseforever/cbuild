@@ -27,13 +27,22 @@ CONFIG_FILE_CWD = os.path.join(os.getcwd(), "cb_conf.ini")
 CONFIG_FILE = CONFIG_FILE_CWD if os.path.isfile(CONFIG_FILE_CWD) else os.path.join(SCRIPT_DIR, "cb_conf.ini")
 CONFIG_DIR = os.path.dirname(os.path.abspath(CONFIG_FILE))
 
+def resolve_config_path(value):
+    """Resolve a configured path relative to the active cb_conf.ini file."""
+    path = os.path.expandvars(os.path.expanduser((value or "").strip()))
+    if not path:
+        return None
+    if not os.path.isabs(path):
+        path = os.path.join(CONFIG_DIR, path)
+    return os.path.abspath(path)
+
 # -------------------- 读取配置 --------------------
 CONFIG = configparser.ConfigParser(inline_comment_prefixes=("#", ";"))
 CONFIG.read(CONFIG_FILE, encoding="utf-8")
 
 BUILD_TYPE = CONFIG.get("build", "build_type", fallback="Release")
 VALID_BUILD_TYPES = ["Debug", "Release"]
-SOURCE_DIR = CONFIG.get("build", "source_dir", fallback=".")
+SOURCE_DIR = resolve_config_path(CONFIG.get("build", "source_dir", fallback=".") or ".")
 BUILD_DIR = None
 GENERATOR = CONFIG.get("build", "generator", fallback="Ninja")
 PARALLEL_JOBS_RAW = CONFIG.get("build", "parallel_jobs", fallback="auto")
@@ -122,15 +131,6 @@ def resolve_compiler_and_bin_dir(compiler_value):
         return resolved, os.path.dirname(resolved) or None
 
     return value, None
-
-def resolve_config_path(value):
-    """Resolve a configured path relative to the active cb_conf.ini file."""
-    path = os.path.expandvars(os.path.expanduser((value or "").strip()))
-    if not path:
-        return None
-    if not os.path.isabs(path):
-        path = os.path.join(CONFIG_DIR, path)
-    return os.path.abspath(path)
 
 def cmake_path(path):
     """Return a CMake-safe absolute path using forward slashes."""
@@ -366,7 +366,7 @@ def parse_args():
             print("  -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb_conf.ini")
             print("                                 / Toggle or set build type, saves to cb_conf.ini")
             print("  --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies")
-            print("  -g | --generate                运行 CMake 配置 / Run CMake configure only")
+            print("  -g | --generate [<type>]       运行 CMake 配置 / Run CMake configure only")
             print("  -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）")
             print("  -D <name>=<value>              Pass a CMake definition (only with -g/--generate)")
             print("  -b | --build [<type>] [--target <target>]  构建项目 / Build the project")
@@ -413,6 +413,9 @@ def parse_args():
         elif arg in ("-g", "--generate"):
             SHOULD_CONFIGURE = True
             had_action = True
+            if i + 1 < len(args) and not is_option_token(args[i + 1]) and args[i + 1].capitalize() in VALID_BUILD_TYPES:
+                BUILD_TYPE = args[i + 1].capitalize()
+                i += 1
 
         elif arg == "-D":
             if i + 1 >= len(args) or not args[i + 1]:

@@ -19,6 +19,8 @@
 - [自研轻量 VS Code 插件](plan/vscode_cbuild_tools.md)
 - [Conan 与 vcpkg 组合工具链](plan/conan_vcpkg_toolchain.md)
 - [CMake 自定义宏与插件终端行为](plan/cmake_defines_and_plugin_terminals.md)
+- [全局安装与配置路径解析](plan/global_install_config_paths.md)
+- [命令行构建类型参数](plan/command_build_type_arguments.md)
 
 ## 当前关键状态
 
