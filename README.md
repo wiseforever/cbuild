@@ -12,7 +12,7 @@ This repository provides a lightweight build workflow for C/C++ projects, with o
 - [Project Bootstrap](#project-bootstrap)
 - [Uninstall](#uninstall)
 - [cb.py / cb.sh Usage](#cbpy--cbsh-usage)
-  - [cb_conf.ini Parameters](#cb_confini-parameters)
+  - [cb.conf Parameters](#cbconf-parameters)
   - [Command Reference](#command-reference)
 - [VSCode Configuration](#vscode-configuration)
 - [Conan Usage](#conan-usage)
@@ -23,7 +23,7 @@ This repository provides a lightweight build workflow for C/C++ projects, with o
 # Bash variant (default) — install globally
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 
-# Then, from a project that has cb_conf.ini:
+# Then, from a project that has cb.conf:
 ~/.cbuild/cb.sh -g    # CMake generate
 ~/.cbuild/cb.sh -b    # build
 ~/.cbuild/cb.sh -r    # run
@@ -52,7 +52,7 @@ python -m pip install conan
 
 ## Global Install
 
-The default installation is global: it installs `cb.py` or `cb.sh`, `cb_install.sh`, and the uninstall script to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb_conf.ini`.
+The default installation is global: it installs `cb.py` or `cb.sh`, `cb_install.sh`, and the uninstall script to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb.conf`.
 
 ### GitHub
 
@@ -91,10 +91,10 @@ The installer changes your shell rc file only when the install directory is abse
 
 The globally installed updater is named `cb_install.sh`; for example, run `~/.cbuild/cb_install.sh --python` to update the global installation and switch to the Python variant.
 
-When using the global install, `cb.py` / `cb.sh` looks for `cb_conf.ini` in this order:
+When using the global install, `cb.py` / `cb.sh` looks for `cb.conf` in this order:
 
-1. Current working directory: `./cb_conf.ini`
-2. Script installation directory (fallback, only if you manually create `~/.cbuild/cb_conf.ini`)
+1. Current working directory: `./cb.conf`
+2. Script installation directory (fallback, only if you manually create `~/.cbuild/cb.conf`)
 
 ## Project Bootstrap
 
@@ -115,6 +115,9 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 # Install only .vscode templates to another project root
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode /path/to/project
 
+# Install only cb.conf to the current directory (or append a project path)
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --config
+
 # Only pull .clang-format
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
 ```
@@ -131,15 +134,19 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 # Install only .vscode templates to the current directory
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode
 
+# Install only cb.conf to the current directory (or append a project path)
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --config
+
 # Only pull .clang-format
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
 ```
 
 Notes:
 
-- A simple install moves existing `.vscode`, `cb.py`, `cb.sh`, `cb_conf.ini`, and `cmake/ez_custom_func.cmake` to `cbuild_bak/` before installing replacements.
+- A simple install moves existing `.vscode`, `cb.py`, `cb.sh`, `cb.conf`, and `cmake/ez_custom_func.cmake` to `cbuild_bak/` before installing replacements.
 - `--vscode [directory]` installs only the four VS Code templates. When `.vscode` already exists, it is moved to `<directory>/cbuild_bak/` first.
-- If you do not use VSCode, only `cb.py` or `cb.sh` plus `cb_conf.ini` is required.
+- `--config [directory]` installs only `cb.conf`. An existing configuration is moved to `<directory>/cbuild_bak/` first.
+- If you do not use VSCode, only `cb.py` or `cb.sh` plus `cb.conf` is required.
 - `install.sh` does not generate or overwrite `.vscode/tasks.json`. The repository keeps the task files for users who still want to use VS Code's built-in Tasks manually.
 
 ## Uninstall
@@ -168,22 +175,28 @@ The uninstall script will remove:
 For a project-local (simple) install, simply delete the installed files from your project directory:
 
 ```bash
-rm cb.py cb.sh cb_conf.ini
+rm cb.py cb.sh cb.conf
 rm -rf .vscode/cmake/cbuild_bak/
 ```
 
 ## cb.py / cb.sh Usage
 
-Both scripts depend on `cb_conf.ini`, with this lookup order:
+Both scripts depend on `cb.conf`, with this lookup order:
 
-1. current working directory: `./cb_conf.ini`
-2. script directory fallback: `cb_conf.ini`
+1. current working directory: `./cb.conf`
+2. script directory fallback: `cb.conf`
+
+To migrate an existing project, rename its old configuration once:
+
+```bash
+mv cb_conf.ini cb.conf
+```
 
 ### Regarding `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
 `cb.py` and `cb.sh` now behave as follows:
 
-- If `c_compiler` / `cpp_compiler` in `cb_conf.ini` is **empty**: no `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER` is injected; CMake uses the normal environment.
+- If `c_compiler` / `cpp_compiler` in `cb.conf` is **empty**: no `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER` is injected; CMake uses the normal environment.
 - If `c_compiler` / `cpp_compiler` is **configured**:
   - `-DCMAKE_C_COMPILER=...` / `-DCMAKE_CXX_COMPILER=...` is injected automatically.
   - For absolute (or path-like) values, the compiler directory is temporarily prepended to `PATH` for this CMake subprocess only.
@@ -192,18 +205,18 @@ Both scripts depend on `cb_conf.ini`, with this lookup order:
 
 Note: this temporary `PATH` change is process-local and does not modify user/system persistent environment variables.
 
-### cb_conf.ini Parameters
+### cb.conf Parameters
 
-All the parameters in `cb_conf.ini` can be modified according to your needs.
+All the parameters in `cb.conf` can be modified according to your needs.
 
 > **Global install path note:**
-> `cb.py` / `cb.sh` looks for `cb_conf.ini` in the following order:
-> 1. **Current working directory** `./cb_conf.ini` (project-local config)
-> 2. **Script directory** (fallback, i.e. `~/.cbuild/cb_conf.ini`)
+> `cb.py` / `cb.sh` looks for `cb.conf` in the following order:
+> 1. **Current working directory** `./cb.conf` (project-local config)
+> 2. **Script directory** (fallback, i.e. `~/.cbuild/cb.conf`)
 >
 > When modifying config (`-t` / `--config`), the script always writes to whichever file was actually loaded — project-local first, global fallback otherwise. They do not interfere with each other.
 >
-> Relative `source_dir` is resolved from the directory of the active `cb_conf.ini`; a relative `output_dir` is resolved from `source_dir`.
+> Relative `source_dir` is resolved from the directory of the active `cb.conf`; a relative `output_dir` is resolved from `source_dir`.
 
 ```ini
 [build]
@@ -327,8 +340,8 @@ You can also use the commands listed in [Command Reference](#command-reference) 
 ## Conan Usage
 
 - Create `conanfile.py` or `conanfile.txt` in the project root.
-- Enable Conan in the `[conan]` section of `cb_conf.ini` (`enable = 1`).
-- Set `[conan] build` / `host` profiles in `cb_conf.ini`.
+- Enable Conan in the `[conan]` section of `cb.conf` (`enable = 1`).
+- Set `[conan] build` / `host` profiles in `cb.conf`.
 - Use `find_package()` and `target_link_libraries()` in `CMakeLists.txt`.
 - Do not override `CMAKE_TOOLCHAIN_FILE` manually when using this workflow.
 

@@ -3,7 +3,7 @@
 ## 目标
 
 - 保持 Conan 现有 `conan_toolchain.cmake` 生成与兼容处理流程。
-- 支持通过 `cb_conf.ini` 指定 vcpkg 根目录或 `vcpkg.cmake` 的直接路径。
+- 支持通过 `cb.conf` 指定 vcpkg 根目录或 `vcpkg.cmake` 的直接路径。
 - 在构建目录生成唯一的 `cbuild_toolchain.cmake`，作为 CMake 的 `CMAKE_TOOLCHAIN_FILE`。
 - 支持用户维护的 `cbuild_custom.cmake`，在 vcpkg 初始化前由生成的包装工具链加载。
 - 增加 Boost（Conan）与 JsonCpp（vcpkg）的混合依赖示例。

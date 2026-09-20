@@ -23,12 +23,12 @@ log = logging.getLogger()
 
 # -------------------- 配置文件 --------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE_CWD = os.path.join(os.getcwd(), "cb_conf.ini")
-CONFIG_FILE = CONFIG_FILE_CWD if os.path.isfile(CONFIG_FILE_CWD) else os.path.join(SCRIPT_DIR, "cb_conf.ini")
+CONFIG_FILE_CWD = os.path.join(os.getcwd(), "cb.conf")
+CONFIG_FILE = CONFIG_FILE_CWD if os.path.isfile(CONFIG_FILE_CWD) else os.path.join(SCRIPT_DIR, "cb.conf")
 CONFIG_DIR = os.path.dirname(os.path.abspath(CONFIG_FILE))
 
 def resolve_config_path(value):
-    """Resolve a configured path relative to the active cb_conf.ini file."""
+    """Resolve a configured path relative to the active cb.conf file."""
     path = os.path.expandvars(os.path.expanduser((value or "").strip()))
     if not path:
         return None
@@ -363,8 +363,8 @@ def parse_args():
             print("Usage: cb.py [options]")
             print("Options:")
             print("  -h, --help                     显示帮助 / Show this help")
-            print("  -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb_conf.ini")
-            print("                                 / Toggle or set build type, saves to cb_conf.ini")
+            print("  -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb.conf")
+            print("                                 / Toggle or set build type, saves to cb.conf")
             print("  --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies")
             print("  -g | --generate [<type>]       运行 CMake 配置 / Run CMake configure only")
             print("  -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）")

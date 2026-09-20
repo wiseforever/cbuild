@@ -13,7 +13,7 @@
 
 ## 验收标准
 
-- `cb.sh -g Debug`、`cb.sh -g release` 都使用对应类型配置，但不写入 `cb_conf.ini`。
+- `cb.sh -g Debug`、`cb.sh -g release` 都使用对应类型配置，但不写入 `cb.conf`。
 - Python 入口与 Bash 行为一致。
 
 ## 风险

@@ -3,10 +3,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-CONFIG_FILE_CWD="$PWD/cb_conf.ini"
+CONFIG_FILE_CWD="$PWD/cb.conf"
 CONFIG_FILE="$CONFIG_FILE_CWD"
 if [[ ! -f "$CONFIG_FILE" ]]; then
-  CONFIG_FILE="$SCRIPT_DIR/cb_conf.ini"
+  CONFIG_FILE="$SCRIPT_DIR/cb.conf"
 fi
 
 VALID_BUILD_TYPES=("Debug" "Release")
@@ -615,8 +615,8 @@ print_help() {
 Usage: cb.sh [options]
 Options:
   -h, --help                     显示帮助 / Show this help
-  -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb_conf.ini
-                                 / Toggle or set build type, saves to cb_conf.ini
+  -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb.conf
+                                 / Toggle or set build type, saves to cb.conf
   --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies
   -g | --generate [<type>]       运行 CMake 配置 / Run CMake configure only
   -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）

@@ -23,7 +23,7 @@
 # Bash 版本（默认）— 全局安装
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
 
-# 然后在包含 cb_conf.ini 的项目中配置、编译并运行：
+# 然后在包含 cb.conf 的项目中配置、编译并运行：
 ~/.cbuild/cb.sh -g    # CMake 生成
 ~/.cbuild/cb.sh -b    # 编译
 ~/.cbuild/cb.sh -r    # 运行
@@ -52,7 +52,7 @@ python -m pip install conan
 
 ## 全局安装
 
-默认安装方式是全局安装：会将 `cb.py` 或 `cb.sh`、`cb_install.sh` 与卸载脚本安装到共享目录。`-g` 与 `--global` 也可显式使用。全局安装不会安装 `cb_conf.ini`。
+默认安装方式是全局安装：会将 `cb.py` 或 `cb.sh`、`cb_install.sh` 与卸载脚本安装到共享目录。`-g` 与 `--global` 也可显式使用。全局安装不会安装 `cb.conf`。
 
 ### GitHub
 
@@ -93,10 +93,10 @@ cd my-project
 
 全局安装目录中的更新脚本名为 `cb_install.sh`；例如执行 `~/.cbuild/cb_install.sh --python` 可更新全局安装并切换到 Python 版本。
 
-全局安装时，`cb.py` / `cb.sh` 查找 `cb_conf.ini` 的顺序：
+全局安装时，`cb.py` / `cb.sh` 查找 `cb.conf` 的顺序：
 
-1. 当前工作目录 `./cb_conf.ini`
-2. 脚本安装目录（作为回退；仅在手动创建 `~/.cbuild/cb_conf.ini` 时可用）
+1. 当前工作目录 `./cb.conf`
+2. 脚本安装目录（作为回退；仅在手动创建 `~/.cbuild/cb.conf` 时可用）
 
 ## 2. 搭建项目
 
@@ -117,6 +117,9 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 # 只安装 VS Code 模板到指定项目根目录
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode /path/to/project
 
+# 只安装 cb.conf 到当前目录（也可在后面追加项目目录）
+curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --config
+
 # 仅拉取 .clang-format
 curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
 ```
@@ -133,15 +136,19 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 # 只安装 VS Code 模板到当前目录
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode
 
+# 只安装 cb.conf 到当前目录（也可在后面追加项目目录）
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --config
+
 # 仅拉取 .clang-format
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
 ```
 
 前提：
 
-- 项目级 `--simple` 安装会先将已有 `.vscode`、`cb.py`、`cb.sh`、`cb_conf.ini` 和 `cmake/ez_custom_func.cmake` 移至 `cbuild_bak/`，再安装新文件。
+- 项目级 `--simple` 安装会先将已有 `.vscode`、`cb.py`、`cb.sh`、`cb.conf` 和 `cmake/ez_custom_func.cmake` 移至 `cbuild_bak/`，再安装新文件。
 - `--vscode [目录]` 仅安装四个 VS Code 模板；若 `.vscode` 已存在，会先移至 `<目录>/cbuild_bak/`。
-- 若不需要使用 VSCode 可以不依赖 `.vscode` 目录，仅仅需要 `cb.py` 或 `cb.sh` 与 `cb_conf.ini` 文件即可。
+- `--config [目录]` 仅安装 `cb.conf`；若已有配置，会先移至 `<目录>/cbuild_bak/`。
+- 若不需要使用 VSCode 可以不依赖 `.vscode` 目录，仅仅需要 `cb.py` 或 `cb.sh` 与 `cb.conf` 文件即可。
 - `install.sh` 不再生成或覆盖 `.vscode/tasks.json`。仓库中仍保留 task 文件，供仍需要 VS Code 内置 Tasks 的用户手动参考或使用。
 
 ## 卸载
@@ -171,22 +178,28 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s
 对于通过普通（simple）模式安装到项目的文件，直接删除即可：
 
 ```bash
-rm cb.py cb.sh cb_conf.ini
+rm cb.py cb.sh cb.conf
 rm -rf .vscode/ cmake/cbuild_bak/
 ```
 
 ## cb.py / cb.sh 的使用
 
-`cb.py` 与 `cb.sh` 都依赖 `cb_conf.ini`，查找顺序如下：
+`cb.py` 与 `cb.sh` 都依赖 `cb.conf`，查找顺序如下：
 
-1. 当前工作目录 `./cb_conf.ini`
-2. 脚本同级目录 `cb_conf.ini`（回退）
+1. 当前工作目录 `./cb.conf`
+2. 脚本同级目录 `cb.conf`（回退）
+
+已有项目请将旧配置文件改名一次：
+
+```bash
+mv cb_conf.ini cb.conf
+```
 
 ### 关于 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
 `cb.py` 与 `cb.sh` 的行为如下：
 
-- `cb_conf.ini` 中 `c_compiler` / `cpp_compiler` **留空**：不注入 `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER`，按系统环境正常调用 CMake。
+- `cb.conf` 中 `c_compiler` / `cpp_compiler` **留空**：不注入 `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER`，按系统环境正常调用 CMake。
 - `c_compiler` / `cpp_compiler` **已配置**：
   - 自动注入 `-DCMAKE_C_COMPILER=...` / `-DCMAKE_CXX_COMPILER=...`。
   - 若写的是绝对路径（或带目录的路径），会把其目录仅在本次 `cmake` 子进程临时补到 `PATH`。
@@ -195,19 +208,19 @@ rm -rf .vscode/ cmake/cbuild_bak/
 
 说明：这里的 `PATH` 处理仅对当前 `cb.py`/`cb.sh` 启动的子进程生效，不会修改系统级或用户级环境变量。
 
-### cb_conf.ini 参数说明
+### cb.conf 参数说明
 
-`cb_conf.ini` 中的参数都可以自行进行合理的修改，以下是参数的说明：
+`cb.conf` 中的参数都可以自行进行合理的修改，以下是参数的说明：
 
 > **全局安装路径说明：**
-> `cb.py` / `cb.sh` 按以下顺序查找 `cb_conf.ini`：
-> 1. **当前工作目录** `./cb_conf.ini`（项目级配置）
-> 2. **脚本所在目录**（回退，即 `~/.cbuild/cb_conf.ini`）
+> `cb.py` / `cb.sh` 按以下顺序查找 `cb.conf`：
+> 1. **当前工作目录** `./cb.conf`（项目级配置）
+> 2. **脚本所在目录**（回退，即 `~/.cbuild/cb.conf`）
 >
 > 修改配置时（`-t` / `--config`），始终修改**实际加载的那个文件**——
 > 项目目录有就改项目目录的，没有则改全局的，互不干扰。
 >
-> 相对 `source_dir` 以实际加载的 `cb_conf.ini` 所在目录为基准；相对 `output_dir` 以 `source_dir` 为基准。
+> 相对 `source_dir` 以实际加载的 `cb.conf` 所在目录为基准；相对 `output_dir` 以 `source_dir` 为基准。
 >
 
 ```ini
@@ -244,7 +257,7 @@ host_arch = x64         # 编译可执行程序的位数，可选 [x86、x64]
 
 ### cb.py / cb.sh 使用命令说明
 
-`cb.py` 脚本依赖 `cb_conf.ini` 文件中的参数具有一些记忆功能，但也可以通过命令行让其不过分依赖。
+`cb.py` 脚本依赖 `cb.conf` 文件中的参数具有一些记忆功能，但也可以通过命令行让其不过分依赖。
 
 Python 版本命令参考：
 
@@ -334,9 +347,9 @@ bash cb.sh -h
 - 首先安装 conan
 - 然后在项目根目录下创建 `conanfile.py` 文件，并在其中定义依赖库
 - 在 `conanfile.py` 中，指定依赖库的名称、版本、路径等信息
-- 在 `cb_conf.ini` 的 `[conan]` 中，将 `enable` 设置为 1
+- 在 `cb.conf` 的 `[conan]` 中，将 `enable` 设置为 1
 - 在 `[conan]` 中指定 `build` 和 `host` 对应的 profile
-- Conan 的 profile 可以根据自己项目的需求进行修改，但需要注意，profile 的名称必须与 `cb_conf.ini` 中定义的名称一致（需要开发者自行了解相关知识）
+- Conan 的 profile 可以根据自己项目的需求进行修改，但需要注意，profile 的名称必须与 `cb.conf` 中定义的名称一致（需要开发者自行了解相关知识）
 - 在 `CMakeLists.txt` 中，使用 `find_package()` 函数查找依赖库，并使用 `target_link_libraries()` 函数链接依赖库
 - `cb.py` 脚本会自动设置 `CMAKE_TOOLCHAIN_FILE` 变量，并使用 conan 的 profile 编译依赖库，请不要在 `CMakeLists.txt` 中覆盖 `CMAKE_TOOLCHAIN_FILE` 变量
 - 运行 `cb.py` 脚本，会自动使用 conan 编译依赖库

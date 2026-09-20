@@ -220,7 +220,7 @@ Python 命令选择规则：
 - 已实现选择安装源后弹窗确认是否运行 `install.sh`。
 - 已实现用户确认后在 `cbuild` terminal 中执行选中的 bootstrap 命令。
 - 找不到 `cb.py` / `cb.sh` 时，通过 `showErrorMessage` 给出提示。
-- 插件不解析 `cb_conf.ini`，构建逻辑继续由 `cb.py` / `cb.sh` 负责。
+- 插件不解析 `cb.conf`，构建逻辑继续由 `cb.py` / `cb.sh` 负责。
 - 插件不读取或执行 `.vscode/tasks.json`。
 
 ## 目录建议

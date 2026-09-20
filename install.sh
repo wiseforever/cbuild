@@ -16,7 +16,7 @@ date_str=$(date "+%Y%m%d_%H%M%S")
 
 tool_python="cb.py"
 tool_bash="cb.sh"
-tool_conf="cb_conf.ini"
+tool_conf="cb.conf"
 tool_install_source="install.sh"
 tool_global_install="cb_install.sh"
 tool_uninstall="cb_uninstall.sh"
@@ -27,6 +27,7 @@ mode="global"
 install_variant="bash"
 global_install_dir="${HOME}/.cbuild"
 vscode_target_dir="${arg_path}"
+config_target_dir="${arg_path}"
 
 print_help() {
     cat <<'EOF'
@@ -34,6 +35,7 @@ Usage:
   ./install.sh [--python|--bash] [--global] [--prefix <dir>]
   ./install.sh [--python|--bash] --simple
   ./install.sh --vscode [<directory>]
+  ./install.sh --config [<directory>]
   ./install.sh --uninstall
   ./install.sh --format
 
@@ -45,6 +47,7 @@ Options:
   --prefix <dir>    Install directory (default: ~/.cbuild)
   --uninstall       Uninstall global installation
   --vscode [dir]    Install only .vscode templates to dir (default: current directory)
+  --config [dir]    Install only cb.conf to dir (default: current directory)
   --base-url <url>  Custom download base URL
   format, --format  Fetch only .clang-format
   -h, --help        Show this help
@@ -121,6 +124,15 @@ while (($# > 0)); do
             mode="vscode"
             if (($# > 1)) && [[ "$2" != -* ]]; then
                 vscode_target_dir="$2"
+                shift 2
+            else
+                shift
+            fi
+            ;;
+        --config|config|--conf|conf)
+            mode="config"
+            if (($# > 1)) && [[ "$2" != -* ]]; then
+                config_target_dir="$2"
                 shift 2
             else
                 shift
@@ -249,6 +261,20 @@ install_vscode_templates() {
     echo "Installed .vscode templates to: ${target_vscode_dir}"
 }
 
+install_project_config() {
+    local target_dir="$1"
+    local target_config="${target_dir}/${tool_conf}"
+    local target_bak_dir="${target_dir}/cbuild_bak/bak_${date_str}"
+
+    if [[ -f "$target_config" ]]; then
+        mkdir -p "$target_bak_dir"
+        mv "$target_config" "$target_bak_dir/"
+    fi
+
+    download_file "$tool_conf" "$target_config" || return 1
+    echo "Installed ${tool_conf} to: ${target_config}"
+}
+
 if [[ "$mode" == "global" ]]; then
     mkdir -p "$global_install_dir"
 
@@ -292,7 +318,7 @@ INSTALL_DIR="${global_install_dir}"
 EOF
 
     echo "Globally installed ${install_variant} variant to: ${global_install_dir}"
-    echo "Create cb_conf.ini in each project, or add one manually in ${global_install_dir} as a fallback."
+    echo "Create cb.conf in each project, or add one manually in ${global_install_dir} as a fallback."
     echo "Uninstall: ${global_install_dir}/${tool_uninstall}"
     update_shell_rc "$global_install_dir"
     exit 0
@@ -301,6 +327,14 @@ fi
 if [[ "$mode" == "vscode" ]]; then
     install_vscode_templates "$vscode_target_dir" || {
         echo "Failed to install .vscode templates. Please check network or repository URL."
+        exit 1
+    }
+    exit 0
+fi
+
+if [[ "$mode" == "config" ]]; then
+    install_project_config "$config_target_dir" || {
+        echo "Failed to install ${tool_conf}. Please check network or repository URL."
         exit 1
     }
     exit 0

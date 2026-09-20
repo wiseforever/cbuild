@@ -2,19 +2,19 @@
 
 ## 目标
 
-- 全局安装只安装所选脚本，不自动创建 `~/.cbuild/cb_conf.ini`。
+- 全局安装只安装所选脚本，不自动创建 `~/.cbuild/cb.conf`。
 - 保持当前目录配置优先、脚本目录配置回退的加载顺序。
-- 将相对 `source_dir` 解析为实际加载的 `cb_conf.ini` 所在目录的相对路径。
+- 将相对 `source_dir` 解析为实际加载的 `cb.conf` 所在目录的相对路径。
 
 ## 实施步骤
 
-1. 移除全局安装分支中的 `cb_conf.ini` 下载。
+1. 移除全局安装分支中的 `cb.conf` 下载。
 2. 让 Bash/Python 在读取配置后，将 `source_dir` 解析为基于活动配置文件目录的绝对路径。
 3. 更新全局安装和路径语义的中英文文档。
 
 ## 验收标准
 
-- `install.sh -g` 不下载 `cb_conf.ini`。
+- `install.sh -g` 不下载 `cb.conf`。
 - 当前目录配置与脚本目录回退配置中的相对 `source_dir` 都指向各自配置文件所在目录。
 - 相对 `output_dir` 继续位于已解析的 `source_dir` 下。
 
@@ -24,5 +24,6 @@
 
 ## 操作留痕
 
-- 已移除全局安装自动下载 `cb_conf.ini`，并统一两个入口的相对 `source_dir` 解析规则。
+- 已移除全局安装自动下载 `cb.conf`，并统一两个入口的相对 `source_dir` 解析规则。
+- 配置文件统一命名为 `cb.conf`，内容仍采用 INI 语法；旧项目需将 `cb_conf.ini` 改名为 `cb.conf`。
 - 已通过 Bash/Python 回退与当前目录配置模拟验证：相对 `source_dir = .` 分别解析到脚本目录和当前工作目录；并通过 `bash -n`、`python3 -m py_compile` 与 `git diff --check` 验证。
