@@ -38,6 +38,7 @@ MSVC_CONAN_BUILD=""
 MSVC_CONAN_HOST=""
 
 BUILD_DIR=""
+USE_OUTPUT_AUTO_SUBDIR="true"
 COMPILER_TYPE="unknown"
 CMAKE_TOOLCHAIN_FILE=""
 CMAKE_RUN_PATH_PREFIX=""
@@ -231,6 +232,7 @@ load_config() {
   GENERATOR="$(ini_get build generator Ninja)"
   PARALLEL_JOBS_RAW="$(ini_get build parallel_jobs auto)"
   OUTPUT_DIR="$(ini_get build output_dir "")"
+  USE_OUTPUT_AUTO_SUBDIR="$(to_bool "$(ini_get build use_output_auto_subdir true)")"
 
   CONFIG_C_COMPILER="$(trim "$(ini_get compiler c_compiler "")")"
   CONFIG_CXX_COMPILER="$(trim "$(ini_get compiler cpp_compiler "")")"
@@ -495,14 +497,21 @@ prepare_build_dir() {
       local suffix="${BUILD_TYPE}"
     fi
 
+    local base_dir
     if [[ -n "$OUTPUT_DIR" ]]; then
       if [[ "$OUTPUT_DIR" == /* ]] || is_windows_abs_path "$OUTPUT_DIR"; then
-        BUILD_DIR="${OUTPUT_DIR}/${suffix}"
+        base_dir="$OUTPUT_DIR"
       else
-        BUILD_DIR="${SOURCE_DIR}/${OUTPUT_DIR}/${suffix}"
+        base_dir="${SOURCE_DIR}/${OUTPUT_DIR}"
       fi
     else
-      BUILD_DIR="${SOURCE_DIR}/build/${suffix}"
+      base_dir="${SOURCE_DIR}/build"
+    fi
+
+    if [[ "$USE_OUTPUT_AUTO_SUBDIR" == "true" ]]; then
+      BUILD_DIR="${base_dir}/${suffix}"
+    else
+      BUILD_DIR="${base_dir}"
     fi
     BUILD_DIR="$(normalize_path "$BUILD_DIR")"
   fi

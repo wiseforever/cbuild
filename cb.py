@@ -70,6 +70,7 @@ if GENERATOR == "Ninja" and not shutil.which("ninja"):
     GENERATOR = "Unix Makefiles"
 
 OUTPUT_DIR = (CONFIG.get("build", "output_dir", fallback="") or "").strip() or None
+USE_OUTPUT_AUTO_SUBDIR = CONFIG.getboolean("build", "use_output_auto_subdir", fallback=True)
 
 CONFIG_C_COMPILER = (CONFIG.get("compiler", "c_compiler", fallback="") or "").strip()
 CONFIG_CXX_COMPILER = (CONFIG.get("compiler", "cpp_compiler", fallback="") or "").strip()
@@ -574,11 +575,16 @@ def prepare_build_dir(create=True):
 
         if OUTPUT_DIR:
             if os.path.isabs(OUTPUT_DIR):
-                BUILD_DIR = os.path.normpath(os.path.join(OUTPUT_DIR, suffix)).replace("\\", "/")
+                base_dir = OUTPUT_DIR
             else:
-                BUILD_DIR = os.path.normpath(os.path.join(SOURCE_DIR, OUTPUT_DIR, suffix)).replace("\\", "/")
+                base_dir = os.path.join(SOURCE_DIR, OUTPUT_DIR)
         else:
-            BUILD_DIR = os.path.normpath(os.path.join(SOURCE_DIR, "build", suffix)).replace("\\", "/")
+            base_dir = os.path.join(SOURCE_DIR, "build")
+
+        if USE_OUTPUT_AUTO_SUBDIR:
+            BUILD_DIR = os.path.normpath(os.path.join(base_dir, suffix)).replace("\\", "/")
+        else:
+            BUILD_DIR = os.path.normpath(base_dir).replace("\\", "/")
 
     if create:
         os.makedirs(BUILD_DIR, exist_ok=True)
