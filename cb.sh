@@ -720,7 +720,7 @@ Options:
   -g | --generate [<type>]       运行 CMake 配置 / Run CMake configure only
   -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）
   -D <name>=<value>              Pass a CMake definition (only with -g/--generate)
-  -b | --build [<type>] [--target <target>] [exe_name]  构建项目 / Build the project
+  -b | --build [<type>] [--target <target>] [target]  构建项目 / Build the project
   -r | --run [<type>] [exe_name] 运行程序 / Run the application
   -c | --clean [<type>]          清理构建目录 / Clean build directory
   --list-execs                   列出所有可执行文件 / List all executables
@@ -822,9 +822,8 @@ parse_args() {
       if (( i + 2 < ${#args[@]} )) && [[ "${args[i+1]}" == "--target" ]]; then
         BUILD_TARGET="${args[i+2]}"
         i=$((i + 2))
-      fi
-      if (( i + 1 < ${#args[@]} )) && [[ "${args[i+1]}" != -* ]]; then
-        EXEC_NAME="${args[i+1]}"
+      elif (( i + 1 < ${#args[@]} )) && [[ "${args[i+1]}" != -* ]]; then
+        BUILD_TARGET="${args[i+1]}"
         i=$((i + 1))
       fi
       ;;

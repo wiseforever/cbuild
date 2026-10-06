@@ -484,8 +484,8 @@ def parse_args():
             if i + 2 < len(args) and args[i + 1] == "--target":
                 BUILD_TARGET = args[i + 2]
                 i += 2
-            if i + 1 < len(args) and not is_option_token(args[i + 1]):
-                EXEC_NAME = args[i + 1]
+            elif i + 1 < len(args) and not is_option_token(args[i + 1]):
+                BUILD_TARGET = args[i + 1]
                 i += 1
 
         elif arg in ("-r", "--run"):

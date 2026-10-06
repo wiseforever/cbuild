@@ -21,6 +21,7 @@
 - [CMake 自定义宏与插件终端行为](plan/cmake_defines_and_plugin_terminals.md)
 - [全局安装与配置路径解析](plan/global_install_config_paths.md)
 - [命令行构建类型参数](plan/command_build_type_arguments.md)
+- [构建目标参数](plan/build_target_arguments.md)
 - [安装脚本的全局与 VS Code 模板模式](plan/install_script_global_and_vscode.md)
 
 ## 当前关键状态
