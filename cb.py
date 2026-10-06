@@ -92,6 +92,8 @@ COMPILER_TYPE = None
 COMPILER_EXEC_P = []
 CMAKE_TOOLCHAIN_FILE = None
 CMAKE_RUN_ENV = None
+BUILD_TARGET = "all"
+EXEC_NAME = None
 
 # -------------------- 系统识别 --------------------
 OS_TYPE = platform.system().lower()
@@ -221,10 +223,10 @@ def rm_rf(path):
     except Exception as e:
         log.warning(f"Failed to remove {path}: {e}")
 
-def get_bin_dir(app_name=None):
-    """从构建系统文件解析或搜索实际输出目录；失败则回退 BUILD_DIR/bin"""
+def get_exec_path(target_name=None):
+    """从构建系统文件解析可执行文件完整路径；失败则返回 None"""
 
-    def resolve_output_dir(path):
+    def resolve_output_path(path):
         """Keep absolute paths emitted by older CMake generators absolute and clean."""
         if os.path.isabs(path) or re.match(r"^[A-Za-z]:[\\/]", path):
             return os.path.normpath(path)
@@ -234,40 +236,79 @@ def get_bin_dir(app_name=None):
 
     # 1. Ninja: 解析 build.ninja
     ninja_file = os.path.join(BUILD_DIR, "build.ninja")
-    if app_name and os.path.isfile(ninja_file):
+    if os.path.isfile(ninja_file):
         with open(ninja_file, "r") as f:
             for line in f:
-                if re.match(rf'^build\s+\S*?{re.escape(app_name)}\s*:\s*CXX_EXECUTABLE_LINKER__{re.escape(app_name)}[^a-zA-Z]', line):
-                    path_part = line.split()[1].rstrip(":")
-                    return resolve_output_dir(os.path.dirname(path_part))
+                if target_name:
+                    # 指定了 target_name，优先匹配
+                    if re.match(rf'^build\s+\S+:\s*CXX_EXECUTABLE_LINKER__{re.escape(target_name)}[^a-zA-Z]', line):
+                        path_part = line.split()[1].rstrip(":")
+                        return resolve_output_path(path_part)
+                else:
+                    # 未指定，查找第一个可执行文件
+                    if re.match(r'^build\s+\S+:\s*CXX_EXECUTABLE_LINKER__', line):
+                        path_part = line.split()[1].rstrip(":")
+                        return resolve_output_path(path_part)
 
     # 2. Unix Makefiles: 解析 link.txt
-    link_file = os.path.join(BUILD_DIR, "CMakeFiles", f"{app_name}.dir", "link.txt") if app_name else None
-    if link_file and os.path.isfile(link_file):
-        with open(link_file, "r") as f:
-            m = re.search(r'-o\s+(\S+)', f.read())
-            if m:
-                return resolve_output_dir(os.path.dirname(m.group(1)))
+    cmake_files_dir = os.path.join(BUILD_DIR, "CMakeFiles")
+    if os.path.isdir(cmake_files_dir):
+        for target_dir in os.listdir(cmake_files_dir):
+            link_file = os.path.join(cmake_files_dir, target_dir, "link.txt")
+            if os.path.isfile(link_file):
+                with open(link_file, "r") as f:
+                    m = re.search(r'-o\s+(\S+)', f.read())
+                    if m:
+                        exe_path = m.group(1)
+                        if target_name:
+                            # 检查是否匹配指定的 target_name
+                            exe_name = os.path.basename(exe_path)
+                            if exe_name == target_name:
+                                return resolve_output_path(exe_path)
+                        else:
+                            # 未指定，返回第一个
+                            return resolve_output_path(exe_path)
 
-    # 3. 默认 fallback
-    return os.path.normpath(os.path.join(BUILD_DIR, "bin"))
+    # 找不到可执行文件
+    return None
 
-def get_project_name_simple():
-    cmakelists = os.path.join(SOURCE_DIR, "CMakeLists.txt")
-    if not os.path.isfile(cmakelists):
-        return "application"
-    with open(cmakelists, "r", encoding="utf-8") as f:
-        content = f.read()
-    m = re.search(r'project\s*\(\s*([^\s\)]+)', content, re.IGNORECASE)
-    if m:
-        name = m.group(1)
-        if name.startswith("${") and name.endswith("}"):
-            var_name = name[2:-1]
-            m2 = re.search(rf'set\s*\(\s*{var_name}\s+"([^"]+)"\)', content)
-            if m2:
-                return m2.group(1)
-        return name
-    return "application"
+def list_execs():
+    """列出所有可执行文件"""
+    execs = []
+
+    # 1. Ninja: 解析 build.ninja
+    ninja_file = os.path.join(BUILD_DIR, "build.ninja")
+    if os.path.isfile(ninja_file):
+        with open(ninja_file, "r") as f:
+            for line in f:
+                if re.match(r'^build\s+\S+:\s*CXX_EXECUTABLE_LINKER__', line):
+                    path_part = line.split()[1].rstrip(":")
+                    exe_name = os.path.basename(path_part)
+                    if exe_name not in execs:
+                        execs.append(exe_name)
+
+    # 2. Unix Makefiles: 解析 link.txt
+    cmake_files_dir = os.path.join(BUILD_DIR, "CMakeFiles")
+    if os.path.isdir(cmake_files_dir):
+        for target_dir in os.listdir(cmake_files_dir):
+            link_file = os.path.join(cmake_files_dir, target_dir, "link.txt")
+            if os.path.isfile(link_file):
+                with open(link_file, "r") as f:
+                    m = re.search(r'-o\s+(\S+)', f.read())
+                    if m:
+                        exe_path = m.group(1)
+                        exe_name = os.path.basename(exe_path)
+                        if exe_name not in execs:
+                            execs.append(exe_name)
+
+    if not execs:
+        log.warn("No executables found in build directory")
+        return False
+
+    log.info("Available executables:")
+    for exe in execs:
+        log.info(f"  - {exe}")
+    return True
 
 def run_cmd(cmd, **kwargs):
     """Run a command; on failure print the command as a readable string instead of Python list format."""
@@ -299,14 +340,16 @@ def update_vscode_launch():
         with open(launch_json_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        app_name = get_project_name_simple()
         prepare_build_dir(create=False)
-        bin_dir = get_bin_dir(app_name)
-        if os.path.abspath(bin_dir).startswith(os.path.abspath(SOURCE_DIR) + os.sep):
-            rel_path = os.path.relpath(bin_dir, SOURCE_DIR).replace(os.sep, '/')
-            program_path = f"${{workspaceFolder}}/{rel_path}/{app_name}"
+        exe_path = get_exec_path(EXEC_NAME)
+        if exe_path is None:
+            log.warn("Cannot find executable path, skipping launch.json update")
+            return
+        if os.path.abspath(exe_path).startswith(os.path.abspath(SOURCE_DIR) + os.sep):
+            rel_path = os.path.relpath(exe_path, SOURCE_DIR).replace(os.sep, '/')
+            program_path = f"${{workspaceFolder}}/{rel_path}"
         else:
-            program_path = f"{bin_dir}/{app_name}"
+            program_path = exe_path
 
         # 用正则匹配 "program": "xxx"
         # 保留前后的引号和 key，只替换路径
@@ -350,11 +393,13 @@ EXIT_AFTER_TYPE_CHANGE = False  # 仅切换类型时立即退出
 CMAKE_DEFINE_ARGS = []
 
 def parse_args():
-    global BUILD_TYPE, SHOULD_CONAN_BUILD, SHOULD_CONFIGURE, SHOULD_BUILD, SHOULD_RUN, SHOULD_CLEAN, BUILD_TARGET, EXIT_AFTER_TYPE_CHANGE, CMAKE_DEFINE_ARGS
+    global BUILD_TYPE, SHOULD_CONAN_BUILD, SHOULD_CONFIGURE, SHOULD_BUILD, SHOULD_RUN, SHOULD_CLEAN, BUILD_TARGET, EXIT_AFTER_TYPE_CHANGE, CMAKE_DEFINE_ARGS, EXEC_NAME, SHOULD_LIST_EXECS
     args = sys.argv[1:]
     i = 0
     BUILD_TARGET = "all"
     CMAKE_DEFINE_ARGS = []
+    EXEC_NAME = None
+    SHOULD_LIST_EXECS = False
 
     type_changed = False
     had_action = False
@@ -371,9 +416,10 @@ def parse_args():
             print("  -g | --generate [<type>]       运行 CMake 配置 / Run CMake configure only")
             print("  -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）")
             print("  -D <name>=<value>              Pass a CMake definition (only with -g/--generate)")
-            print("  -b | --build [<type>] [--target <target>]  构建项目 / Build the project")
-            print("  -r | --run [<type>]            运行程序 / Run the application")
+            print("  -b | --build [<type>] [--target <target>] [target]  构建项目 / Build the project")
+            print("  -r | --run [<type>] [exe_name] 运行程序 / Run the application")
             print("  -c | --clean [<type>]          清理构建目录 / Clean build directory")
+            print("  --list-execs                   列出所有可执行文件 / List all executables")
             sys.exit(0)
 
         elif arg in ("-t", "--type"):
@@ -438,12 +484,18 @@ def parse_args():
             if i + 2 < len(args) and args[i + 1] == "--target":
                 BUILD_TARGET = args[i + 2]
                 i += 2
+            if i + 1 < len(args) and not is_option_token(args[i + 1]):
+                EXEC_NAME = args[i + 1]
+                i += 1
 
         elif arg in ("-r", "--run"):
             SHOULD_RUN = True
             had_action = True
             if i + 1 < len(args) and not is_option_token(args[i + 1]) and args[i + 1].capitalize() in VALID_BUILD_TYPES:
                 BUILD_TYPE = args[i + 1].capitalize()
+                i += 1
+            if i + 1 < len(args) and not is_option_token(args[i + 1]):
+                EXEC_NAME = args[i + 1]
                 i += 1
 
         elif arg in ("-c", "--clean"):
@@ -452,6 +504,10 @@ def parse_args():
             if i + 1 < len(args) and not is_option_token(args[i + 1]) and args[i + 1].capitalize() in VALID_BUILD_TYPES:
                 BUILD_TYPE = args[i + 1].capitalize()
                 i += 1
+
+        elif arg == "--list-execs":
+            SHOULD_LIST_EXECS = True
+            had_action = True
 
         else:
             log.error(f"Unknown option: {arg}")
@@ -1050,9 +1106,13 @@ def run_msvc_build():
 
 
 def run_application():
-    app_name = get_project_name_simple()
-    bin_dir = get_bin_dir(app_name)
-    exe_path = os.path.join(bin_dir, app_name + (".exe" if OS_TYPE == "windows" else "")).replace("\\", "/")
+    exe_path = get_exec_path(EXEC_NAME)
+    if exe_path is None:
+        log.error("Cannot find executable path from build files. Please run 'cb.py -g' to configure and 'cb.py -b' to build first.")
+        sys.exit(1)
+    if OS_TYPE == "windows" and not exe_path.endswith(".exe"):
+        exe_path += ".exe"
+    exe_path = exe_path.replace("\\", "/")
     if not os.path.isfile(exe_path):
         log.error(f"The executable file: {exe_path} cannot be found. ")
         sys.exit(1)
@@ -1132,10 +1192,14 @@ def run():
             #     log.error("CMake configure failed.")
             if not run_cmake_build():
                 log.error("CMake build failed.")
-        
-        app_name = get_project_name_simple()
-        bin_dir = get_bin_dir(app_name)
-        exe_path = os.path.join(bin_dir, app_name + (".exe" if OS_TYPE == "windows" else "")).replace("\\", "/")
+
+        exe_path = get_exec_path(EXEC_NAME)
+        if exe_path is None:
+            log.error("Cannot find executable path from build files. Please run 'cb.py -g' to configure first.")
+            sys.exit(1)
+        if OS_TYPE == "windows" and not exe_path.endswith(".exe"):
+            exe_path += ".exe"
+        exe_path = exe_path.replace("\\", "/")
         if not os.path.isfile(exe_path):
             log.error(f"The executable file: {exe_path} cannot be found.")
             sys.exit(1)
@@ -1148,6 +1212,10 @@ def run():
 
     if SHOULD_RUN:
         run_application()
+        return
+
+    if SHOULD_LIST_EXECS:
+        list_execs()
         return
 
     print("Use -h for help.")

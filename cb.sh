@@ -44,12 +44,14 @@ CMAKE_RUN_PATH_PREFIX=""
 declare -a CMAKE_COMPILER_ARGS=()
 declare -a CMAKE_DEFINE_ARGS=()
 BUILD_TARGET="all"
+EXEC_NAME=""
 
 SHOULD_CONAN_BUILD="false"
 SHOULD_CONFIGURE="false"
 SHOULD_BUILD="false"
 SHOULD_RUN="false"
 SHOULD_CLEAN="false"
+SHOULD_LIST_EXECS="false"
 EXIT_AFTER_TYPE_CHANGE="false"
 
 OS_TYPE="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -564,82 +566,135 @@ update_settings_json() {
   log_info "Updated .vscode/settings.json compile-commands-dir -> ${compile_commands_dir}"
 }
 
-get_bin_dir() {
-  local app_name="${1:-}"
-  local rule bin_dir
+get_exec_path() {
+  local target_name="${1:-}"
+  local rule bin_dir exe_path
 
   # 1) Ninja: 解析 build.ninja
-  if [[ -f "$BUILD_DIR/build.ninja" && -n "$app_name" ]]; then
-    rule="$(grep -m1 "^build.*: CXX_EXECUTABLE_LINKER__${app_name}[^a-zA-Z]" "$BUILD_DIR/build.ninja" 2>/dev/null || true)"
+  if [[ -f "$BUILD_DIR/build.ninja" ]]; then
+    if [[ -n "$target_name" ]]; then
+      # 指定了 target_name，优先匹配
+      rule="$(grep -m1 "^build.*: CXX_EXECUTABLE_LINKER__${target_name}[^a-zA-Z]" "$BUILD_DIR/build.ninja" 2>/dev/null || true)"
+    else
+      # 未指定，查找第一个可执行文件
+      rule="$(grep -m1 "^build.*: CXX_EXECUTABLE_LINKER__" "$BUILD_DIR/build.ninja" 2>/dev/null || true)"
+    fi
     if [[ -n "$rule" ]]; then
       rule="${rule#build }"
-      rule="${rule%%: *}"
-      bin_dir="$(dirname "$rule")"
-      if [[ "$bin_dir" == /* ]] || is_windows_abs_path "$bin_dir"; then
-        normalize_path "$bin_dir"
+      exe_path="${rule%%: *}"
+      if [[ "$exe_path" == /* ]] || is_windows_abs_path "$exe_path"; then
+        normalize_path "$exe_path"
       else
-        normalize_path "${BUILD_DIR}/${bin_dir}"
+        normalize_path "${BUILD_DIR}/${exe_path}"
       fi
       return
     fi
   fi
 
   # 2) Unix Makefiles: 解析 link.txt
-  if [[ -n "$app_name" ]]; then
-    local link_file="${BUILD_DIR}/CMakeFiles/${app_name}.dir/link.txt"
+  local link_file
+  for link_file in "$BUILD_DIR"/CMakeFiles/*/link.txt; do
     if [[ -f "$link_file" ]]; then
-      bin_dir="$(grep -oP '(?<=-o )\S+' "$link_file" 2>/dev/null || true)"
-      if [[ -n "$bin_dir" ]]; then
-        bin_dir="$(dirname "$bin_dir")"
-        if [[ "$bin_dir" == /* ]] || is_windows_abs_path "$bin_dir"; then
-          normalize_path "$bin_dir"
+      # 使用 sed 替代 grep -P，更兼容
+      exe_path="$(sed -n 's/.*-o \([^ ]*\).*/\1/p' "$link_file" 2>/dev/null | head -n1 || true)"
+      if [[ -n "$exe_path" ]]; then
+        # 如果指定了 target_name，检查是否匹配
+        if [[ -n "$target_name" ]]; then
+          local exe_name
+          exe_name="$(basename "$exe_path")"
+          if [[ "$exe_name" == "$target_name" ]]; then
+            if [[ "$exe_path" == /* ]] || is_windows_abs_path "$exe_path"; then
+              normalize_path "$exe_path"
+            else
+              normalize_path "${BUILD_DIR}/${exe_path}"
+            fi
+            return
+          fi
         else
-          normalize_path "${BUILD_DIR}/${bin_dir}"
+          # 未指定，返回第一个
+          if [[ "$exe_path" == /* ]] || is_windows_abs_path "$exe_path"; then
+            normalize_path "$exe_path"
+          else
+            normalize_path "${BUILD_DIR}/${exe_path}"
+          fi
+          return
         fi
-        return
       fi
     fi
-  fi
+  done
 
-  # 3) 默认 fallback
-  normalize_path "${BUILD_DIR}/bin"
+  # 找不到可执行文件，返回空字符串
+  printf ''
 }
 
-get_project_name_simple() {
-  local cmakelists line name var_name
-  cmakelists="$SOURCE_DIR/CMakeLists.txt"
-  [[ -f "$cmakelists" ]] || { printf 'application'; return 0; }
+list_execs() {
+  local exe_path exe_name
+  local -a execs=()
 
-  line="$(grep -Eim1 '^[[:space:]]*project[[:space:]]*\(' "$cmakelists" || true)"
-  [[ -n "$line" ]] || { printf 'application'; return 0; }
-  name="$(printf '%s' "$line" | sed -E 's/.*[Pp][Rr][Oo][Jj][Ee][Cc][Tt][[:space:]]*\([[:space:]]*([^[:space:])]+).*/\1/')"
-  [[ -n "$name" ]] || { printf 'application'; return 0; }
-
-  if [[ "$name" =~ ^\$\{[^}]+\}$ ]]; then
-    var_name="${name:2:${#name}-3}"
-    line="$(grep -Eim1 "^[[:space:]]*set[[:space:]]*\\([[:space:]]*${var_name}[[:space:]]+\"[^\"]+\"" "$cmakelists" || true)"
-    if [[ -n "$line" ]]; then
-      name="$(printf '%s' "$line" | sed -E 's/.*"([^"]+)".*/\1/')"
-    fi
+  # 1) Ninja: 解析 build.ninja
+  if [[ -f "$BUILD_DIR/build.ninja" ]]; then
+    while IFS= read -r rule; do
+      if [[ "$rule" =~ ^build.*:CXX_EXECUTABLE_LINKER__ ]]; then
+        rule="${rule#build }"
+        exe_path="${rule%%: *}"
+        exe_name="$(basename "$exe_path")"
+        execs+=("$exe_name")
+      fi
+    done < <(grep "^build.*: CXX_EXECUTABLE_LINKER__" "$BUILD_DIR/build.ninja" 2>/dev/null || true)
   fi
-  printf '%s' "$name"
+
+  # 2) Unix Makefiles: 解析 link.txt
+  for link_file in "$BUILD_DIR"/CMakeFiles/*/link.txt; do
+    if [[ -f "$link_file" ]]; then
+      exe_path="$(sed -n 's/.*-o \([^ ]*\).*/\1/p' "$link_file" 2>/dev/null | head -n1 || true)"
+      if [[ -n "$exe_path" ]]; then
+        exe_name="$(basename "$exe_path")"
+        # 去重
+        local exists="false"
+        for e in "${execs[@]}"; do
+          if [[ "$e" == "$exe_name" ]]; then
+            exists="true"
+            break
+          fi
+        done
+        if [[ "$exists" == "false" ]]; then
+          execs+=("$exe_name")
+        fi
+      fi
+    fi
+  done
+
+  if (( ${#execs[@]} == 0 )); then
+    log_warn "No executables found in build directory"
+    return 1
+  fi
+
+  log_info "Available executables:"
+  for exe in "${execs[@]}"; do
+    printf '  - %s\n' "$exe"
+  done
 }
 
 update_vscode_launch() {
-  local launch_json rel_path app_name program_path escaped
+  local launch_json rel_path program_path escaped
   launch_json="$SOURCE_DIR/.vscode/launch.json"
   [[ -f "$launch_json" ]] || return 0
 
   prepare_build_dir false
-  app_name="$(get_project_name_simple)"
 
-  local bin_dir
-  bin_dir="$(get_bin_dir "$app_name")"
-  if [[ "$bin_dir" == "$SOURCE_DIR/"* ]]; then
-    rel_path="${bin_dir#"$SOURCE_DIR"/}"
-    program_path="\${workspaceFolder}/${rel_path}/${app_name}"
+  local exe_path
+  exe_path="$(get_exec_path "$EXEC_NAME")"
+
+  if [[ -z "$exe_path" ]]; then
+    log_warn "Cannot find executable path, skipping launch.json update"
+    return 0
+  fi
+
+  if [[ "$exe_path" == "$SOURCE_DIR/"* ]]; then
+    rel_path="${exe_path#"$SOURCE_DIR"/}"
+    program_path="\${workspaceFolder}/${rel_path}"
   else
-    program_path="${bin_dir}/${app_name}"
+    program_path="${exe_path}"
   fi
 
 #   cp -f "$launch_json" "${launch_json}.bak"
@@ -665,9 +720,10 @@ Options:
   -g | --generate [<type>]       运行 CMake 配置 / Run CMake configure only
   -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）
   -D <name>=<value>              Pass a CMake definition (only with -g/--generate)
-  -b | --build [<type>] [--target <target>]  构建项目 / Build the project
-  -r | --run [<type>]            运行程序 / Run the application
+  -b | --build [<type>] [--target <target>] [exe_name]  构建项目 / Build the project
+  -r | --run [<type>] [exe_name] 运行程序 / Run the application
   -c | --clean [<type>]          清理构建目录 / Clean build directory
+  --list-execs                   列出所有可执行文件 / List all executables
 EOF
 }
 
@@ -767,6 +823,10 @@ parse_args() {
         BUILD_TARGET="${args[i+2]}"
         i=$((i + 2))
       fi
+      if (( i + 1 < ${#args[@]} )) && [[ "${args[i+1]}" != -* ]]; then
+        EXEC_NAME="${args[i+1]}"
+        i=$((i + 1))
+      fi
       ;;
     -r|--run)
       SHOULD_RUN="true"
@@ -778,6 +838,14 @@ parse_args() {
           i=$((i + 1))
         fi
       fi
+      if (( i + 1 < ${#args[@]} )) && [[ "${args[i+1]}" != -* ]]; then
+        EXEC_NAME="${args[i+1]}"
+        i=$((i + 1))
+      fi
+      ;;
+    --list-execs)
+      SHOULD_LIST_EXECS="true"
+      had_action="true"
       ;;
     -c|--clean)
       SHOULD_CLEAN="true"
@@ -1103,15 +1171,18 @@ run_cmake_build() {
 }
 
 run_application() {
-  local app_name exe_path
-  app_name="$(get_project_name_simple)"
-  local bin_dir
-  bin_dir="$(get_bin_dir "$app_name")"
-  if [[ "$OS_TYPE" == "windows" ]]; then
-    exe_path="${bin_dir}/${app_name}.exe"
-  else
-    exe_path="${bin_dir}/${app_name}"
+  local exe_path
+  exe_path="$(get_exec_path "$EXEC_NAME")"
+
+  if [[ -z "$exe_path" ]]; then
+    log_err "Cannot find executable path from build files. Please run 'cb.sh -g' to configure and 'cb.sh -b' to build first."
+    exit 1
   fi
+
+  if [[ "$OS_TYPE" == "windows" && "$exe_path" != *.exe ]]; then
+    exe_path="${exe_path}.exe"
+  fi
+
   if [[ ! -f "$exe_path" ]]; then
     log_err "The executable file: $exe_path cannot be found."
     exit 1
@@ -1193,14 +1264,18 @@ main() {
   if [[ "$SHOULD_BUILD" == "true" ]]; then
     run_cmake_build
 
-    local app_name exe_path bin_dir
-    app_name="$(get_project_name_simple)"
-    bin_dir="$(get_bin_dir "$app_name")"
-    if [[ "$OS_TYPE" == "windows" ]]; then
-      exe_path="${bin_dir}/${app_name}.exe"
-    else
-      exe_path="${bin_dir}/${app_name}"
+    local exe_path
+    exe_path="$(get_exec_path "$EXEC_NAME")"
+
+    if [[ -z "$exe_path" ]]; then
+      log_err "Cannot find executable path from build files. Please run 'cb.sh -g' to configure first."
+      exit 1
     fi
+
+    if [[ "$OS_TYPE" == "windows" && "$exe_path" != *.exe ]]; then
+      exe_path="${exe_path}.exe"
+    fi
+
     if [[ ! -f "$exe_path" ]]; then
       log_err "The executable file: $exe_path cannot be found."
       exit 1
@@ -1216,6 +1291,11 @@ main() {
 
   if [[ "$SHOULD_RUN" == "true" ]]; then
     run_application
+    exit 0
+  fi
+
+  if [[ "$SHOULD_LIST_EXECS" == "true" ]]; then
+    list_execs
     exit 0
   fi
 
