@@ -19,7 +19,6 @@ set(CMAKE_CXX_STANDARD 11)              # 设置C++语言标准
 set(CMAKE_CXX_STANDARD_REQUIRED ON)     # 是否强制遵循C++语言标准
 set(CMAKE_CXX_EXTENSIONS OFF)           # 是否C++语言扩展
 
-# Enable compile command to ease indexing with e.g. clangd (compile_commands.json)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # 是否生成编译命令文件 compile_commands.json
 
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # 可执行文件输出目录
@@ -79,31 +78,14 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g3")
     elseif(CMAKE_BUILD_TYPE MATCHES "^[Rr][Ee][Ll][Ee][Aa][Ss][Ee]$") # Release
         message(STATUS "Release build")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g0")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -g0")
-        # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g")
-        # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -g")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -g")
     endif()
 endif()
 
 message(STATUS " ")
 message(STATUS "Start configuration project.")
 message(STATUS " ")
-
-# # vcpkg 配置
-# set(CMAKE_TOOLCHAIN_FILE "D:/cppsoft/vcpkg/scripts/buildsystems/vcpkg.cmake")
-# set(VCPKG_HOST_TRIPLET x64-mingw-static)
-# set(VCPKG_TARGET_TRIPLET x64-mingw-static)
-# find_package(httplib CONFIG REQUIRED)
-
-set(TOML_FILE "config.toml")
-if(EXISTS "${CMAKE_SOURCE_DIR}/${TOML_FILE}")
-    file(COPY ${CMAKE_SOURCE_DIR}/${TOML_FILE} DESTINATION ${CMAKE_BINARY_DIR}/bin)
-else()
-    if(EXISTS "${CMAKE_BINARY_DIR}/bin/${TOML_FILE}")
-        file(REMOVE ${CMAKE_BINARY_DIR}/bin/${TOML_FILE})
-    endif()
-endif()
 
 set(INI_FILE "config.ini")
 if(EXISTS "${CMAKE_SOURCE_DIR}/${INI_FILE}")
@@ -134,32 +116,22 @@ add_executable(${PROJECT_NAME}
     ${src_files}
 )
 
-# Boost is supplied by Conan/CMakeDeps; JsonCpp is supplied by vcpkg manifest mode.
-find_package(jsoncpp CONFIG REQUIRED)
-target_link_libraries(${PROJECT_NAME}
-    PRIVATE
-    JsonCpp::JsonCpp
-)
-
 if(WIN32)
     add_definitions(-D_WIN32_WINNT=0x0601 -DWIN32_LEAN_AND_MEAN)
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--verbose")
-        # add_link_options(-static-libgcc -static-libstdc++)
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-
-    endif()
+elseif(UNIX)
 
 elseif(APPLE)
 
-elseif(UNIX)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--verbose")
     # add_link_options(-static-libgcc -static-libstdc++)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-
+    # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY LINK_FLAGS " -Wl,--no-as-needed")
 endif()
 
 
@@ -173,6 +145,12 @@ endif()
 #     app
 #     third-party
 # )
+
+find_package(jsoncpp CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+    JsonCpp::JsonCpp
+)
 
 
 # # ======== Boost 库配置 ========
@@ -236,19 +214,6 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/third-party/toml11/include
 )
 
-
-
-# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath='$ORIGIN:$ORIGIN/depend'")
-
-set(CMAKE_SKIP_BUILD_RPATH FALSE)
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    BUILD_RPATH ""
-    INSTALL_RPATH "$ORIGIN;$ORIGIN/depend"
-    BUILD_WITH_INSTALL_RPATH TRUE
-)
-
-# 检查 readelf -d ./application | grep -i RUNPATH
-
 if(WIN32)
     target_link_libraries(${PROJECT_NAME}
         PRIVATE
@@ -264,12 +229,16 @@ elseif(UNIX)
 
 endif()
 
+
+# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath='$ORIGIN:$ORIGIN/lib'")
 # set(CMAKE_SKIP_BUILD_RPATH FALSE)
 # set_target_properties(${PROJECT_NAME} PROPERTIES
 #     BUILD_RPATH ""
-#     INSTALL_RPATH "$ORIGIN;$ORIGIN/depend"
+#     INSTALL_RPATH "$ORIGIN;$ORIGIN/lib"
 #     BUILD_WITH_INSTALL_RPATH TRUE
 # )
+
+# 检查 readelf -d ./application | grep -i RUNPATH
 
 # Linux 下，系统的动态库搜索还会受 /etc/ld.so.conf 和 /etc/ld.so.conf.d/ 影响
 # cat /etc/ld.so.conf 如果内容为 include /etc/ld.so.conf.d/*.conf
