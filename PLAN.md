@@ -2,32 +2,28 @@
 
 ## 说明
 
-本文件作为项目操作留痕与规划索引使用。
+本文件作为项目规划索引和关键进展入口，优先展示未完成事项。
 
-具体规划、执行步骤、验收标准和风险记录统一放在 `plan/` 目录下，避免 `PLAN.md` 变成单个方案的详细设计文档。
+需要持续跟踪的具体方案放在 `plan/` 目录下；新建门槛及记录规则见 [AGENTS.md](AGENTS.md#规划记录)。小改动不单独建规划，主题文件不强制套用完整模板。
 
-## 留痕规则
+## 未完成事项
 
-- 新的规划放在 `plan/` 目录下，每个主题一个 Markdown 文件。
-- `PLAN.md` 只记录总体说明、规划索引和关键状态。
-- 不在规划文件中强制加入日期。
-- 已实施的关键操作应回写到对应主题文件中，保留操作痕迹。
-- 具体实现完成并经用户 review / approval 后，再按仓库要求创建 git commit。
+- **进行中：VS Code 插件迁移。** 插件核心已实现；仍需将中英文 README 的 Task Buttons 说明迁移到自研插件、补充本地开发说明，并确定是否发布 Marketplace。详见[插件规划](plan/vscode_cbuild_tools.md)。
 
 ## 规划索引
 
-- [自研轻量 VS Code 插件](plan/vscode_cbuild_tools.md)
-- [Conan 与 vcpkg 组合工具链](plan/conan_vcpkg_toolchain.md)
-- [CMake 自定义宏与插件终端行为](plan/cmake_defines_and_plugin_terminals.md)
-- [全局安装与配置路径解析](plan/global_install_config_paths.md)
-- [命令行构建类型参数](plan/command_build_type_arguments.md)
-- [构建类型配置写入兼容性](plan/build_type_config_write.md)
-- [构建目标参数](plan/build_target_arguments.md)
-- [安装脚本的全局与 VS Code 模板模式](plan/install_script_global_and_vscode.md)
+| 主题 | 状态 |
+| --- | --- |
+| [自研轻量 VS Code 插件](plan/vscode_cbuild_tools.md) | 进行中 |
+| [构建类型配置写入兼容性](plan/build_type_config_write.md) | 待验证 |
+| [Conan 与 vcpkg 组合工具链](plan/conan_vcpkg_toolchain.md) | 已完成 |
+| [CMake 自定义宏与插件终端行为](plan/cmake_defines_and_plugin_terminals.md) | 已完成 |
+| [CMake 可执行文件输出路径解析](plan/cmake_output_path_resolution.md) | 已完成 |
+| [全局安装与配置路径解析](plan/global_install_config_paths.md) | 已完成 |
+| [命令行构建类型参数](plan/command_build_type_arguments.md) | 已完成 |
+| [构建目标参数](plan/build_target_arguments.md) | 已完成 |
+| [安装脚本的全局与 VS Code 模板模式](plan/install_script_global_and_vscode.md) | 已完成 |
 
-## 当前关键状态
+状态按各主题已有的实施及验证记录维护：“待开始”表示尚未实施；“进行中”表示仍有实施工作；“待验证”表示实现已完成但仍有验证未闭环；“已完成”表示该主题范围内的实施及验证已完成，不代表所有平台均已验证。提交审批不作为实施状态。
 
-- Task Buttons 替换方向已确定为自研轻量 VS Code 插件。
-- 插件规划放在 `plan/vscode_cbuild_tools.md`。
-- 插件应直接调用 `cb.py` / `cb.sh`，不依赖 `.vscode/tasks.json`。
-- 已实现：`cb.py` / `cb.sh` 的 CMake `-D` 宏透传、项目安装后的 Unix 可执行权限，以及插件 Bootstrap 的 Bash 选择和独立 `run` 终端。
+主题收尾后从“未完成事项”移除，保留索引和主题文件中的关键结论。

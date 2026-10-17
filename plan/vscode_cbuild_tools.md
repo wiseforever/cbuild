@@ -1,5 +1,7 @@
 # 自研轻量 VS Code 插件
 
+状态：进行中。插件核心已实现，剩余工作为中英文 README 迁移、本地开发说明和发布方式决策。
+
 ## 操作留痕
 
 - 确认项目当前对 Task Buttons 的依赖只体现在 `.vscode/settings.json` 的 `VsCodeTaskButtons.*` 配置和 README 描述中。
@@ -24,10 +26,11 @@
 - 已对 bootstrap 改造重新执行编译、依赖审计和 VSIX 打包验证，结果通过。
 - 已补充 Bootstrap 的 Python/Bash 脚本选择；默认源提供两套安装命令，自定义源通过 `bashCommand` 提供 Bash 安装命令。
 - 已将基础 `run` 操作调整到独立 `run` 终端，其余插件操作继续复用 `cbuild` 终端。
+- 已核对迁移状态：`.vscode/settings.json` 不再包含 `VsCodeTaskButtons.*`，中英文 README 仍保留 Task Buttons 说明；已在下方清单及项目索引中标明未完成事项。
 
 ## 结论
 
-项目不再依赖 Task Buttons 插件，改为自研一个轻量 VS Code 插件提供状态栏按钮。
+自研轻量 VS Code 插件已实现，可独立提供状态栏按钮；将项目文档的推荐入口从 Task Buttons 迁移到自研插件的工作尚未完成。
 
 插件应直接调用 `cb.py` 或 `cb.sh`，不依赖 `.vscode/tasks.json`。这样可以避免同时维护 VS Code task 和插件按钮两套入口配置，插件只需要维护按钮到 cbuild CLI 参数的映射。
 
@@ -47,7 +50,7 @@
 
 - `.vscode/tasks.json` 已经定义了现有 VS Code tasks。
 - 仓库中仍保留 `.vscode/tasks.json`、`.vscode/tasks_python.json` 和 `.vscode/tasks_bash.json`，但 `install.sh` 不再下载 task 模板，也不再生成或覆盖目标项目的 `.vscode/tasks.json`。
-- `.vscode/settings.json` 中的 `VsCodeTaskButtons.*` 配置只服务于 Task Buttons 插件。
+- `.vscode/settings.json` 已不再包含 `VsCodeTaskButtons.*` 配置。
 - README 中把 Task Buttons 标为可选依赖，并描述了通过插件按钮快速执行任务。
 
 ## 插件方案
@@ -265,17 +268,17 @@ tools/cbuild-plugin-vscode/
 
 第二阶段：移除 Task Buttons 默认依赖
 
-- 从 `.vscode/settings.json` 删除 `VsCodeTaskButtons.*` 配置。
-- 从 README / README_zhCN 移除 Task Buttons 依赖项。
-- README 改为说明自研插件是推荐按钮入口。
-- 保留 `.vscode/tasks.json` 作为 VS Code 原生 task 兼容入口，但插件不依赖它。
+- [x] 从 `.vscode/settings.json` 删除 `VsCodeTaskButtons.*` 配置。
+- [ ] 从 README / README_zhCN 移除 Task Buttons 依赖项。
+- [ ] README 改为说明自研插件是推荐按钮入口。
+- [x] 保留 `.vscode/tasks.json` 作为 VS Code 原生 task 兼容入口，但插件不依赖它。
 
 第三阶段：安装与发布
 
-- 补充插件本地开发说明。
+- [ ] 补充插件本地开发说明。
 - [x] 补充 `.vsix` 打包说明。
-- 决定是否将插件发布到 VS Code Marketplace。
-- 若不发布 Marketplace，则在 README 中说明如何从源码或 `.vsix` 安装。
+- [ ] 决定是否将插件发布到 VS Code Marketplace。
+- [ ] 若不发布 Marketplace，则在项目 README 中说明如何从源码或 `.vsix` 安装。
 
 ## 打包说明位置
 

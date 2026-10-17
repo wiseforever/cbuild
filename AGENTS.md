@@ -1,35 +1,43 @@
 # AGENTS.md
 
-## File Standards
+## 文件规范
 
-- Use `UTF-8` without BOM for text files.
-- Use `LF` line endings for text files.
-- Store project skills under `skills/`.
+- 文本文件使用不带 BOM 的 `UTF-8` 编码。
+- 文本文件使用 `LF` 换行符。
+- 项目 skills 存放在 `.agents/skills/` 目录下。
 
-## Skills
+## skills
 
-### Available skills
+### skill 使用方式
 
+- 如果任务符合某项 skill 的描述，或用户指定了某项 skill，先打开对应的 `SKILL.md` 并遵循其中的要求。
+- 尽量减少 skill 文件的加载：只读取该文件，除非其中明确引用了其他本地文件。
+- 项目 skill 流程与临时命令序列能够完成相同工作时，优先采用项目 skill 流程。
 
-### How to use skills
-- If the task matches a skill description or the user names the skill, open that `SKILL.md` first and follow it.
-- Keep skill loading minimal: read only the skill file unless it explicitly points to extra local files.
-- Prefer the project skill workflow over ad-hoc command sequences when they overlap.
+## 工作流程要求
 
-## Workflow Requirements
+- 完成功能或代码修改后，等待用户审阅并批准，再创建 Git 提交。
+<!-- - 用户确认批准修改后，应自行创建提交，不要要求用户手动提交。 -->
+- 提交说明应简洁、具体，准确描述用户可感知的变化或代码层面的改动。
+- 除非用户明确要求使用其他语言，否则优先使用中文提交说明。
+- 提交说明包含正文时，标题与正文之间空一行，便于 Git 及相关工具区分标题和正文。
+- 正文使用 `- ` 开头的无序列表，列表项之间不空行。格式示例：
 
-- After implementing a feature or code change, wait for the user's review/approval before creating a git commit.
-<!-- - Once the user confirms the change is approved, create the commit yourself instead of asking the user to commit manually. -->
-- Perform future repository work on the `master` branch by default. If the branch does not exist yet, create and switch to it before continuing when feasible.
-- Write commit messages that are concise but specific enough to describe the actual user-facing or code-level changes.
-- Prefer Chinese commit messages unless the user explicitly asks for another language.
+```text
+简要概括本次改动
 
-## Planning Records
+- 说明具体改动及其目的。
+- 按需补充其他改动或验证结果。
+```
 
-- Use `PLAN.md` as the project-level planning index and operation record entry point.
-- Put concrete planning details under `plan/`, one Markdown file per topic.
-- Keep implementation steps, validation criteria, risks, and operation traces in the topic file under `plan/`.
-- Do not turn `PLAN.md` into a detailed design document for a single topic.
-- Do not require dates in planning files unless the user explicitly asks for them.
-- After completing key implementation or verification steps, update the corresponding topic file under `plan/` so the work remains traceable.
+## 规划记录
+
+- 使用 `PLAN.md` 作为项目级规划索引和操作记录入口。
+- 仅在用户明确要求，或任务涉及多阶段实施、重要方案取舍、跨模块协调、兼容性迁移等需要持续跟踪的工作时，新建规划。
+- 简单文档修改、格式调整及范围明确的小修复不单独新建规划；涉及已有主题的重要变化时，更新原主题文件。
+- 具体规划放在 `plan/` 目录下，每个主题一个 Markdown 文件，不增加额外目录层级。
+- 主题文件按任务复杂度组织内容，记录必要的方案、步骤、验收方式和风险，不强制套用完整模板。
+- `PLAN.md` 保持简短，优先展示未完成事项，并在规划索引中标注“待开始 / 进行中 / 待验证 / 已完成”。
+- 除非用户明确要求，否则规划文件不强制记录日期。
+- 完成关键实施或验证步骤后，更新已有主题文件及索引状态；只保留关键决策、验证结论和剩余问题，不逐条记录临时操作。
 
