@@ -381,8 +381,21 @@ save_build_type() {
   local new_type="$1"
   awk -v new_type="$new_type" '
     BEGIN { in_build=0; done=0 }
-    /^\[/{ in_build = (tolower($0) == "[build]") }
     {
+      # Match ini_get: accept CRLF and whitespace around section names.
+      sub(/\r$/, "")
+      if ($0 ~ /^[[:space:]]*\[.*\][[:space:]]*$/) {
+        if (in_build && !done) {
+          print "build_type = " new_type
+          done=1
+        }
+        section=$0
+        sub(/^[[:space:]]*\[/, "", section)
+        sub(/\][[:space:]]*$/, "", section)
+        sub(/^[[:space:]]*/, "", section)
+        sub(/[[:space:]]*$/, "", section)
+        in_build = (tolower(section) == "build")
+      }
       if (in_build && tolower($0) ~ /^[[:space:]]*build_type[[:space:]]*=/ && !done) {
         print "build_type = " new_type
         done=1
@@ -392,8 +405,10 @@ save_build_type() {
     }
     END {
       if (!done) {
-        if (!in_build) print ""
-        print "[build]"
+        if (!in_build) {
+          print ""
+          print "[build]"
+        }
         print "build_type = " new_type
       }
     }
