@@ -171,13 +171,13 @@ target_link_libraries(${PROJECT_NAME}
 
 # CMake < 3.15: FindBoost.cmake 不认 CMAKE_INCLUDE_PATH，从 Conan toolchain
 # 设置中提取 Boost 路径作为 BOOST_INCLUDEDIR 提示变量。
-foreach(_boost_path IN LISTS CMAKE_INCLUDE_PATH)
-    if(EXISTS "${_boost_path}/boost/version.hpp")
-        set(BOOST_INCLUDEDIR "${_boost_path}")
-        message(STATUS "Boost INCLUDEDIR from Conan: ${BOOST_INCLUDEDIR}")
-        break()
-    endif()
-endforeach()
+# foreach(_boost_path IN LISTS CMAKE_INCLUDE_PATH)
+#     if(EXISTS "${_boost_path}/boost/version.hpp")
+#         set(BOOST_INCLUDEDIR "${_boost_path}")
+#         message(STATUS "Boost INCLUDEDIR from Conan: ${BOOST_INCLUDEDIR}")
+#         break()
+#     endif()
+# endforeach()
 
 find_package(Boost CONFIG REQUIRED)
 if(Boost_FOUND)
@@ -190,7 +190,7 @@ if(Boost_FOUND)
     )
     target_link_libraries(${PROJECT_NAME}
         PRIVATE
-        boost::boost
+        Boost::boost
     )
 else()
     message(FATAL_ERROR "Boost not found")
