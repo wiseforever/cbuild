@@ -39,6 +39,7 @@ function loadExtension({ source = 0, variant = 0, confirm = true, custom = [], s
                 return {
                     get(key, fallback) {
                         if (key === "bootstrapCommands") return custom;
+                        if (key === "installRelease") return Object.hasOwn(settings, key) ? settings[key] : "latest";
                         if (Object.hasOwn(settings, key)) return settings[key];
                         if (key === "pythonCommand") return "python3";
                         return fallback;
@@ -192,7 +193,7 @@ for (const [command, option] of [["cbuild.installVscode", "--vscode"], ["cbuild.
         const harness = loadExtension({ scripts: ["cb_install.sh"], workspace: "/my project",
             pathCommands: { "cb_install.sh": "/opt/global tools/cb_install.sh" } });
         await harness.commands.get(command)();
-        assert.deepEqual(harness.sent, [`bash "/opt/global tools/cb_install.sh" ${option} "/my project"`]);
+        assert.deepEqual(harness.sent, [`bash "/opt/global tools/cb_install.sh" ${option} "/my project" --release latest`]);
         assert.deepEqual(harness.statRequests, ["/opt/global tools/cb_install.sh"]);
     });
 }
@@ -242,7 +243,7 @@ for (const [command, option] of [["cbuild.installVscode", "--vscode"], ["cbuild.
         const harness = loadExtension({ windows: true, workspace: "D:\\project", home: "C:\\Users\\Tester",
             localScripts: ["cb_install.sh"], pathCommands: { "cb_install.sh": "C:\\global\\cb_install.sh" } });
         await harness.commands.get(command)();
-        assert.deepEqual(harness.sent, [`bash C:/global/cb_install.sh ${option} D:/project`]);
+        assert.deepEqual(harness.sent, [`bash C:/global/cb_install.sh ${option} D:/project --release latest`]);
         assert.deepEqual(harness.pathRequests[0].args, ["$PATH:cb_install.sh"]);
     });
 
@@ -250,7 +251,7 @@ for (const [command, option] of [["cbuild.installVscode", "--vscode"], ["cbuild.
         const harness = loadExtension({ windows: true, workspace: "D:\\project", home: "C:\\Users\\Tester",
             localScripts: ["cb_install.sh"], scripts: ["cb_install.sh"] });
         await harness.commands.get(command)();
-        assert.deepEqual(harness.sent, [`bash C:/Users/Tester/.cbuild/cb_install.sh ${option} D:/project`]);
+        assert.deepEqual(harness.sent, [`bash C:/Users/Tester/.cbuild/cb_install.sh ${option} D:/project --release latest`]);
     });
 }
 
@@ -279,14 +280,18 @@ test("PATH Python with a missing interpreter is reported, not hidden by fallback
     assert.match(harness.errors[0], /Neither python3 nor python/);
 });
 
-for (const [source, host] of [[0, "github.com"], [1, "gitee.com"]]) {
+for (const [source, sourceName] of [[0, "github"], [1, "gitee"]]) {
     for (const [variant, name, script, runner] of [[0, "bash", "cb.sh", "bash"], [1, "python", "cb.py", "python3"]]) {
-        test(`${host} installs global ${name}, then buttons use its absolute path`, async () => {
+        test(`${sourceName} installs global ${name}, then buttons use its absolute path`, async () => {
             const harness = loadExtension({ source, variant });
             await harness.commands.get("cbuild.bootstrapProject")();
             assert.equal(harness.sent.length, 1);
-            assert.ok(harness.sent[0].includes(host));
-            assert.ok(harness.sent[0].endsWith(`| bash -s -- --global --${name} --prefix /home/tester/.cbuild`));
+            const latestInstaller = sourceName === "gitee"
+                ? "https://gitee.com/wiseforever/cbuild/raw/master/install.sh"
+                : "https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh";
+            assert.ok(harness.sent[0].startsWith(`curl -fsSL ${latestInstaller} | bash -s -- `));
+            assert.ok(!harness.sent[0].includes("releases/latest"));
+            assert.ok(harness.sent[0].endsWith(`--global --source ${sourceName} --release latest --prefix /home/tester/.cbuild --${name}`));
             assert.equal(harness.picks[1][0], "Bash (cb.sh)");
             harness.install(script);
             await harness.commands.get("cbuild.generate")();
@@ -352,7 +357,7 @@ test("custom global directory is used by both installation and execution", async
     const harness = loadExtension({ settings: { installDirectory: "/opt/global tools" }, scripts: ["cb.sh"] });
     await harness.commands.get("cbuild.bootstrapProject")();
     await harness.commands.get("cbuild.runTarget")("deploy");
-    assert.ok(harness.sent[0].endsWith('--global --bash --prefix "/opt/global tools"'));
+    assert.ok(harness.sent[0].endsWith('--global --source github --release latest --prefix "/opt/global tools" --bash'));
     assert.equal(harness.sent[1], 'bash "/opt/global tools/cb.sh" -b --target deploy');
 });
 
@@ -366,7 +371,7 @@ for (const [command, option] of [["cbuild.installVscode", "--vscode"], ["cbuild.
     test(`${option} uses the global installer and an explicit project directory`, async () => {
         const harness = loadExtension({ scripts: ["cb_install.sh"], workspace: "/my project" });
         await harness.commands.get(command)();
-        assert.deepEqual(harness.sent, [`bash /home/tester/.cbuild/cb_install.sh ${option} "/my project"`]);
+        assert.deepEqual(harness.sent, [`bash /home/tester/.cbuild/cb_install.sh ${option} "/my project" --release latest`]);
         assert.match(harness.warnings[0], /cbuild_bak/);
     });
 
@@ -391,9 +396,39 @@ test("Windows paths are passed with forward slashes and spaces quoted", async ()
     await harness.commands.get("cbuild.installConfig")();
     assert.deepEqual(harness.sent, [
         'bash "C:/Users/Test User/.cbuild/cb.sh" -b',
-        'bash "C:/Users/Test User/.cbuild/cb_install.sh" --config "D:/my project"'
+        'bash "C:/Users/Test User/.cbuild/cb_install.sh" --config "D:/my project" --release latest'
     ]);
 });
+
+test("pinned installRelease uses the tag installer and is passed to project setup", async () => {
+    const harness = loadExtension({ settings: { installRelease: "v0.2.0" }, scripts: ["cb_install.sh"] });
+    await harness.commands.get("cbuild.bootstrapProject")();
+    await harness.commands.get("cbuild.installConfig")();
+    assert.ok(harness.sent[0].startsWith("curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/v0.2.0/install.sh | bash -s -- "));
+    assert.ok(harness.sent[0].endsWith("--source github --release v0.2.0 --prefix /home/tester/.cbuild --bash"));
+    assert.ok(harness.warnings[0].includes("v0.2.0"));
+    assert.equal(harness.sent[1], 'bash /home/tester/.cbuild/cb_install.sh --config /project --release v0.2.0');
+});
+
+test("pinned Gitee installation reads the same tag from Gitee", async () => {
+    const harness = loadExtension({ source: 1, settings: { installRelease: "v0.2.0-rc.1" } });
+    await harness.commands.get("cbuild.bootstrapProject")();
+    assert.ok(harness.sent[0].startsWith("curl -fsSL https://gitee.com/wiseforever/cbuild/raw/v0.2.0-rc.1/install.sh | bash -s -- "));
+    assert.ok(harness.sent[0].endsWith("--source gitee --release v0.2.0-rc.1 --prefix /home/tester/.cbuild --bash"));
+});
+
+for (const [description, installRelease] of [["branch", "master"], ["arbitrary URL", "https://evil.test/"], ["short version", "v0.2"]]) {
+    test(`invalid installRelease (${description}) is rejected before installing`, async () => {
+        const harness = loadExtension({ settings: { installRelease } });
+        await harness.commands.get("cbuild.bootstrapProject")();
+        await harness.commands.get("cbuild.installConfig")();
+        assert.deepEqual(harness.sent, []);
+        assert.equal(harness.errors.length, 2);
+        for (const error of harness.errors) {
+            assert.match(error, /Invalid cbuild\.installRelease/);
+        }
+    });
+}
 
 for (const cancelPick of ["source", "variant"]) {
     test(`cancelled ${cancelPick} selection sends no command`, async () => {

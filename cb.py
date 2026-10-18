@@ -14,6 +14,17 @@ import json
 import logging
 import shlex
 
+CBUILD_VERSION = "0.1.0"
+
+# Version queries must work without a readable or even valid cb.conf.
+if __name__ == "__main__":
+    if not sys.argv[1:]:
+        print("Use -h for help.")
+        sys.exit(0)
+    if "-V" in sys.argv[1:] or "--version" in sys.argv[1:]:
+        print(f"cbuild {CBUILD_VERSION}")
+        sys.exit(0)
+
 logging.basicConfig(
     level=logging.DEBUG,
     # format='%(asctime)s [%(levelname)s] [%(filename)s:%(lineno)d]: %(message)s'
@@ -39,6 +50,12 @@ def resolve_config_path(value):
 # -------------------- 读取配置 --------------------
 CONFIG = configparser.ConfigParser(inline_comment_prefixes=("#", ";"))
 CONFIG.read(CONFIG_FILE, encoding="utf-8")
+if not os.path.isfile(CONFIG_FILE) and not any(arg in ("-h", "--help") for arg in sys.argv[1:]):
+    log.error(
+        f"Config file not found: {CONFIG_FILE}. "
+        "Create one with 'install.sh --config <project-dir>' or copy cb.conf into the project root."
+    )
+    sys.exit(1)
 
 BUILD_TYPE = CONFIG.get("build", "build_type", fallback="Release")
 VALID_BUILD_TYPES = ["Debug", "Release"]
@@ -422,6 +439,7 @@ def parse_args():
             print("  -r | --run [<type>] [exe_name] 运行程序 / Run the application")
             print("  -c | --clean [<type>]          清理构建目录 / Clean build directory")
             print("  --list-execs                   列出所有可执行文件 / List all executables")
+            print("  -V | --version                 显示版本 / Show version")
             sys.exit(0)
 
         elif arg in ("-t", "--type"):

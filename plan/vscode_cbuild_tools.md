@@ -25,6 +25,8 @@
 | `cbuild.installConfig` | Install Project Config (--config)；调用全局 `cb_install.sh --config <project-root>`。 |
 
 - 三个入口均提供命令面板与资源管理器右键菜单项。
+- 新增 `cbuild.installRelease`（默认 `latest`）：内置全局初始化从所选源的 `master/install.sh` 或固定 tag 的安装器启动，并把 `--release` 传给安装器；`--config` / `--vscode` 同样显式传递版本。非法值在任何命令执行前拒绝。
+- 自定义安装源的 `command` / `bashCommand` 保持原样，用户需确保命令是版本化全局安装。
 - 内置 GitHub/Gitee 安装命令显式传入 `--global --bash` / `--global --python`，并附带匹配 `cbuild.installDirectory` 的 `--prefix`。
 - 自定义安装源的 `command` / `bashCommand` 保持原样，用户需确保命令全局安装到配置目录。
 - 项目配置入口先查 PATH 中的 `cb_install.sh`，没有才查备用目录；复用安装器的下载及备份行为，执行前说明 `.vscode` / `cb.conf` 会先备份到 `cbuild_bak`。
@@ -36,12 +38,13 @@
 - [x] 切换全局脚本发现与 Bash 优先策略。
 - [x] 内置初始化改为全局安装，并支持与运行相同的自定义安装目录。
 - [x] 新增 `--vscode` / `--config` 命令、菜单与确认提示。
+- [x] 增加 `cbuild.installRelease`，内置安装命令改为 master/LATEST 与 tag 版本化，项目配置入口传递 `--release`。
 - [x] 更新插件 README、配置描述、激活条件和模拟 API 测试。
-- [x] 完成 TypeScript 编译、51 项插件回归、11 个脚本集成测试方法及 VSIX 打包验证；Bash/Python 语法与 `git diff --check` 通过。
+- [x] 完成 TypeScript 编译、56 项插件回归、34 个脚本测试方法及 VSIX 打包验证；Bash/Python 语法与 `git diff --check` 通过。
 
 复审已修复 Windows 裸 `where` 额外搜索当前目录的问题；新增 10 项模拟回归，覆盖脚本/安装器遮蔽、兜底与显式加入 PATH 的项目目录。用户决定本轮不增加并发安装锁，仅将同目录并发更新风险记为已知限制，不作为待实施任务，见[复审记录](safety_and_workflow_fixes.md#复审追加问题)。
 
-插件回归覆盖 PATH 与备用目录的分级顺序、四组内置全局安装选择、Bash/Python 策略、项目安装入口、确认/取消和缺失依赖；额外使用真实临时 POSIX PATH 验证可执行文件查找及不可执行文件触发回退（不执行脚本）；脚本集成验证全局安装器只备份及替换所选项目配置，目标路径含空格时也正常。
+插件回归覆盖 PATH 与备用目录的分级顺序、四组内置安装选择、master/LATEST 与 tag 版本命令、非法版本拒绝、Bash/Python 策略、项目安装入口、确认/取消和缺失依赖；额外使用真实临时 POSIX PATH 验证可执行文件查找及不可执行文件触发回退（不执行脚本）；脚本集成验证全局安装器只备份及替换所选项目配置，目标路径含空格时也正常。
 
 验证重点：全局两种脚本同时存在时的优先级、Python 回退、显式执行器、拒绝项目脚本回退、自定义目录、目录/文件区分、安装前确认、项目目标参数、Windows 风格路径及缺失依赖提示。真实 VS Code 交互与 Windows/macOS 环境需要后续手动测试。
 

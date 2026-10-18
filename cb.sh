@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+CBUILD_VERSION="0.1.0"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CONFIG_FILE_CWD="$PWD/cb.conf"
 CONFIG_FILE="$CONFIG_FILE_CWD"
@@ -750,6 +752,7 @@ Options:
   -r | --run [<type>] [exe_name] 运行程序 / Run the application
   -c | --clean [<type>]          清理构建目录 / Clean build directory
   --list-execs                   列出所有可执行文件 / List all executables
+  -V | --version                 显示版本 / Show version
 EOF
 }
 
@@ -1256,6 +1259,19 @@ detect_existing_toolchain() {
 }
 
 main() {
+  if (($# == 0)); then
+    printf 'Use -h for help.\n'
+    exit 0
+  fi
+
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+    -V|--version) printf 'cbuild %s\n' "$CBUILD_VERSION"; exit 0 ;;
+    -h|--help) print_help; exit 0 ;;
+    esac
+  done
+
   load_config
   GENERATOR="$(resolve_generator "$GENERATOR")"
   set_parallel_jobs

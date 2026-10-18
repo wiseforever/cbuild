@@ -8,12 +8,14 @@
 
 ## 未完成事项
 
+- **待验证：master/LATEST 与 tag 版本化安装。** 默认从所选源 `master/LATEST` 解析版本，显式 tag 固定下载，所有模式支持指定版本，插件和发布流程已同步；本地测试通过，尚待首次推送 tag/master 并验证两个源的 `LATEST` 入口。详见[版本化安装规划](plan/release_versioned_install.md)。
 - **进行中：VS Code 插件文档与发布收尾（核心功能已完成）。** PATH 优先、备用目录兜底、全局初始化及项目配置入口均已实现并通过自动化验证；剩余工作是迁移中英文 README 的 Task Buttons 说明、补充本地调试/开发宿主加载流程，以及确定发布方式。详见[插件规划](plan/vscode_cbuild_tools.md)。
 
 ## 规划索引
 
 | 主题 | 状态 |
 | --- | --- |
+| [master/LATEST 与 tag 版本化安装](plan/release_versioned_install.md) | 待验证 |
 | [自研轻量 VS Code 插件（核心已完成，文档/发布收尾）](plan/vscode_cbuild_tools.md) | 进行中 |
 | [构建类型配置写入兼容性](plan/build_type_config_write.md) | 待验证 |
 | [清理安全与构建工作流缺陷修复（问题表、方案及复审）](plan/safety_and_workflow_fixes.md) | 已完成 |

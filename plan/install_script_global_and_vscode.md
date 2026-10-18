@@ -23,6 +23,7 @@
 
 - 独立 VS Code 模板安装会移动目标目录中已有的 `.vscode` 到备份目录。
 - 全局更新会覆盖受管理脚本，并删除旧的 Bash/Python 脚本变体；手动维护的回退 `cb.conf` 会保留。
+- 安装器和 `--vscode` / `--config` / `--format` 默认读取所选源 `master/LATEST`，也支持 `--release vX.Y.Z` 固定版本；所有文件固定到同一 tag，不依赖 GitHub API/Release 附件。版本规则见 [Release 与 tag 版本化安装](release_versioned_install.md)。
 - 同一目录并发安装不同变体可能互相删除脚本，即使两个过程都报告成功。用户决定本轮不加互斥锁，仅在中英文 README、插件 README 及[复审记录](safety_and_workflow_fixes.md#复审追加问题)中说明；应按顺序安装/更新，不作为待实施任务。
 
 ## 操作留痕

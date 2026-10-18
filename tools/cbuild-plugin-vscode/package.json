@@ -107,6 +107,12 @@
                     "scope": "machine",
                     "description": "Fallback directory for cb.sh/cb.py and cb_install.sh when they are not found on PATH; PATH always takes priority. Also used as --prefix for built-in global installation commands. Supports ~; relative paths are home-relative."
                 },
+                "cbuild.installRelease": {
+                    "type": "string",
+                    "default": "latest",
+                    "scope": "window",
+                    "description": "cbuild version used by global installation and project config/template commands: latest version from the source's master/LATEST, or a tag such as v0.1.0. Built-in installation commands pass this value as --release. Custom bootstrapCommands are not modified."
+                },
                 "cbuild.pythonCommand": {
                     "type": "string",
                     "default": "",

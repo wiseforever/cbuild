@@ -46,17 +46,18 @@ interface ResolvedRunner {
 
 const cbuildTerminalName = "cbuild";
 const runTerminalName = "run";
+const releasePattern = /^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$/;
 const defaultBootstrapCommands: ResolvedBootstrapCommand[] = [
     {
         label: "GitHub",
-        command: "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --python",
-        bashCommand: "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --bash",
+        command: "",
+        bashCommand: "",
         description: "github.com/wiseforever/cbuild"
     },
     {
         label: "Gitee",
-        command: "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --python",
-        bashCommand: "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --bash",
+        command: "",
+        bashCommand: "",
         description: "gitee.com/wiseforever/cbuild"
     }
 ];
@@ -238,6 +239,11 @@ async function bootstrapProject(): Promise<void> {
         return;
     }
 
+    const release = getInstallRelease();
+    if (!release) {
+        return;
+    }
+
     const bootstrapCommand = await pickBootstrapCommand();
     if (!bootstrapCommand) {
         return;
@@ -248,13 +254,18 @@ async function bootstrapProject(): Promise<void> {
         return;
     }
 
-    await confirmInstall(selectedCommand, "是否全局安装或更新 cbuild？项目配置不会自动安装。");
+    await confirmInstall(selectedCommand, `是否全局安装或更新 cbuild ${release}？项目配置不会自动安装。`);
 }
 
 async function installProjectFiles(option: "--vscode" | "--config"): Promise<void> {
     const workspaceFolder = getWorkspaceFolder();
     if (!workspaceFolder) {
         void vscode.window.showErrorMessage("CBuild requires an open workspace folder.");
+        return;
+    }
+
+    const release = getInstallRelease();
+    if (!release) {
         return;
     }
 
@@ -266,9 +277,9 @@ async function installProjectFiles(option: "--vscode" | "--config"): Promise<voi
         return;
     }
 
-    const commandLine = `${getBashCommand()} ${[toShellPath(installer.filename), option, toShellPath(workspaceFolder.uri.fsPath)].map(quoteShellArg).join(" ")}`;
+    const commandLine = `${getBashCommand()} ${[toShellPath(installer.filename), option, toShellPath(workspaceFolder.uri.fsPath), "--release", release].map(quoteShellArg).join(" ")}`;
     const files = option === "--vscode" ? ".vscode 模板" : "cb.conf";
-    await confirmInstall(commandLine, `是否为当前项目安装 ${files}？已有文件会先移入 cbuild_bak 备份。`);
+    await confirmInstall(commandLine, `是否为当前项目安装 ${files}（来自 cbuild ${release}）？已有文件会先移入 cbuild_bak 备份。`);
 }
 
 async function confirmInstall(commandLine: string, message: string): Promise<void> {
@@ -482,6 +493,37 @@ function getCommands(): CommandConfig[] {
     return vscode.workspace.getConfiguration("cbuild").get<CommandConfig[]>("commands", []);
 }
 
+function getInstallRelease(): string | undefined {
+    const release = vscode.workspace.getConfiguration("cbuild").get<string>("installRelease", "latest").trim() || "latest";
+    if (release === "latest" || releasePattern.test(release)) {
+        return release;
+    }
+    void vscode.window.showErrorMessage(
+        `Invalid cbuild.installRelease: ${release}. Use "latest" or a version tag such as v0.1.0.`
+    );
+    return undefined;
+}
+
+function buildDefaultBootstrapCommands(release: string): ResolvedBootstrapCommand[] {
+    return defaultBootstrapCommands.map((base) => {
+        const gitee = base.label === "Gitee";
+        // latest uses master/LATEST at install time; a pinned installer is
+        // read from the immutable tag. Neither path needs a GitHub Release/API.
+        const installerUrl = release === "latest"
+            ? gitee
+                ? "https://gitee.com/wiseforever/cbuild/raw/master/install.sh"
+                : "https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh"
+            : gitee
+                ? `https://gitee.com/wiseforever/cbuild/raw/${release}/install.sh`
+                : `https://raw.githubusercontent.com/wiseforever/cbuild/${release}/install.sh`;
+        const source = gitee ? "gitee" : "github";
+        const suffix = `--global --source ${source} --release ${release} --prefix ${quoteShellArg(toShellPath(getGlobalInstallDirectory()))}`;
+        const command = `curl -fsSL ${installerUrl} | bash -s -- ${suffix} --python`;
+        const bashCommand = `curl -fsSL ${installerUrl} | bash -s -- ${suffix} --bash`;
+        return { ...base, command, bashCommand };
+    });
+}
+
 function getBootstrapCommands(): ResolvedBootstrapCommand[] {
     const configured = vscode.workspace.getConfiguration("cbuild").get<BootstrapCommandConfig[]>("bootstrapCommands", []);
     const normalized = configured
@@ -492,12 +534,7 @@ function getBootstrapCommands(): ResolvedBootstrapCommand[] {
         return normalized;
     }
 
-    const prefix = ` --prefix ${quoteShellArg(toShellPath(getGlobalInstallDirectory()))}`;
-    return defaultBootstrapCommands.map((command) => ({
-        ...command,
-        command: command.command + prefix,
-        bashCommand: command.bashCommand ? command.bashCommand + prefix : undefined
-    }));
+    return buildDefaultBootstrapCommands(getInstallRelease() || "latest");
 }
 
 function normalizeTarget(target: TargetConfig): Required<TargetConfig> | undefined {

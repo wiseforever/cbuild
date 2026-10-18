@@ -21,13 +21,20 @@ This repository provides a lightweight build workflow for C/C++ projects, with o
 
 ```bash
 # Bash variant (default) — install globally
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | bash
 
-# Then, from a project that has cb.conf:
-~/.cbuild/cb.sh -g    # CMake generate
-~/.cbuild/cb.sh -b    # build
-~/.cbuild/cb.sh -r    # run
+cd my-project
+# cb.conf is required; install it first (existing files are backed up)
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | \
+  bash -s -- --config
+
+# Generate, build, and run
+~/.cbuild/cb.sh -g
+~/.cbuild/cb.sh -b
+~/.cbuild/cb.sh -r
 ```
+
+`-g`, `-b`, `-t`, and `-r` require an available `cb.conf` (project root first, then the optional script-directory fallback). If neither exists, they stop with an error instead of guessing a source directory. You can install the template above or write `cb.conf` manually.
 
 ## Prerequisites
 
@@ -38,7 +45,6 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
 - VSCode (optional)
 - C/C++ extension (VSCode, optional)
 - clangd + CodeLLDB (VSCode, optional)
-- Task Buttons (VSCode, optional)
 
 Environment notes:
 
@@ -52,19 +58,19 @@ python -m pip install conan
 
 ## Global Install
 
-The default installation is global: it installs `cb.py` or `cb.sh`, `cb_install.sh`, and the uninstall script to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb.conf`.
+The default installation is global: it installs `cb.py` or `cb.sh`, `cb_install.sh`, and, when available, the `cb_uninstall.sh` compatibility wrapper to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb.conf`.
 
 ### GitHub
 
 ```bash
 # Install Bash variant (default)
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | bash
 
 # Install Python variant
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --python
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | bash -s -- --python
 
 # Customize install directory
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | \
   bash -s -- --prefix ~/.cbuild
 ```
 
@@ -72,11 +78,37 @@ curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | \
 
 ```bash
 # Install Bash variant (default)
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --source gitee
 
 # Install Python variant
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --python
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --source gitee --python
 ```
+
+### Version Selection
+
+All download modes install the tag recorded in the selected source's `master/LATEST` by default. The installer reads it once and downloads every file from that immutable tag. No GitHub API, GitHub Release asset, or extra pointer branch is required. GitHub and Gitee each use their own `master/LATEST`.
+
+```bash
+# Pin a specific version (works for --global, --simple, --config, --vscode, and --format)
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | \
+  bash -s -- --release v0.1.0 --python
+
+# Gitee-only path: both LATEST and tag files come from the Gitee mirror
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | \
+  bash -s -- --source gitee
+
+# Install cb.conf or VS Code templates from a pinned version
+~/.cbuild/cb_install.sh --config /path/to/project --release v0.1.0
+~/.cbuild/cb_install.sh --vscode /path/to/project --release v0.1.0
+```
+
+- `--release latest` (default) reads `<source>/master/LATEST`; an explicit tag such as `v0.1.0` skips that lookup.
+- `--source github|gitee` selects both the `LATEST` lookup and the tag files. The selected source is authoritative; a missing file is an error and is not fetched from the other source.
+- `--base-url` is a custom raw URL template that must contain `{tag}` and requires an explicit `--release`; `latest` is not resolved for custom URLs.
+- `cb_install.sh` keeps its own installation directory, variant, and source (unless overridden), but updates to `master/LATEST` unless `--release` is given.
+- Query installed versions without loading a project `cb.conf`: `cb.sh --version`, `cb.py --version`, or `cb_uninstall.sh --version`.
+- Tags and tag files are immutable. Push the tag before advancing `master/LATEST`; each remote determines `latest` only from its own branch state.
+- Release process: [RELEASING.md](RELEASING.md)
 
 After global install, use the full path to run it from any project directory:
 
@@ -106,41 +138,41 @@ Run the install script in your project root. The default is a global Bash instal
 
 ```bash
 # Install Bash variant into the current project
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | bash -s -- --simple
 
 # Install Python variant into the current project
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple --python
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | bash -s -- --simple --python
 
 # Install only .vscode templates to the current directory
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | bash -s -- --vscode
 
 # Install only .vscode templates to another project root
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode /path/to/project
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | bash -s -- --vscode /path/to/project
 
 # Install only cb.conf to the current directory (or append a project path)
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --config
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | bash -s -- --config
 
 # Only pull .clang-format
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | bash -s format
 ```
 
 ### Gitee
 
 ```bash
 # Install Bash variant into the current project
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --source gitee --simple
 
 # Install Python variant into the current project
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --simple --python
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --source gitee --simple --python
 
 # Install only .vscode templates to the current directory
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --vscode
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --source gitee --vscode
 
 # Install only cb.conf to the current directory (or append a project path)
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --config
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --source gitee --config
 
 # Only pull .clang-format
-curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s format
+curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --source gitee format
 ```
 
 Notes:
@@ -154,23 +186,24 @@ Notes:
 ## Uninstall
 
 ### Uninstall Global Installation
-The global install ships with an uninstall script. Run it directly:
+Uninstall is implemented by `install.sh` / `cb_install.sh`; `cb_uninstall.sh` is an optional compatibility wrapper. If the wrapper was not installed, use the updater or a downloaded installer instead.
 
 ```bash
-# Run the bundled uninstall script:
-~/.cbuild/cb_uninstall.sh
+# Installed wrapper (removes its own directory):
+~/.cbuild/cb_uninstall.sh --yes
 
-# Or use the globally installed updater:
+# Globally installed updater:
 ~/.cbuild/cb_install.sh --uninstall
 
-# Or download the repository installer:
-curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --uninstall
+# Re-download the installer (use --yes because stdin is not interactive):
+curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | \
+  bash -s -- --uninstall --yes
+
+# Uninstall a custom installation directory via the default updater:
+~/.cbuild/cb_install.sh --uninstall --prefix /path/to/cbuild
 ```
 
-The uninstall script will remove:
-
-- The global installation directory (`~/.cbuild/`)
-- All installed scripts and config files
+Uninstall is local-only and does not query GitHub. It refuses `/`, your home directory, and directories that do not look like a cbuild installation. `--yes` is required when stdin is not a terminal.
 
 ### Uninstall Project-local Installation
 
@@ -178,12 +211,12 @@ For a project-local (simple) install, simply delete the installed files from you
 
 ```bash
 rm cb.py cb.sh cb.conf
-rm -rf .vscode/cmake/cbuild_bak/
+rm -rf .vscode/ cmake/cbuild_bak/
 ```
 
 ## cb.py / cb.sh Usage
 
-Both scripts depend on `cb.conf`, with this lookup order:
+Both scripts need `cb.conf` for build operations, with this lookup order (`-h/--help`, `--version`, and no-argument runs do not require it):
 
 1. current working directory: `./cb.conf`
 2. script directory fallback: `cb.conf`
@@ -289,6 +322,12 @@ python cb.py -c
 
 # -h|--help     Show help
 python cb.py -h
+
+# -V|--version  Show version without reading a project cb.conf
+python cb.py --version
+
+# --list-execs  List executables in the configured build directory (requires cb.conf)
+python cb.py --list-execs
 ```
 
 Bash examples:
@@ -318,26 +357,19 @@ bash cb.sh -c
 
 # -h|--help     Show help
 bash cb.sh -h
+bash cb.sh --version
+
+# --list-execs  List executables in the configured build directory (requires cb.conf)
+bash cb.sh --list-execs
 ```
 
 `-D` definitions are configuration-time options. They must be used with `-g` / `--generate`; cbuild does not silently reconfigure when building or running.
 
 ## VSCode Configuration
 
-The `.vscode` directory is pre-configured with tasks, debug launch configs, snippets and settings, ready for customisation.
+The `.vscode` directory contains debug launch configurations, C/C++ and clangd settings, and snippets. Adjust them as needed.
 
-![alt text](image.png)
-
-As shown in buttons 1 to 6 in the above figure, they respectively correspond to:
-
-1. CMake generate;
-2. Build / compile;
-3. Run;
-4. Deploy (requires a `deploy` target defined in your `CMakeLists.txt`);
-5. Toggle between Debug and Release build types;
-6. Clean.
-
-You can also use the commands listed in [Command Reference](#command-reference) in the terminal, or use the Task Buttons plugin in VSCode with configured shortcuts.
+You can run the commands listed in [Command Reference](#command-reference) in a terminal.
 
 ## Conan Usage
 
