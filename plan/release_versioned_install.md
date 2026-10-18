@@ -35,7 +35,7 @@
 
 - [x] latest 只读取一次 `LATEST`；指定 tag 不读取；`LATEST` 缺失、非法、tag 不匹配、脚本版本不符、缺文件均失败且不破坏旧文件。
 - [x] 默认及指定版本覆盖全局、simple、config、vscode、format；master/LATEST 单次读取、Gitee 独立、LATEST 失败不借源、自定义源需显式版本、已有更新器目录/变体保持、版本查询不依赖项目配置。
-- [x] 插件默认/指定版本命令及原 PATH 回归均通过；插件 56 项、脚本 34 个测试方法通过。
+- [x] 插件默认/指定版本命令及原 PATH 回归均通过；插件 56 项、脚本 35 个测试方法通过。
 - [x] 卸载由安装器执行，兼容包装可用；非交互 `--yes`、危险目录拒绝、缺少包装仍可卸载均有回归。
 - [x] Bash/Python 语法、版本检查、TypeScript 编译、VSIX 打包和 diff 检查。
 - [ ] 首次推送 tag 与 `master` 后验证两个源的 `master/LATEST`、`master/install.sh` 入口及安装结果；尚未实际发布。

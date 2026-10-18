@@ -24,8 +24,12 @@ staging_dir=""
 # A globally installed updater retains its own prefix, variant, and source.
 # Read only known data fields; never source a manifest. Detection is based on
 # the adjacent installation manifest, not on the script's filename.
-script_parent="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-if [[ -f "$script_parent/.install.cfg" ]]; then
+script_parent=""
+script_source="${BASH_SOURCE[0]:-}"
+if [[ -n "$script_source" && -f "$script_source" ]]; then
+    script_parent="$(cd "$(dirname "$script_source")" && pwd -P)"
+fi
+if [[ -n "$script_parent" && -f "$script_parent/.install.cfg" ]]; then
     global_install_dir="$script_parent"
     while IFS= read -r line; do
         case "$line" in
@@ -111,7 +115,7 @@ if [[ "$mode" == "uninstall" ]]; then
     # Uninstall is local-only and intentionally handled before release/network
     # resolution. An installed cb_install.sh targets its own directory.
     uninstall_dir="$global_install_dir"
-    if [[ "$prefix_set" != "true" && -f "$script_parent/.install.cfg" ]]; then
+    if [[ "$prefix_set" != "true" && -n "$script_parent" && -f "$script_parent/.install.cfg" ]]; then
         uninstall_dir="$script_parent"
     fi
     [[ -d "$uninstall_dir" ]] || fail "Installation directory not found: $uninstall_dir"

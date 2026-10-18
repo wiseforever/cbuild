@@ -300,6 +300,16 @@ fi
             (self.prefix / name).write_text("old " + name + "\n")
         return {p.name: p.read_bytes() for p in self.prefix.iterdir()}
 
+    def test_installer_can_run_from_stdin_without_bash_source(self):
+        result = subprocess.run(
+            ["bash", "-s", "--", "--help"], input=(REPO / "install.sh").read_text(),
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30,
+        )
+        self.succeeds(result)
+        self.assertIn("Usage:", result.stdout)
+        self.assertNotIn("BASH_SOURCE", result.stdout)
+        self.assertNotIn("unbound variable", result.stdout)
+
     # --- version selection -------------------------------------------------
 
     def test_latest_reads_pointer_once_and_downloads_every_file_from_that_tag(self):

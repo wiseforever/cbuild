@@ -40,7 +40,7 @@
 - [x] 新增 `--vscode` / `--config` 命令、菜单与确认提示。
 - [x] 增加 `cbuild.installRelease`，内置安装命令改为 master/LATEST 与 tag 版本化，项目配置入口传递 `--release`。
 - [x] 更新插件 README、配置描述、激活条件和模拟 API 测试。
-- [x] 完成 TypeScript 编译、56 项插件回归、34 个脚本测试方法及 VSIX 打包验证；Bash/Python 语法与 `git diff --check` 通过。
+- [x] 完成 TypeScript 编译、56 项插件回归、35 个脚本测试方法及 VSIX 打包验证；Bash/Python 语法与 `git diff --check` 通过。
 
 复审已修复 Windows 裸 `where` 额外搜索当前目录的问题；新增 10 项模拟回归，覆盖脚本/安装器遮蔽、兜底与显式加入 PATH 的项目目录。用户决定本轮不增加并发安装锁，仅将同目录并发更新风险记为已知限制，不作为待实施任务，见[复审记录](safety_and_workflow_fixes.md#复审追加问题)。
 
