@@ -22,5 +22,6 @@
 
 ## 操作留痕
 
+- 已修复 VS Code 配置更新提前初始化目录后，后续类型参数未刷新目录缓存的问题；`-t Debug -g Release` 保持配置写 Debug、实际构建目录及 CMake 类型为 Release。双入口测试通过，详见[工作流修复记录](safety_and_workflow_fixes.md)。
 - 已为 `-g` 添加临时构建类型参数，未改变 `-t Debug -g` 的既有行为。
 - 已通过 Bash/Python 参数解析模拟验证：`-g release` / `-g debug` 选择对应类型且不写配置；`-t Debug -g` 仍先写入类型再进入配置流程。并已通过 Bash/Python 语法和 diff 检查。

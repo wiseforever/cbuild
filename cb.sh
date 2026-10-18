@@ -38,6 +38,7 @@ MSVC_CONAN_BUILD=""
 MSVC_CONAN_HOST=""
 
 BUILD_DIR=""
+BUILD_DIR_TYPE=""
 USE_OUTPUT_AUTO_SUBDIR="true"
 COMPILER_TYPE="unknown"
 CMAKE_TOOLCHAIN_FILE=""
@@ -503,7 +504,7 @@ detect_compiler_version() {
 
 prepare_build_dir() {
   local create="${1:-true}"
-  if [[ -z "$BUILD_DIR" ]]; then
+  if [[ -z "$BUILD_DIR" || "$BUILD_DIR_TYPE" != "$BUILD_TYPE" ]]; then
     local compiler_id
     compiler_id="$(detect_compiler_version "$COMPILER_TYPE")"
     if [[ -n "$compiler_id" ]]; then
@@ -529,6 +530,7 @@ prepare_build_dir() {
       BUILD_DIR="${base_dir}"
     fi
     BUILD_DIR="$(normalize_path "$BUILD_DIR")"
+    BUILD_DIR_TYPE="$BUILD_TYPE"
   fi
   if [[ "$create" == "true" ]]; then
     mkdir -p "$BUILD_DIR"
@@ -598,10 +600,10 @@ get_exec_path() {
   if [[ -f "$BUILD_DIR/build.ninja" ]]; then
     if [[ -n "$target_name" ]]; then
       # 指定了 target_name，优先匹配
-      rule="$(grep -m1 "^build.*: CXX_EXECUTABLE_LINKER__${target_name}[^a-zA-Z]" "$BUILD_DIR/build.ninja" 2>/dev/null || true)"
+      rule="$(grep -Em1 "^build.*:[[:space:]]+(C|CXX)_EXECUTABLE_LINKER__${target_name}[^a-zA-Z]" "$BUILD_DIR/build.ninja" 2>/dev/null || true)"
     else
       # 未指定，查找第一个可执行文件
-      rule="$(grep -m1 "^build.*: CXX_EXECUTABLE_LINKER__" "$BUILD_DIR/build.ninja" 2>/dev/null || true)"
+      rule="$(grep -Em1 "^build.*:[[:space:]]+(C|CXX)_EXECUTABLE_LINKER__" "$BUILD_DIR/build.ninja" 2>/dev/null || true)"
     fi
     if [[ -n "$rule" ]]; then
       rule="${rule#build }"
@@ -658,13 +660,13 @@ list_execs() {
   # 1) Ninja: 解析 build.ninja
   if [[ -f "$BUILD_DIR/build.ninja" ]]; then
     while IFS= read -r rule; do
-      if [[ "$rule" =~ ^build.*:CXX_EXECUTABLE_LINKER__ ]]; then
+      if [[ "$rule" =~ ^build.*:[[:space:]]+(C|CXX)_EXECUTABLE_LINKER__ ]]; then
         rule="${rule#build }"
         exe_path="${rule%%: *}"
         exe_name="$(basename "$exe_path")"
         execs+=("$exe_name")
       fi
-    done < <(grep "^build.*: CXX_EXECUTABLE_LINKER__" "$BUILD_DIR/build.ninja" 2>/dev/null || true)
+    done < <(grep -E "^build.*:[[:space:]]+(C|CXX)_EXECUTABLE_LINKER__" "$BUILD_DIR/build.ninja" 2>/dev/null || true)
   fi
 
   # 2) Unix Makefiles: 解析 link.txt
@@ -1217,6 +1219,13 @@ run_application() {
 clean_build() {
   prepare_build_dir false
   if [[ -d "$BUILD_DIR" ]]; then
+    local source_real build_real
+    source_real="$(cd "$SOURCE_DIR" && pwd -P)"
+    build_real="$(cd "$BUILD_DIR" && pwd -P)"
+    if [[ "$source_real" == "$build_real" || "$source_real" == "${build_real%/}/"* ]]; then
+      log_err "Refusing to clean source directory or its ancestor: $BUILD_DIR"
+      return 1
+    fi
     log_info "Cleaning $BUILD_DIR"
     rm -rf "$BUILD_DIR"
   fi
@@ -1290,25 +1299,21 @@ main() {
     local exe_path
     exe_path="$(get_exec_path "$EXEC_NAME")"
 
-    if [[ -z "$exe_path" ]]; then
-      log_err "Cannot find executable path from build files. Please run 'cb.sh -g' to configure first."
-      exit 1
-    fi
-
-    if [[ "$OS_TYPE" == "windows" && "$exe_path" != *.exe ]]; then
-      exe_path="${exe_path}.exe"
-    fi
-
-    if [[ ! -f "$exe_path" ]]; then
-      log_err "The executable file: $exe_path cannot be found."
-      exit 1
-    fi
-    if has_vscode_launch; then
-      update_vscode_launch
+    # Library/custom targets need not produce an executable. Only -r
+    # requires one; optional editor updates must not invalidate a build.
+    if [[ -n "$exe_path" ]]; then
+      if [[ "$OS_TYPE" == "windows" && "$exe_path" != *.exe ]]; then
+        exe_path="${exe_path}.exe"
+      fi
+      if [[ -f "$exe_path" ]]; then
+        if has_vscode_launch; then
+          update_vscode_launch
+        fi
+        log_info "exec: $exe_path"
+      fi
     fi
     update_cpp_properties
     update_settings_json
-    log_info "exec: $exe_path"
     exit 0
   fi
 

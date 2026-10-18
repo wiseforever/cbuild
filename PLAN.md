@@ -8,14 +8,15 @@
 
 ## 未完成事项
 
-- **进行中：VS Code 插件迁移。** 插件核心已实现；仍需将中英文 README 的 Task Buttons 说明迁移到自研插件、补充本地开发说明，并确定是否发布 Marketplace。详见[插件规划](plan/vscode_cbuild_tools.md)。
+- **进行中：VS Code 插件文档与发布收尾（核心功能已完成）。** PATH 优先、备用目录兜底、全局初始化及项目配置入口均已实现并通过自动化验证；剩余工作是迁移中英文 README 的 Task Buttons 说明、补充本地调试/开发宿主加载流程，以及确定发布方式。详见[插件规划](plan/vscode_cbuild_tools.md)。
 
 ## 规划索引
 
 | 主题 | 状态 |
 | --- | --- |
-| [自研轻量 VS Code 插件](plan/vscode_cbuild_tools.md) | 进行中 |
+| [自研轻量 VS Code 插件（核心已完成，文档/发布收尾）](plan/vscode_cbuild_tools.md) | 进行中 |
 | [构建类型配置写入兼容性](plan/build_type_config_write.md) | 待验证 |
+| [清理安全与构建工作流缺陷修复（问题表、方案及复审）](plan/safety_and_workflow_fixes.md) | 已完成 |
 | [Conan 与 vcpkg 组合工具链](plan/conan_vcpkg_toolchain.md) | 已完成 |
 | [CMake 自定义宏与插件终端行为](plan/cmake_defines_and_plugin_terminals.md) | 已完成 |
 | [CMake 可执行文件输出路径解析](plan/cmake_output_path_resolution.md) | 已完成 |

@@ -281,41 +281,46 @@ if [[ "$mode" == "global" ]]; then
     if [[ -e "$global_install_dir/$tool_bash" || -e "$global_install_dir/$tool_python" || -e "$global_install_dir/$tool_global_install" ]]; then
         echo "Updating global installation: ${global_install_dir}"
     fi
-    rm -f "$global_install_dir/$tool_bash" "$global_install_dir/$tool_python"
+    # Stage required downloads before touching a working installation. Keep
+    # the staging directory on the same filesystem so individual moves are atomic.
+    staging_dir="$(mktemp -d "${global_install_dir}/.cbuild-update.XXXXXX")"
+    trap 'rm -rf -- "$staging_dir"' EXIT
 
-    if [[ "$install_variant" == "python" ]]; then
-        download_file "$tool_python" "$global_install_dir/$tool_python" || {
-            echo "Failed to download ${tool_python}!"
-            exit 1
-        }
-        chmod +x "$global_install_dir/$tool_python"
-    else
-        download_file "$tool_bash" "$global_install_dir/$tool_bash" || {
-            echo "Failed to download ${tool_bash}!"
-            exit 1
-        }
-        chmod +x "$global_install_dir/$tool_bash"
-    fi
-
-    download_file "$tool_install_source" "$global_install_dir/$tool_global_install" || {
-        echo "Failed to download ${tool_install_source}!"
+    download_file "$selected_tool" "$staging_dir/$selected_tool" || {
+        echo "Failed to download ${selected_tool}! Existing installation preserved."
         exit 1
     }
-    chmod +x "$global_install_dir/$tool_global_install"
+    download_file "$tool_install_source" "$staging_dir/$tool_global_install" || {
+        echo "Failed to download ${tool_install_source}! Existing installation preserved."
+        exit 1
+    }
+    chmod +x "$staging_dir/$selected_tool" "$staging_dir/$tool_global_install"
 
-    # Install uninstall script alongside (optional, warn on failure)
-    if download_file "$tool_uninstall" "$global_install_dir/$tool_uninstall"; then
-        chmod +x "$global_install_dir/$tool_uninstall"
+    # The uninstall script is optional. Preserve the installed copy if its
+    # download fails, just as we preserve it during a failed required download.
+    if download_file "$tool_uninstall" "$staging_dir/$tool_uninstall"; then
+        chmod +x "$staging_dir/$tool_uninstall"
     else
-        echo "Warning: Failed to download ${tool_uninstall}, skipping."
+        echo "Warning: Failed to download ${tool_uninstall}, keeping any installed copy."
     fi
 
-    # Write install manifest for cb_uninstall.sh. It distinguishes a global
-    # installation from the repository copy of the uninstall script.
-    cat > "${global_install_dir}/.install.cfg" <<EOF
+    # The manifest distinguishes a global installation from the repository.
+    cat > "$staging_dir/.install.cfg" <<EOF
 # cbuild install manifest - used by cb_uninstall.sh
 INSTALL_DIR="${global_install_dir}"
 EOF
+
+    mv -f "$staging_dir/$selected_tool" "$global_install_dir/$selected_tool"
+    mv -f "$staging_dir/$tool_global_install" "$global_install_dir/$tool_global_install"
+    if [[ -f "$staging_dir/$tool_uninstall" ]]; then
+        mv -f "$staging_dir/$tool_uninstall" "$global_install_dir/$tool_uninstall"
+    fi
+    mv -f "$staging_dir/.install.cfg" "$global_install_dir/.install.cfg"
+    if [[ "$install_variant" == "python" ]]; then
+        rm -f "$global_install_dir/$tool_bash"
+    else
+        rm -f "$global_install_dir/$tool_python"
+    fi
 
     echo "Globally installed ${install_variant} variant to: ${global_install_dir}"
     echo "Create cb.conf in each project, or add one manually in ${global_install_dir} as a fallback."

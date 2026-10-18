@@ -23,6 +23,7 @@
 
 ## 操作留痕
 
+- 已补充 Ninja 的 C 语言可执行文件识别，并修复 Bash 可执行文件列表的空格匹配；C/C++ × Ninja/Unix Makefiles 的构建、列表和运行均通过回归测试。问题表及方案见[工作流修复记录](safety_and_workflow_fixes.md)。
 - 已定位：`get_bin_dir` 对绝对 Ninja/Makefile 输出路径无条件拼接 `BUILD_DIR`，导致 Ubuntu 18 的错误路径。
 - 已在 `cb.sh` 与 `cb.py` 中实现绝对路径保留、相对路径拼接的统一处理；`-b`、`-r` 和 `-t` 更新 VS Code 启动路径会复用该逻辑。
 - 已通过 `bash -n cb.sh`、`python3 -m py_compile cb.py`、`git diff --check` 以及绝对/相对路径解析模拟验证。

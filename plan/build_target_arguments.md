@@ -29,6 +29,7 @@
 
 ## 操作留痕
 
+- 已将构建成功与可执行文件检查解耦：库及自定义 target 成功后不再因无程序而报错；真实构建失败仍返回非零，`-r` 仍严格检查程序。已通过双入口回归，详见[工作流修复记录](safety_and_workflow_fixes.md)。
 - 已修改 `cb.py:484`、`cb.sh:822` 的 `-b` 解析：位置参数改赋给 `BUILD_TARGET`，`--target` 分支保持不变。
 - 已将 `cb.sh` 帮助项从 `[exe_name]` 更正为 `[target]`。
 - 已通过 `bash -n cb.sh`、`python3 -m py_compile cb.py` 及参数解析模拟验证：`-b all` 与 `-b --target all` 结果一致。

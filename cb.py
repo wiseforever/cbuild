@@ -44,6 +44,7 @@ BUILD_TYPE = CONFIG.get("build", "build_type", fallback="Release")
 VALID_BUILD_TYPES = ["Debug", "Release"]
 SOURCE_DIR = resolve_config_path(CONFIG.get("build", "source_dir", fallback=".") or ".")
 BUILD_DIR = None
+BUILD_DIR_TYPE = None
 GENERATOR = CONFIG.get("build", "generator", fallback="Ninja")
 PARALLEL_JOBS_RAW = CONFIG.get("build", "parallel_jobs", fallback="auto")
 if str(PARALLEL_JOBS_RAW).lower() == "auto":
@@ -242,12 +243,12 @@ def get_exec_path(target_name=None):
             for line in f:
                 if target_name:
                     # 指定了 target_name，优先匹配
-                    if re.match(rf'^build\s+\S+:\s*CXX_EXECUTABLE_LINKER__{re.escape(target_name)}[^a-zA-Z]', line):
+                    if re.match(rf'^build\s+\S+:\s*(?:C|CXX)_EXECUTABLE_LINKER__{re.escape(target_name)}[^a-zA-Z]', line):
                         path_part = line.split()[1].rstrip(":")
                         return resolve_output_path(path_part)
                 else:
                     # 未指定，查找第一个可执行文件
-                    if re.match(r'^build\s+\S+:\s*CXX_EXECUTABLE_LINKER__', line):
+                    if re.match(r'^build\s+\S+:\s*(?:C|CXX)_EXECUTABLE_LINKER__', line):
                         path_part = line.split()[1].rstrip(":")
                         return resolve_output_path(path_part)
 
@@ -282,7 +283,7 @@ def list_execs():
     if os.path.isfile(ninja_file):
         with open(ninja_file, "r") as f:
             for line in f:
-                if re.match(r'^build\s+\S+:\s*CXX_EXECUTABLE_LINKER__', line):
+                if re.match(r'^build\s+\S+:\s*(?:C|CXX)_EXECUTABLE_LINKER__', line):
                     path_part = line.split()[1].rstrip(":")
                     exe_name = os.path.basename(path_part)
                     if exe_name not in execs:
@@ -559,8 +560,8 @@ def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
         return ""
 
 def prepare_build_dir(create=True):
-    global BUILD_DIR
-    if BUILD_DIR is None:
+    global BUILD_DIR, BUILD_DIR_TYPE
+    if BUILD_DIR is None or BUILD_DIR_TYPE != BUILD_TYPE:
         compiler_id = detect_compiler_version(
             COMPILER_TYPE,
             C_COMPILER_EXEC,
@@ -585,6 +586,7 @@ def prepare_build_dir(create=True):
             BUILD_DIR = os.path.normpath(os.path.join(base_dir, suffix)).replace("\\", "/")
         else:
             BUILD_DIR = os.path.normpath(base_dir).replace("\\", "/")
+        BUILD_DIR_TYPE = BUILD_TYPE
 
     if create:
         os.makedirs(BUILD_DIR, exist_ok=True)
@@ -1134,22 +1136,17 @@ def run_application():
         sys.exit(e.returncode)
 
 def clean_build():
-    global BUILD_DIR
-    if BUILD_DIR is None:
-        # 尝试初始化 BUILD_DIR
-        compiler_id = detect_compiler_version(
-            COMPILER_TYPE,
-            C_COMPILER_EXEC,
-            CXX_COMPILER_EXEC,
-            MSVC_ENV_SCRIPT,
-            HOST_ARCH or "x64"
-        )
-        if compiler_id:
-            BUILD_DIR = os.path.normpath(os.path.join(SOURCE_DIR, "build", f"{compiler_id}-{BUILD_TYPE}")).replace("\\", "/")
-        else:
-            BUILD_DIR = os.path.normpath(os.path.join(SOURCE_DIR, "build", f"{BUILD_TYPE}")).replace("\\", "/")
-
+    prepare_build_dir(create=False)
     if os.path.isdir(BUILD_DIR):
+        source_path = os.path.normcase(os.path.realpath(SOURCE_DIR))
+        build_path = os.path.normcase(os.path.realpath(BUILD_DIR))
+        try:
+            unsafe = os.path.commonpath([source_path, build_path]) == build_path
+        except ValueError:  # Different drives cannot contain each other.
+            unsafe = False
+        if unsafe:
+            log.error(f"Refusing to clean source directory or its ancestor: {BUILD_DIR}")
+            sys.exit(1)
         log.info(f"Cleaning {BUILD_DIR}")
         shutil.rmtree(BUILD_DIR)
 
@@ -1199,21 +1196,19 @@ def run():
             if not run_cmake_build():
                 log.error("CMake build failed.")
 
+        # Library/custom targets need not produce an executable. Only -r
+        # requires one; optional editor updates must not invalidate a build.
         exe_path = get_exec_path(EXEC_NAME)
-        if exe_path is None:
-            log.error("Cannot find executable path from build files. Please run 'cb.py -g' to configure first.")
-            sys.exit(1)
-        if OS_TYPE == "windows" and not exe_path.endswith(".exe"):
-            exe_path += ".exe"
-        exe_path = exe_path.replace("\\", "/")
-        if not os.path.isfile(exe_path):
-            log.error(f"The executable file: {exe_path} cannot be found.")
-            sys.exit(1)
-        if has_vscode_launch():
-            update_vscode_launch()
+        if exe_path:
+            if OS_TYPE == "windows" and not exe_path.endswith(".exe"):
+                exe_path += ".exe"
+            exe_path = exe_path.replace("\\", "/")
+            if os.path.isfile(exe_path):
+                if has_vscode_launch():
+                    update_vscode_launch()
+                log.info(f"exec: {exe_path}")
         update_cpp_properties()
         update_settings_json()
-        log.info(f"exec: {exe_path}")
         return
 
     if SHOULD_RUN:

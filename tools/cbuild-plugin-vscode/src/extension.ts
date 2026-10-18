@@ -1,4 +1,6 @@
 import * as cp from "child_process";
+import * as os from "os";
+import * as path from "path";
 import * as vscode from "vscode";
 
 type Executor = "auto" | "python" | "bash";
@@ -39,7 +41,7 @@ interface ResolvedBootstrapCommand {
 
 interface ResolvedRunner {
     command: string;
-    script: "cb.py" | "cb.sh";
+    script: string;
 }
 
 const cbuildTerminalName = "cbuild";
@@ -47,14 +49,14 @@ const runTerminalName = "run";
 const defaultBootstrapCommands: ResolvedBootstrapCommand[] = [
     {
         label: "GitHub",
-        command: "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash",
-        bashCommand: "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --bash",
+        command: "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --python",
+        bashCommand: "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --bash",
         description: "github.com/wiseforever/cbuild"
     },
     {
         label: "Gitee",
-        command: "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash",
-        bashCommand: "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --bash",
+        command: "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --python",
+        bashCommand: "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s -- --global --bash",
         description: "gitee.com/wiseforever/cbuild"
     }
 ];
@@ -113,6 +115,8 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand("cbuild.runTarget", (target?: TargetConfig | string) => runTarget(target)),
         vscode.commands.registerCommand("cbuild.runCommand", (command?: CommandConfig | string) => runCustomCommand(command)),
         vscode.commands.registerCommand("cbuild.bootstrapProject", () => bootstrapProject()),
+        vscode.commands.registerCommand("cbuild.installVscode", () => installProjectFiles("--vscode")),
+        vscode.commands.registerCommand("cbuild.installConfig", () => installProjectFiles("--config")),
         vscode.commands.registerCommand("cbuild.refreshButtons", () => refreshButtons(context)),
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (event.affectsConfiguration("cbuild")) {
@@ -244,9 +248,33 @@ async function bootstrapProject(): Promise<void> {
         return;
     }
 
+    await confirmInstall(selectedCommand, "是否全局安装或更新 cbuild？项目配置不会自动安装。");
+}
+
+async function installProjectFiles(option: "--vscode" | "--config"): Promise<void> {
+    const workspaceFolder = getWorkspaceFolder();
+    if (!workspaceFolder) {
+        void vscode.window.showErrorMessage("CBuild requires an open workspace folder.");
+        return;
+    }
+
+    const installer = await findGlobalScript(["cb_install.sh"]);
+    if (!installer) {
+        void vscode.window.showErrorMessage(
+            `Global cbuild installer not found on PATH or in ${getGlobalInstallDirectory()}. Run 'CBuild: Install / Update Global cbuild' first, or configure cbuild.installDirectory.`
+        );
+        return;
+    }
+
+    const commandLine = `${getBashCommand()} ${[toShellPath(installer.filename), option, toShellPath(workspaceFolder.uri.fsPath)].map(quoteShellArg).join(" ")}`;
+    const files = option === "--vscode" ? ".vscode 模板" : "cb.conf";
+    await confirmInstall(commandLine, `是否为当前项目安装 ${files}？已有文件会先移入 cbuild_bak 备份。`);
+}
+
+async function confirmInstall(commandLine: string, message: string): Promise<void> {
     const runInstall = "运行";
     const picked = await vscode.window.showWarningMessage(
-        `是否运行 cbuild install.sh？\n\n${selectedCommand}`,
+        `${message}\n\n${commandLine}`,
         {
             modal: true
         },
@@ -255,7 +283,7 @@ async function bootstrapProject(): Promise<void> {
     );
 
     if (picked === runInstall) {
-        runTerminalCommand(selectedCommand);
+        runTerminalCommand(commandLine);
     }
 }
 
@@ -340,7 +368,7 @@ async function runCbuild(args: string[], terminalKind: "cbuild" | "run" = "cbuil
         return;
     }
 
-    const runner = await resolveRunner(workspaceFolder);
+    const runner = await resolveRunner();
     if (!runner) {
         return;
     }
@@ -361,58 +389,55 @@ function runTerminalCommand(commandLine: string, terminalKind: "cbuild" | "run" 
     activeTerminal.sendText(commandLine);
 }
 
-async function resolveRunner(workspaceFolder: vscode.WorkspaceFolder): Promise<ResolvedRunner | undefined> {
-    const config = vscode.workspace.getConfiguration("cbuild");
-    const executor = config.get<Executor>("executor", "auto");
+function getGlobalInstallDirectory(): string {
+    const configured = vscode.workspace.getConfiguration("cbuild").get<string>("installDirectory", "~/.cbuild").trim() || "~/.cbuild";
+    if (configured === "~") {
+        return os.homedir();
+    }
+    if (/^~[\\/]/.test(configured)) {
+        return path.resolve(os.homedir(), configured.slice(2));
+    }
+    // Relative settings are home-relative, never workspace-relative.
+    return path.resolve(os.homedir(), configured);
+}
 
-    const hasPythonScript = await fileExists(workspaceFolder, "cb.py");
-    const hasBashScript = await fileExists(workspaceFolder, "cb.sh");
+function toShellPath(value: string): string {
+    return value.replace(/\\/g, "/");
+}
 
-    if (executor === "python") {
-        if (!hasPythonScript) {
-            void vscode.window.showErrorMessage("cbuild.executor is python, but cb.py was not found in the workspace root.");
-            return undefined;
+async function findGlobalScript(names: string[]): Promise<{ name: string; filename: string } | undefined> {
+    // Search the entire environment tier before considering any fallback file:
+    // PATH cb.py must win over ~/.cbuild/cb.sh when PATH has no cb.sh.
+    for (const name of names) {
+        const filename = await findScriptOnPath(name);
+        if (filename) {
+            return { name, filename };
+        }
+    }
+    for (const name of names) {
+        const filename = path.join(getGlobalInstallDirectory(), name);
+        if (await fileExists(filename)) {
+            return { name, filename };
+        }
+    }
+    return undefined;
+}
+
+async function resolveRunner(): Promise<ResolvedRunner | undefined> {
+    const executor = vscode.workspace.getConfiguration("cbuild").get<Executor>("executor", "auto");
+    const names = executor === "auto" ? ["cb.sh", "cb.py"] : [executor === "bash" ? "cb.sh" : "cb.py"];
+    const located = await findGlobalScript(names);
+    if (located) {
+        if (located.name === "cb.sh") {
+            return { command: getBashCommand(), script: toShellPath(located.filename) };
         }
         const command = await resolvePythonCommand();
-        if (!command) {
-            return undefined;
-        }
-        return {
-            command,
-            script: "cb.py"
-        };
+        return command ? { command, script: toShellPath(located.filename) } : undefined;
     }
 
-    if (executor === "bash") {
-        if (!hasBashScript) {
-            void vscode.window.showErrorMessage("cbuild.executor is bash, but cb.sh was not found in the workspace root.");
-            return undefined;
-        }
-        return {
-            command: getBashCommand(),
-            script: "cb.sh"
-        };
-    }
-
-    if (hasPythonScript) {
-        const command = await resolvePythonCommand();
-        if (!command) {
-            return undefined;
-        }
-        return {
-            command,
-            script: "cb.py"
-        };
-    }
-
-    if (hasBashScript) {
-        return {
-            command: getBashCommand(),
-            script: "cb.sh"
-        };
-    }
-
-    void vscode.window.showErrorMessage("No cb.py or cb.sh was found in the workspace root.");
+    void vscode.window.showErrorMessage(
+        `Global ${names.join(" or ")} not found on PATH or in ${getGlobalInstallDirectory()}. Run 'CBuild: Install / Update Global cbuild' first, or configure cbuild.installDirectory.`
+    );
     return undefined;
 }
 
@@ -463,7 +488,16 @@ function getBootstrapCommands(): ResolvedBootstrapCommand[] {
         .map((command) => normalizeBootstrapCommand(command))
         .filter((command): command is ResolvedBootstrapCommand => Boolean(command));
 
-    return normalized.length > 0 ? normalized : defaultBootstrapCommands;
+    if (normalized.length > 0) {
+        return normalized;
+    }
+
+    const prefix = ` --prefix ${quoteShellArg(toShellPath(getGlobalInstallDirectory()))}`;
+    return defaultBootstrapCommands.map((command) => ({
+        ...command,
+        command: command.command + prefix,
+        bashCommand: command.bashCommand ? command.bashCommand + prefix : undefined
+    }));
 }
 
 function normalizeTarget(target: TargetConfig): Required<TargetConfig> | undefined {
@@ -534,16 +568,16 @@ async function pickBootstrapVariant(command: ResolvedBootstrapCommand): Promise<
     const picked = await vscode.window.showQuickPick(
         [
             {
-                label: "Python (cb.py)",
-                description: "Install cb.py",
-                detail: command.command,
-                command: command.command
-            },
-            {
                 label: "Bash (cb.sh)",
-                description: command.bashCommand ? "Install cb.sh" : "Configure bashCommand for this source",
+                description: command.bashCommand ? "Install global cb.sh (recommended)" : "Configure bashCommand for this source",
                 detail: command.bashCommand || "No Bash bootstrap command is configured for this source.",
                 command: command.bashCommand
+            },
+            {
+                label: "Python (cb.py)",
+                description: "Install global cb.py",
+                detail: command.command,
+                command: command.command
             }
         ],
         {
@@ -595,13 +629,43 @@ function getOrCreateTerminal(workspaceFolder: vscode.WorkspaceFolder, terminalKi
     return createdTerminal;
 }
 
-async function fileExists(workspaceFolder: vscode.WorkspaceFolder, filename: string): Promise<boolean> {
+async function fileExists(filename: string): Promise<boolean> {
     try {
-        await vscode.workspace.fs.stat(vscode.Uri.joinPath(workspaceFolder.uri, filename));
-        return true;
+        const stat = await vscode.workspace.fs.stat(vscode.Uri.file(filename));
+        return (stat.type & vscode.FileType.File) !== 0;
     } catch {
         return false;
     }
+}
+
+async function findScriptOnPath(command: string): Promise<string | undefined> {
+    const cwd = getWorkspaceFolder()?.uri.fsPath || os.homedir();
+    const output = await new Promise<string>((resolve) => {
+        const options = { cwd, windowsHide: true, timeout: 5000 };
+        const completed = (error: Error | null, stdout: string) => resolve(error ? "" : stdout);
+        // Some shells report non-executable files from command -v too.
+        const posixLookup = `candidate=$(command -v ${quotePosix(command)})` +
+            ` && [ -f "$candidate" ] && [ -x "$candidate" ] && printf '%s\\n' "$candidate"`;
+        // Bare `where name` also searches cwd. Restrict it to PATH so a
+        // leftover workspace script cannot shadow an installed global script.
+        const child = process.platform === "win32"
+            ? cp.execFile("where", [`$PATH:${command}`], options, completed)
+            : cp.execFile("sh", ["-c", posixLookup], options, completed);
+        child.on("error", () => resolve(""));
+    });
+
+    // Windows `where` can return multiple matches. Resolve relative PATH
+    // entries against the same directory used for command discovery.
+    for (const candidate of output.split(/\r?\n/)) {
+        if (!candidate.trim()) {
+            continue;
+        }
+        const filename = path.resolve(cwd, candidate.trim());
+        if (await fileExists(filename)) {
+            return filename;
+        }
+    }
+    return undefined;
 }
 
 function commandExists(command: string): Promise<boolean> {

@@ -1,313 +1,78 @@
 # 自研轻量 VS Code 插件
 
-状态：进行中。插件核心已实现，剩余工作为中英文 README 迁移、本地开发说明和发布方式决策。
-
-## 操作留痕
-
-- 确认项目当前对 Task Buttons 的依赖只体现在 `.vscode/settings.json` 的 `VsCodeTaskButtons.*` 配置和 README 描述中。
-- 确认项目核心构建入口是 `cb.py` / `cb.sh`，VS Code task 只是现有编辑器入口之一。
-- 确认替换方向为自研轻量 VS Code 插件。
-- 确认自研插件应直接调用 `cb.py` / `cb.sh`，不依赖 `.vscode/tasks.json`。
-- 确认 `PLAN.md` 只作为总说明和规划索引，具体规划放入 `plan/` 目录。
-- 确认不保留固定 `deploy` 按钮，改为通过 `cbuild.targets` 支持多个自定义 target。
-- 确认 Python 命令应优先使用 `python3`，没有 `python3` 时回退到 `python`。
-- 确认 `cbuild.showButtons` 不配置时默认显示全部基础按钮。
-- 确认终端名称只是 VS Code 终端面板里显示的名称，不作为核心配置项暴露。
-- 已新增插件工程目录 `tools/cbuild-plugin-vscode/`。
-- 已实现基础状态栏按钮、自定义 target、执行器选择、Python 命令探测、terminal 复用和错误提示。
-- 已通过 `npm run compile`、`npm audit --audit-level=moderate` 和 `npm run package` 验证。
-- 已补充插件 `.vsix` 打包和安装说明。
-- 已将插件打包说明迁移到 `tools/cbuild-plugin-vscode/docs/package.md`。
-- 已调整 `install.sh`，安装时不再下载 task 模板，也不再生成或覆盖 `.vscode/tasks.json`。
-- 确认 `cbuild.targets` 专用于 CMake target；新增 `cbuild.commands` 支持自定义 shell 命令按钮。
-- 确认插件不能静默运行 `install.sh`。
-- 已将 bootstrap 改为常驻命令面板入口和资源管理器右键菜单入口，并移除启动时弹窗提示。
-- 已实现 GitHub / Gitee 安装源选择、执行前确认和 `cbuild.bootstrapCommands` 自定义安装源列表。
-- 已对 bootstrap 改造重新执行编译、依赖审计和 VSIX 打包验证，结果通过。
-- 已补充 Bootstrap 的 Python/Bash 脚本选择；默认源提供两套安装命令，自定义源通过 `bashCommand` 提供 Bash 安装命令。
-- 已将基础 `run` 操作调整到独立 `run` 终端，其余插件操作继续复用 `cbuild` 终端。
-- 已核对迁移状态：`.vscode/settings.json` 不再包含 `VsCodeTaskButtons.*`，中英文 README 仍保留 Task Buttons 说明；已在下方清单及项目索引中标明未完成事项。
-
-## 结论
-
-自研轻量 VS Code 插件已实现，可独立提供状态栏按钮；将项目文档的推荐入口从 Task Buttons 迁移到自研插件的工作尚未完成。
-
-插件应直接调用 `cb.py` 或 `cb.sh`，不依赖 `.vscode/tasks.json`。这样可以避免同时维护 VS Code task 和插件按钮两套入口配置，插件只需要维护按钮到 cbuild CLI 参数的映射。
-
-## 目标
-
-- 去掉对第三方 Task Buttons 插件的依赖。
-- 保留状态栏按钮体验。
-- 保留 `conan`、`generate`、`build`、`run`、`switch`、`clean` 这些基础操作入口。
-- 支持用户配置多个自定义 CMake target 操作入口，用于替代固定 `deploy` 按钮。
-- 支持用户配置多个自定义 shell 命令入口。
-- 支持缺少 `cb.py` / `cb.sh` 时提示用户确认并运行 bootstrap 命令。
-- 插件直接调用 `cb.py` / `cb.sh`，不通过 VS Code task 间接执行。
-- 不改变 `cb.py` / `cb.sh` 的命令语义。
-- Python 与 Bash 两套使用方式都能支持。
-
-## 当前状态
-
-- `.vscode/tasks.json` 已经定义了现有 VS Code tasks。
-- 仓库中仍保留 `.vscode/tasks.json`、`.vscode/tasks_python.json` 和 `.vscode/tasks_bash.json`，但 `install.sh` 不再下载 task 模板，也不再生成或覆盖目标项目的 `.vscode/tasks.json`。
-- `.vscode/settings.json` 已不再包含 `VsCodeTaskButtons.*` 配置。
-- README 中把 Task Buttons 标为可选依赖，并描述了通过插件按钮快速执行任务。
-
-## 插件方案
-
-开发一个项目配套插件，例如 `cbuild-tools`。
-
-插件激活后在 VS Code 状态栏创建按钮：
-
-- `conan`
-- `generate`
-- `build`
-- `run`
-- `switch`
-- `clean`
-
-点击按钮时，插件在当前 workspace 根目录直接执行对应命令。
-
-除基础按钮外，插件支持按配置生成多个自定义 target 入口。每个自定义 target 对应一次 `cb.py -b --target <name>` 或 `cb.sh -b --target <name>` 调用。
-
-插件还支持按配置生成多个自定义命令入口。每个自定义命令会直接发送到名为 `cbuild` 的 VS Code terminal，在 workspace 根目录执行。
-
-## 命令映射
-
-Python 执行器，其中 `<python-command>` 来自 `cbuild.pythonCommand` 或自动探测结果：
-
-- `conan` -> `<python-command> cb.py --conan`
-- `generate` -> `<python-command> cb.py -g`
-- `build` -> `<python-command> cb.py -b`
-- `run` -> `<python-command> cb.py -r`
-- `switch` -> `<python-command> cb.py -t`
-- `clean` -> `<python-command> cb.py -c`
-- 自定义 target -> `<python-command> cb.py -b --target <target>`
-- 自定义命令 -> `<command>`
-
-Bash 执行器：
-
-- `conan` -> `bash cb.sh --conan`
-- `generate` -> `bash cb.sh -g`
-- `build` -> `bash cb.sh -b`
-- `run` -> `bash cb.sh -r`
-- `switch` -> `bash cb.sh -t`
-- `clean` -> `bash cb.sh -c`
-- 自定义 target -> `bash cb.sh -b --target <target>`
-- 自定义命令 -> `<command>`
-
-## 执行器选择
-
-插件应支持配置项：
-
-- `cbuild.executor`: `auto` / `python` / `bash`
-- `cbuild.pythonCommand`: 可选；未配置时自动选择 `python3` 或 `python`
-- `cbuild.bashCommand`: 默认 `bash`
-- `cbuild.showButtons`: 可配置显示哪些基础按钮；不配置时默认显示全部基础按钮
-- `cbuild.targets`: 自定义 target 列表
-- `cbuild.commands`: 自定义 shell 命令列表
-- `cbuild.bootstrapCommands`: bootstrap 命令列表；未配置时内置 GitHub 与 Gitee 两个安装源
-
-基础按钮包括：
-
-- `conan`
-- `generate`
-- `build`
-- `run`
-- `switch`
-- `clean`
-
-`cbuild.showButtons` 不影响 `cbuild.targets` 或 `cbuild.commands`。自定义 target 是否显示由 `cbuild.targets` 决定，自定义命令是否显示由 `cbuild.commands` 决定。
-
-插件复用一个 VS Code terminal 执行命令。该 terminal 在 VS Code 终端面板中的显示名称固定为 `cbuild`，用户通常不需要配置。
-
-bootstrap 入口方案：
-
-- 命令面板常驻入口：`CBuild: Bootstrap Project`。
-- 资源管理器右键菜单入口：`CBuild: Bootstrap Project`。
-- 不在插件启动时自动弹窗提示。
-- 不设置常驻状态栏 bootstrap 入口，避免状态栏长期占位。
-- 用户从命令面板或右键菜单触发后，先选择安装源：
-  - GitHub：`curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash`
-  - Gitee：`curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash`
-- 用户选择安装源后，再显示确认弹窗：`是否运行 cbuild install.sh？`
-- 用户确认后，插件在 `cbuild` terminal 中执行选中的 bootstrap 命令。
-- 用户取消时不执行任何命令。
-- 右键菜单入口应出现在资源管理器文件夹/文件上下文中；执行目录仍使用当前 workspace 根目录。
-
-默认 bootstrap 命令列表：
-
-```jsonc
-[
-    {
-        "label": "GitHub",
-        "command": "curl -fsSL https://github.com/wiseforever/cbuild/raw/master/install.sh | bash"
-    },
-    {
-        "label": "Gitee",
-        "command": "curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash"
-    }
-]
-```
-
-若用户配置 `cbuild.bootstrapCommands`，则使用用户配置覆盖内置列表。这样可以支持内网镜像、本地脚本或固定安装参数。
-
-`cbuild.targets` 示例：
-
-```jsonc
-[
-    {
-        "label": "$(package)",
-        "target": "deploy",
-        "tooltip": "build deploy target"
-    },
-    {
-        "label": "$(beaker)",
-        "target": "test",
-        "tooltip": "build test target"
-    }
-]
-```
-
-`cbuild.commands` 示例：
-
-```jsonc
-[
-    {
-        "label": "$(terminal)",
-        "command": "echo hello",
-        "tooltip": "run custom command"
-    }
-]
-```
-
-`auto` 模式规则：
-
-1. 若用户显式配置 `cbuild.executor`，优先使用用户配置。
-2. 若存在安装流程生成的版本标记，按版本标记选择。
-3. 若没有版本标记但存在 `cb.py`，使用 Python。
-4. 若没有 `cb.py` 但存在 `cb.sh`，使用 Bash。
-5. 若两者都不存在，给出明确错误提示。
-
-Python 命令选择规则：
-
-1. 若用户显式配置 `cbuild.pythonCommand`，使用用户配置。
-2. 否则优先探测 `python3`。
-3. 若 `python3` 不可用，再探测 `python`。
-4. 若两者都不可用，给出明确错误提示。
-
-## 技术实现
-
-使用 VS Code Extension API：
-
-- `vscode.window.createStatusBarItem`
-- `vscode.commands.registerCommand`
-- `vscode.window.createTerminal`
-- `vscode.workspace.getConfiguration`
-- `vscode.workspace.workspaceFolders`
-
-插件行为：
-
-- 只在存在 workspace folder 时启用。
-- 默认使用第一个 workspace folder 作为执行目录。
-- 复用同一个名为 `cbuild` 的 VS Code terminal，避免每次点击都创建新终端。
-- 点击按钮后显示 terminal，并发送对应命令。
-- 基础按钮由插件内置命令映射生成。
-- 自定义 target 按钮由 `cbuild.targets` 配置生成。
-- 自定义 target 的 `target` 为空时跳过该项并给出配置提示。
-- 自定义命令按钮由 `cbuild.commands` 配置生成。
-- 自定义命令的 `command` 为空时跳过该项并给出配置提示。
-- 已实现命令面板常驻 bootstrap 入口。
-- 已实现资源管理器右键菜单 bootstrap 入口。
-- 已实现触发 bootstrap 入口后选择 GitHub / Gitee 安装源。
-- 已实现选择安装源后弹窗确认是否运行 `install.sh`。
-- 已实现用户确认后在 `cbuild` terminal 中执行选中的 bootstrap 命令。
-- 找不到 `cb.py` / `cb.sh` 时，通过 `showErrorMessage` 给出提示。
-- 插件不解析 `cb.conf`，构建逻辑继续由 `cb.py` / `cb.sh` 负责。
-- 插件不读取或执行 `.vscode/tasks.json`。
-
-## 目录建议
-
-插件源码放在独立目录：
-
-```text
-tools/cbuild-plugin-vscode/
-```
-
-当前结构：
-
-```text
-tools/cbuild-plugin-vscode/
-  .gitignore
-  .vscodeignore
-  LICENSE
-  docs/
-    package.md
-  package.json
-  package-lock.json
-  tsconfig.json
-  src/
-    extension.ts
-  README.md
-```
-
-## 计划改动
-
-第一阶段：准备插件源码
-
-- [x] 新增 `tools/cbuild-plugin-vscode/`。
-- [x] 创建 VS Code 插件基础工程。
-- [x] 实现状态栏按钮。
-- [x] 实现 `python` / `bash` / `auto` 执行器选择。
-- [x] 实现按钮到 `cb.py` / `cb.sh` 参数的映射。
-- [x] 实现 `cbuild.targets`，支持多个自定义 target 按钮。
-- [x] 实现 `cbuild.commands`，支持多个自定义命令按钮。
-- [x] 将 bootstrap 改造为命令面板入口和资源管理器右键菜单入口。
-- [x] 实现 terminal 复用和错误提示。
-- [x] 通过编译、审计和打包验证。
-
-第二阶段：移除 Task Buttons 默认依赖
-
-- [x] 从 `.vscode/settings.json` 删除 `VsCodeTaskButtons.*` 配置。
-- [ ] 从 README / README_zhCN 移除 Task Buttons 依赖项。
-- [ ] README 改为说明自研插件是推荐按钮入口。
-- [x] 保留 `.vscode/tasks.json` 作为 VS Code 原生 task 兼容入口，但插件不依赖它。
-
-第三阶段：安装与发布
-
-- [ ] 补充插件本地开发说明。
-- [x] 补充 `.vsix` 打包说明。
-- [ ] 决定是否将插件发布到 VS Code Marketplace。
-- [ ] 若不发布 Marketplace，则在项目 README 中说明如何从源码或 `.vsix` 安装。
-
-## 打包说明位置
-
-插件打包与安装说明放在插件源码目录下：
-
-```text
-tools/cbuild-plugin-vscode/docs/package.md
-```
-
-## 验收标准
-
-- 未安装 Task Buttons 时，VS Code 不依赖任何 `VsCodeTaskButtons.*` 配置。
-- 安装自研插件后，状态栏显示 cbuild 操作按钮。
-- 点击按钮会在 workspace 根目录执行对应 `cb.py` 或 `cb.sh` 命令。
-- 固定 `deploy` 按钮不再作为默认按钮出现。
-- 用户可以通过 `cbuild.targets` 配置多个自定义 target 入口。
-- 用户可以通过 `cbuild.commands` 配置多个自定义 shell 命令入口。
-- bootstrap 命令面板入口常驻。
-- bootstrap 资源管理器右键菜单入口可用。
-- 触发 bootstrap 后可以选择 GitHub / Gitee 安装源。
-- 选择安装源后提示用户确认是否运行 `install.sh`，不会静默执行。
-- `python`、`bash`、`auto` 三种执行器模式可用。
-- 找不到 `cb.py` / `cb.sh` 时有明确错误提示。
-- 插件不依赖 `.vscode/tasks.json`。
-- README 不再把 Task Buttons 表述为依赖。
-
-## 风险
-
-- 自研插件需要维护 VS Code API 兼容性。
-- 插件需要处理 Python / Bash 版本选择和跨平台 shell 差异。
-- 如果未来 `cb.py` / `cb.sh` 参数发生变化，插件命令映射也要同步更新。
-- 若插件不发布 Marketplace，用户安装步骤会比普通 VS Code 插件更繁琐。
+状态：核心功能已完成，主题仍进行中，仅剩文档与发布收尾。本轮全局脚本模式与项目配置入口已实现并通过自动化验证；剩余项是中英文项目 README 的推荐入口迁移、本地调试/开发宿主加载说明，以及发布方式决策。
+
+## 本轮方案：全局脚本与项目配置分离
+
+用户明确要求：调用全局 `cb.sh` / `cb.py`，优先 `cb.sh`；插件初始化安装全局版本；提供 `--vscode` / `--config` 入口方便配置项目。
+
+### 脚本与执行器
+
+- 先查扩展宿主环境的 PATH；未找到可用脚本时才查备用目录，默认 `~/.cbuild`，机器级配置 `cbuild.installDirectory` 可修改备用目录及内置安装的 `--prefix` 目标。
+- 自动模式顺序：PATH `cb.sh` → PATH `cb.py` → 备用目录 `cb.sh` → 备用目录 `cb.py`。因此 PATH 的 Python 优先于备用目录的 Bash。
+- 显式 `bash` / `python` 只查指定变体，仍先 PATH 后备用目录；配置备用目录不能覆盖 PATH 中的可用脚本。
+- POSIX 通过 `command -v` 并检查文件及可执行权限，Windows 通过 `where $PATH:<文件名>` 只查 PATH，避免当前目录隐式遮蔽；将解析到的路径传给解释器。没有额外的项目根目录查找，但用户显式放入 PATH 的项目目录会参与环境查找。
+- 保留 Python 命令优先 `python3`、其次 `python`，以及 `cbuild.pythonCommand` / `cbuild.bashCommand` 覆盖。
+- 第一个 workspace folder 仍作为项目；新终端在那里启动，项目里的 `cb.conf` 仍由核心脚本加载。
+- `run` 使用独立终端；其余操作复用 `cbuild` 终端。手动改变专用终端目录后，构建操作会受当前目录影响；项目模板/配置安装使用显式目标目录，不依赖终端 cwd。
+
+### 命令入口
+
+| 命令 ID | 界面标题 / 行为 |
+| --- | --- |
+| `cbuild.bootstrapProject` | Install / Update Global cbuild；保留原 ID 兼容已有快捷键，选择源后先展示 Bash，再展示 Python。 |
+| `cbuild.installVscode` | Install VS Code Templates (--vscode)；调用全局 `cb_install.sh --vscode <project-root>`。 |
+| `cbuild.installConfig` | Install Project Config (--config)；调用全局 `cb_install.sh --config <project-root>`。 |
+
+- 三个入口均提供命令面板与资源管理器右键菜单项。
+- 内置 GitHub/Gitee 安装命令显式传入 `--global --bash` / `--global --python`，并附带匹配 `cbuild.installDirectory` 的 `--prefix`。
+- 自定义安装源的 `command` / `bashCommand` 保持原样，用户需确保命令全局安装到配置目录。
+- 项目配置入口先查 PATH 中的 `cb_install.sh`，没有才查备用目录；复用安装器的下载及备份行为，执行前说明 `.vscode` / `cb.conf` 会先备份到 `cbuild_bak`。
+- 所有安装操作都要求用户确认，不在启动时静默执行。
+- 缺少脚本或安装器时，给出期望位置与全局安装/目录配置提示，不隐式复制项目脚本。
+
+### 实施与验证
+
+- [x] 切换全局脚本发现与 Bash 优先策略。
+- [x] 内置初始化改为全局安装，并支持与运行相同的自定义安装目录。
+- [x] 新增 `--vscode` / `--config` 命令、菜单与确认提示。
+- [x] 更新插件 README、配置描述、激活条件和模拟 API 测试。
+- [x] 完成 TypeScript 编译、51 项插件回归、11 个脚本集成测试方法及 VSIX 打包验证；Bash/Python 语法与 `git diff --check` 通过。
+
+复审已修复 Windows 裸 `where` 额外搜索当前目录的问题；新增 10 项模拟回归，覆盖脚本/安装器遮蔽、兜底与显式加入 PATH 的项目目录。用户决定本轮不增加并发安装锁，仅将同目录并发更新风险记为已知限制，不作为待实施任务，见[复审记录](safety_and_workflow_fixes.md#复审追加问题)。
+
+插件回归覆盖 PATH 与备用目录的分级顺序、四组内置全局安装选择、Bash/Python 策略、项目安装入口、确认/取消和缺失依赖；额外使用真实临时 POSIX PATH 验证可执行文件查找及不可执行文件触发回退（不执行脚本）；脚本集成验证全局安装器只备份及替换所选项目配置，目标路径含空格时也正常。
+
+验证重点：全局两种脚本同时存在时的优先级、Python 回退、显式执行器、拒绝项目脚本回退、自定义目录、目录/文件区分、安装前确认、项目目标参数、Windows 风格路径及缺失依赖提示。真实 VS Code 交互与 Windows/macOS 环境需要后续手动测试。
+
+## 已有功能与关键决策
+
+- 自研插件直接调用 cbuild CLI，不读取或执行 `.vscode/tasks.json`，不依赖 Task Buttons。
+- 基础按钮：Conan、generate、build、run、Debug/Release switch、clean。
+- `cbuild.targets` 专用于自定义 CMake target；`cbuild.commands` 用于自定义 shell 命令。
+- `cbuild.showButtons` 不配置或为空时展示全部基础按钮。
+- 插件不解析 `cb.conf`，构建逻辑由 `cb.sh` / `cb.py` 负责。
+- 已实现 terminal 复用、错误提示、GitHub/Gitee 安装源选择、自定义源和安装确认。
+- 已有 VSIX 打包与安装说明：`tools/cbuild-plugin-vscode/docs/package.md`。
+- `install.sh` 不再安装 task 模板；仓库保留现有 task 文件作为 VS Code 原生 Tasks 的手动参考。
+
+## 方案演进记录
+
+- 初版只调用项目根目录脚本，自动模式优先 Python。
+- [七项缺陷修复](safety_and_workflow_fixes.md)首先通过显式项目级安装解决初始化与查找方式不一致；该问题表继续保留。
+- 本轮按用户新要求改为全局脚本、Bash 优先、全局初始化，项目只单独安装配置和可选 VS Code 模板，替代上一步的项目级初始化方案。
+- 随后按用户澄清，将“固定目录优先”修正为“环境 PATH 优先、`~/.cbuild` 或配置目录兜底”；安装器 `cb_install.sh` 采用同样策略。
+
+## 尚未完成的迁移与发布工作
+
+- [ ] 中英文项目 README 移除 Task Buttons 推荐，改为自研插件入口。
+- [ ] 补充插件本地调试及 Extension Development Host 加载流程；插件 README 已有依赖安装、编译和测试命令，`docs/package.md` 已有 VSIX 打包/安装说明。
+- [ ] 确定是否发布 VS Code Marketplace；若不发布，在项目 README 中补充源码/VSIX 安装路径。
+
+`.vscode/settings.json` 已移除 `VsCodeTaskButtons.*`，以上剩余工作不阻塞插件核心功能。
+
+## 验证入口
+
+- 插件：`cd tools/cbuild-plugin-vscode && npm test && npm run package`。
+- 脚本：`python3 -m unittest discover -s tests -v`。
+- 完整测试说明：[tests/README.md](../tests/README.md)。

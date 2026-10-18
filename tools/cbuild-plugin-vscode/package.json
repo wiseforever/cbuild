@@ -18,8 +18,7 @@
     ],
     "activationEvents": [
         "onStartupFinished",
-        "workspaceContains:cb.py",
-        "workspaceContains:cb.sh"
+        "workspaceContains:cb.conf"
     ],
     "main": "./out/extension.js",
     "contributes": {
@@ -58,7 +57,15 @@
             },
             {
                 "command": "cbuild.bootstrapProject",
-                "title": "CBuild: Bootstrap Project"
+                "title": "CBuild: Install / Update Global cbuild"
+            },
+            {
+                "command": "cbuild.installVscode",
+                "title": "CBuild: Install VS Code Templates (--vscode)"
+            },
+            {
+                "command": "cbuild.installConfig",
+                "title": "CBuild: Install Project Config (--config)"
             },
             {
                 "command": "cbuild.refreshButtons",
@@ -70,6 +77,14 @@
                 {
                     "command": "cbuild.bootstrapProject",
                     "group": "navigation@99"
+                },
+                {
+                    "command": "cbuild.installVscode",
+                    "group": "navigation@100"
+                },
+                {
+                    "command": "cbuild.installConfig",
+                    "group": "navigation@101"
                 }
             ]
         },
@@ -84,7 +99,13 @@
                         "bash"
                     ],
                     "default": "auto",
-                    "description": "Select which cbuild script to run. In auto mode, cb.py is preferred when present; otherwise cb.sh is used."
+                    "description": "Select the global cbuild script. Auto searches PATH for cb.sh then cb.py, and only if neither is found searches the fallback installation directory in the same order. Workspace-local scripts are not otherwise searched."
+                },
+                "cbuild.installDirectory": {
+                    "type": "string",
+                    "default": "~/.cbuild",
+                    "scope": "machine",
+                    "description": "Fallback directory for cb.sh/cb.py and cb_install.sh when they are not found on PATH; PATH always takes priority. Also used as --prefix for built-in global installation commands. Supports ~; relative paths are home-relative."
                 },
                 "cbuild.pythonCommand": {
                     "type": "string",
@@ -99,7 +120,7 @@
                 "cbuild.bootstrapCommands": {
                     "type": "array",
                     "default": [],
-                    "description": "Bootstrap commands offered by CBuild: Bootstrap Project. Leave empty to use the built-in GitHub and Gitee sources.",
+                    "description": "Global installation commands offered by CBuild: Install / Update Global cbuild. Leave empty to use the built-in GitHub and Gitee sources with cbuild.installDirectory as --prefix. Custom commands must install into that directory themselves.",
                     "items": {
                         "type": "object",
                         "required": [
@@ -112,11 +133,11 @@
                             },
                             "command": {
                                 "type": "string",
-                                "description": "Python cb.py installation command sent to the cbuild terminal after confirmation."
+                                "description": "Global Python cb.py installation command sent to the cbuild terminal after confirmation."
                             },
                             "bashCommand": {
                                 "type": "string",
-                                "description": "Optional Bash cb.sh installation command. The plugin offers it when the user selects Bash during bootstrap."
+                                "description": "Optional global Bash cb.sh installation command. Bash is offered first during installation."
                             },
                             "description": {
                                 "type": "string",
@@ -196,6 +217,7 @@
     },
     "scripts": {
         "compile": "tsc -p ./",
+        "test": "npm run compile && node --test test/*.test.cjs",
         "watch": "tsc -watch -p ./",
         "package": "vsce package",
         "vscode:prepublish": "npm run compile"

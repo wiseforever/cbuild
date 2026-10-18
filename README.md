@@ -91,6 +91,8 @@ The installer changes your shell rc file only when the install directory is abse
 
 The globally installed updater is named `cb_install.sh`; for example, run `~/.cbuild/cb_install.sh --python` to update the global installation and switch to the Python variant.
 
+**Known limitation:** concurrent installations or updates to the same directory are not protected by a lock. In particular, simultaneous Bash/Python installations can remove each other's scripts even when both report success. Wait for each installation to finish before starting another. If this happens, wait for all installers to exit, then reinstall the desired variant into that directory once.
+
 When using the global install, `cb.py` / `cb.sh` looks for `cb.conf` in this order:
 
 1. Current working directory: `./cb.conf`
