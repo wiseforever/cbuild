@@ -93,18 +93,18 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 ```bash
 # 固定版本（--global、--simple、--config、--vscode、--format 均支持）
 curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | \
-  bash -s -- --release v0.1.0 --python
+  bash -s -- --release v0.2.0 --python
 
 # 仅使用 Gitee：版本号和 tag 文件都来自 Gitee 镜像
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | \
   bash -s -- --source gitee
 
 # 为项目安装指定版本的 cb.conf 或 VS Code 模板
-~/.cbuild/cb_install.sh --config /path/to/project --release v0.1.0
-~/.cbuild/cb_install.sh --vscode /path/to/project --release v0.1.0
+~/.cbuild/cb_install.sh --config /path/to/project --release v0.2.0
+~/.cbuild/cb_install.sh --vscode /path/to/project --release v0.2.0
 ```
 
-- `--release latest`（默认）读取 `<source>/master/LATEST`；显式 tag（如 `v0.1.0`）完全跳过这次查询。
+- `--release latest`（默认）读取 `<source>/master/LATEST`；显式 tag（如 `v0.2.0`）完全跳过这次查询。
 - `--source github|gitee` 同时决定 `LATEST` 和 tag 文件来源。所选源是唯一来源，文件缺失会直接报错，不会从另一个源补取。
 - `--base-url` 是必须包含 `{tag}` 的自定义 URL 模板，并要求显式 `--release`；自定义 URL 不解析 `latest`。
 - `cb_install.sh` 默认保留自身安装目录、变体和来源（显式参数优先），但版本默认跟随 `master/LATEST`；需要固定时加 `--release`。

@@ -2,7 +2,7 @@
     "name": "cbuild-plugin-vscode",
     "displayName": "CBuild Tools",
     "description": "Status bar buttons for cbuild projects.",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "publisher": "cbuild",
     "license": "MIT",
     "repository": {
@@ -111,7 +111,7 @@
                     "type": "string",
                     "default": "latest",
                     "scope": "window",
-                    "description": "cbuild version used by global installation and project config/template commands: latest version from the source's master/LATEST, or a tag such as v0.1.0. Built-in installation commands pass this value as --release. Custom bootstrapCommands are not modified."
+                    "description": "cbuild version used by global installation and project config/template commands: latest version from the source's master/LATEST, or a tag such as v0.2.0. Built-in installation commands pass this value as --release. Custom bootstrapCommands are not modified."
                 },
                 "cbuild.pythonCommand": {
                     "type": "string",

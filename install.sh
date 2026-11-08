@@ -63,7 +63,7 @@ Options:
   -s, --simple      Install to current project
   -g, --global      Install globally (default)
   --prefix <dir>    Global install directory (default: ~/.cbuild)
-  --release <tag>   Version tag such as v0.1.0; default: tag in source master/LATEST
+  --release <tag>   Version tag such as v0.2.0; default: tag in source master/LATEST
   --source <name>   Preferred tag file source: github (default) or gitee
   --base-url <url>  Custom raw URL template containing {tag}; no public fallback
   --vscode [dir]    Install only .vscode templates (default: current directory)
@@ -196,7 +196,7 @@ if [[ "$release" == "latest" ]]; then
     _download_one "$latest_url" "$latest_file" ||
         fail "Cannot read $latest_url. Use --release vX.Y.Z or push LATEST to that source."
     release="$(tr -d ' \r\n' < "$latest_file")"
-    valid_tag "$release" || fail "Invalid LATEST at $latest_url; expected one tag such as v0.1.0"
+    valid_tag "$release" || fail "Invalid LATEST at $latest_url; expected one tag such as v0.2.0"
 fi
 valid_tag "$release" || fail "Invalid release tag: $release (expected vX.Y.Z or vX.Y.Z-rc.1)"
 

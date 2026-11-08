@@ -27,7 +27,7 @@ check() {
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$ ]] ||
     { echo "Invalid CBUILD_VERSION: $version" >&2; exit 1; }
 [[ "$latest" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]] ||
-    { echo "Invalid LATEST (expected a tag such as v0.1.0): $latest" >&2; exit 1; }
+    { echo "Invalid LATEST (expected a tag such as vX.Y.Z): $latest" >&2; exit 1; }
 check cb.sh "$bash_script"
 check cb.py "$python_script"
 check tools/cbuild-plugin-vscode/package.json "$plugin"

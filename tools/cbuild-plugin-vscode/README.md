@@ -18,7 +18,7 @@ A PATH-provided `cb.py` therefore wins over `~/.cbuild/cb.sh`. Explicit `bash` /
 - PATH lookup uses `command -v` on POSIX and `where $PATH:<filename>` on Windows (PATH only, without the implicit current-directory search of bare `where`), in the extension host's environment. Restart/reload VS Code after changing the environment if necessary.
 - Found paths are resolved and passed to the selected Bash/Python interpreter; the fallback directory does not need to be on PATH.
 - `cbuild.installDirectory` sets the fallback directory and the target for built-in global installation commands. It does not override a working script already on PATH.
-- `cbuild.installRelease` selects the cbuild version for installation and project files. `latest` reads the selected source's `master/LATEST` value; a tag such as `v0.1.0` pins it directly. The installer resolves the tag once and reads all files from that tag.
+- `cbuild.installRelease` selects the cbuild version for installation and project files. `latest` reads the selected source's `master/LATEST` value; a tag such as `v0.2.0` pins it directly. The installer resolves the tag once and reads all files from that tag.
 - `~` expands to the home directory; relative fallback settings are home-relative, not workspace-relative.
 - There is no separate workspace-root script search. A project directory is only searched if you explicitly put it on PATH.
 
@@ -53,7 +53,7 @@ The existing command ID `cbuild.bootstrapProject` is retained for global install
 
 - `cbuild.executor`: `auto` (Bash first), `bash`, or `python`.
 - `cbuild.installDirectory`: fallback directory and built-in global installation target, default `~/.cbuild` (machine setting). PATH has priority.
-- `cbuild.installRelease`: cbuild version for installation and project files, default `latest` (workspace setting). Accepts `latest` or a tag such as `v0.1.0`; invalid values are rejected before any command runs.
+- `cbuild.installRelease`: cbuild version for installation and project files, default `latest` (workspace setting). Accepts `latest` or a tag such as `v0.2.0`; invalid values are rejected before any command runs.
 - `cbuild.pythonCommand`: optional Python command. Empty means prefer `python3`, then fall back to `python`.
 - `cbuild.bashCommand`: Bash command, default `bash`; also used to invoke global `cb_install.sh`.
 - `cbuild.bootstrapCommands`: custom global installation sources. Empty uses built-in GitHub/Gitee sources driven by `cbuild.installRelease`. `command` installs Python; optional `bashCommand` installs Bash. Custom commands are sent unchanged: perform a versioned global installation into `cbuild.installDirectory` yourself, including `--release` and `--prefix` when needed.

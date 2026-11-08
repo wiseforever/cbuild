@@ -4,7 +4,7 @@
 
 ## 未完成事项
 
-- **版本化安装：待首次正式发布。** 实现已完成，按发布流程先推两个远端的 tag，再推进 `master/LATEST`。见[版本化安装](install/release_versioned_install.md)。
+- **版本化安装：0.2.0 待发布。** 版本文件已同步，按发布流程先推送 `v0.2.0` tag，再推进两个远端的 `master/LATEST`。见[版本化安装](install/release_versioned_install.md)。
 - **VS Code 插件：文档与发布收尾。** 核心功能已完成；剩余中英文 README 推荐入口说明、本地调试说明及发布方式决策。见[插件规划](vscode/vscode_cbuild_tools.md)。
 
 ## 主题索引

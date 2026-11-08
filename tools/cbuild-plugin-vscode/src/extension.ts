@@ -499,7 +499,7 @@ function getInstallRelease(): string | undefined {
         return release;
     }
     void vscode.window.showErrorMessage(
-        `Invalid cbuild.installRelease: ${release}. Use "latest" or a version tag such as v0.1.0.`
+        `Invalid cbuild.installRelease: ${release}. Use "latest" or a version tag such as v0.2.0.`
     );
     return undefined;
 }

@@ -1,6 +1,6 @@
 # Release 与 tag 版本化安装
 
-状态：实现已完成，待首次正式发布。
+状态：0.2.0 版本已同步，待发布。
 
 ## 安装与版本规则
 
@@ -10,7 +10,7 @@
 - `--base-url` 必须包含 `{tag}`，并配合显式版本使用。
 - 下载到暂存目录，校验脚本版本和必需文件后再备份、替换目标。可选卸载包装缺失时，可直接通过安装器卸载。
 - 安装目录记录版本、变体和来源；`cb_install.sh` 默认沿用自身目录及变体，版本默认 latest，显式参数优先。
-- `cb.sh` / `cb.py` 的版本、插件 package.json/package-lock.json 和 `LATEST` 中的 tag 保持一致，当前版本为 0.1.0。
+- `cb.sh` / `cb.py` 的版本、插件 package.json/package-lock.json 和 `LATEST` 中的 tag 保持一致，当前版本为 0.2.0。
 
 ## 插件与卸载
 
@@ -28,4 +28,4 @@
 
 ## 剩余事项
 
-- 完成首次 tag 与 master 的正式发布。
+- 推送 `v0.2.0` tag，再推送更新 `LATEST` 的 master。

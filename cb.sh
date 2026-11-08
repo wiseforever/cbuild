@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-CBUILD_VERSION="0.1.0"
+CBUILD_VERSION="0.2.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CONFIG_FILE_CWD="$PWD/cb.conf"

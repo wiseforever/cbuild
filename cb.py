@@ -14,7 +14,7 @@ import json
 import logging
 import shlex
 
-CBUILD_VERSION = "0.1.0"
+CBUILD_VERSION = "0.2.0"
 
 # Version queries must work without a readable or even valid cb.conf.
 if __name__ == "__main__":

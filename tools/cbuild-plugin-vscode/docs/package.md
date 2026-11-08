@@ -31,7 +31,7 @@ npm run package
 打包产物版本由 `package.json` 的 `version` 决定，应与 `cb.sh` / `cb.py` 的 `CBUILD_VERSION` 一致：
 
 ```text
-tools/cbuild-plugin-vscode/cbuild-plugin-vscode-0.1.0.vsix
+tools/cbuild-plugin-vscode/cbuild-plugin-vscode-0.2.0.vsix
 ```
 
 可在仓库根目录执行 `tools/check_version.sh` 检查所有版本来源。
@@ -41,7 +41,7 @@ tools/cbuild-plugin-vscode/cbuild-plugin-vscode-0.1.0.vsix
 从仓库根目录执行：
 
 ```sh
-code --install-extension tools/cbuild-plugin-vscode/cbuild-plugin-vscode-0.1.0.vsix
+code --install-extension tools/cbuild-plugin-vscode/cbuild-plugin-vscode-0.2.0.vsix
 ```
 
 也可以在 VS Code 扩展面板中选择 `Install from VSIX...`，然后选择生成的 `.vsix` 文件。

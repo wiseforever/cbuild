@@ -91,18 +91,18 @@ All download modes install the tag recorded in the selected source's `master/LAT
 ```bash
 # Pin a specific version (works for --global, --simple, --config, --vscode, and --format)
 curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | \
-  bash -s -- --release v0.1.0 --python
+  bash -s -- --release v0.2.0 --python
 
 # Gitee-only path: both LATEST and tag files come from the Gitee mirror
 curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | \
   bash -s -- --source gitee
 
 # Install cb.conf or VS Code templates from a pinned version
-~/.cbuild/cb_install.sh --config /path/to/project --release v0.1.0
-~/.cbuild/cb_install.sh --vscode /path/to/project --release v0.1.0
+~/.cbuild/cb_install.sh --config /path/to/project --release v0.2.0
+~/.cbuild/cb_install.sh --vscode /path/to/project --release v0.2.0
 ```
 
-- `--release latest` (default) reads `<source>/master/LATEST`; an explicit tag such as `v0.1.0` skips that lookup.
+- `--release latest` (default) reads `<source>/master/LATEST`; an explicit tag such as `v0.2.0` skips that lookup.
 - `--source github|gitee` selects both the `LATEST` lookup and the tag files. The selected source is authoritative; a missing file is an error and is not fetched from the other source.
 - `--base-url` is a custom raw URL template that must contain `{tag}` and requires an explicit `--release`; `latest` is not resolved for custom URLs.
 - `cb_install.sh` keeps its own installation directory, variant, and source (unless overridden), but updates to `master/LATEST` unless `--release` is given.
