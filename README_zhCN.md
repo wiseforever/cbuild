@@ -58,7 +58,7 @@ python -m pip install conan
 
 ## 全局安装
 
-默认安装方式是全局安装：会将 `cb.py` 或 `cb.sh`、`cb_install.sh`，以及可用时的 `cb_uninstall.sh` 兼容包装安装到共享目录。`-g` 与 `--global` 也可显式使用。全局安装不会安装 `cb.conf`。
+默认安装方式是全局安装：会将 `cb.py` 或 `cb.sh`、`cb_install.sh`，以及可用时的 `cb_uninstall.sh` 卸载入口安装到共享目录。`-g` 与 `--global` 也可显式使用。全局安装不会安装 `cb.conf`。
 
 ### GitHub
 
@@ -183,16 +183,16 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 - `--vscode [目录]` 仅安装四个 VS Code 模板；若 `.vscode` 已存在，会先移至 `<目录>/cbuild_bak/`。
 - `--config [目录]` 仅安装 `cb.conf`；若已有配置，会先移至 `<目录>/cbuild_bak/`。
 - 若不需要使用 VSCode 可以不依赖 `.vscode` 目录，仅仅需要 `cb.py` 或 `cb.sh` 与 `cb.conf` 文件即可。
-- `install.sh` 不再生成或覆盖 `.vscode/tasks.json`。仓库中仍保留 task 文件，供仍需要 VS Code 内置 Tasks 的用户手动参考或使用。
+- `install.sh` 安装 VS Code 模板时不包含 `.vscode/tasks.json`；仓库提供的 task 文件可供 VS Code 内置 Tasks 手动参考。
 
 ## 卸载
 
 ### 卸载全局安装
 
-卸载逻辑由 `install.sh` / `cb_install.sh` 实现；`cb_uninstall.sh` 是可选兼容包装。若未安装该包装，请直接使用更新器或重新下载的安装器。
+卸载逻辑由 `install.sh` / `cb_install.sh` 实现；`cb_uninstall.sh` 是可选的卸载包装入口。若未安装该包装，请直接使用更新器或重新下载的安装器。
 
 ```bash
-# 已安装的兼容包装（卸载自身目录）：
+# 卸载包装入口（卸载自身目录）：
 ~/.cbuild/cb_uninstall.sh --yes
 
 # 全局更新器：
@@ -224,22 +224,17 @@ rm -rf .vscode/ cmake/cbuild_bak/
 1. 当前工作目录 `./cb.conf`
 2. 脚本同级目录 `cb.conf`（回退）
 
-已有项目请将旧配置文件改名一次：
-
-```bash
-mv cb_conf.ini cb.conf
-```
-
 ### 关于 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
 `cb.py` 与 `cb.sh` 的行为如下：
 
-- `cb.conf` 中 `c_compiler` / `cpp_compiler` **留空**：不注入 `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER`，按系统环境正常调用 CMake。
-- `c_compiler` / `cpp_compiler` **已配置**：
-  - 自动注入 `-DCMAKE_C_COMPILER=...` / `-DCMAKE_CXX_COMPILER=...`。
-  - 若写的是绝对路径（或带目录的路径），会把其目录仅在本次 `cmake` 子进程临时补到 `PATH`。
-  - 若写的是 `gcc`/`g++`/`clang`/`clang++` 这类命令名，会先解析其实际路径，再把对应目录临时补到 `PATH`。
-- `MSVC` 模式（`[msvc] enable=1` 且 `msvc_env_script` 有效）保持原行为：通过 `vcvarsall.bat` 建环境，不走上述注入流程。
+- `[compiler] compiler` **留空或未配置**：不注入 `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER`，按系统环境正常调用 CMake。
+- `compiler` **已配置**：只写一个 GCC 或 Clang 驱动，脚本自动配对 C/C++ 编译器，再注入两个 CMake 参数。
+  - `gcc` → `gcc/g++`，`gcc-9` → `gcc-9/g++-9`。
+  - `clang` → `clang/clang++`，`clang-14` → `clang-14/clang++-14`；不会将 Clang 与 G++ 混配。
+  - 支持交叉前缀、`.exe` 后缀和路径，也接受对应的 C++ 驱动名作为入口；优先寻找同目录的配套驱动，再查找同名 PATH 项。
+  - 编译器目录仅临时补到当前子进程的 `PATH`，不改写持久环境。
+- `MSVC` 模式（`[msvc] enable=1` 且 `msvc_env_script` 有效）通过 `vcvarsall.bat` 初始化 CMake 构建环境。
 
 说明：这里的 `PATH` 处理仅对当前 `cb.py`/`cb.sh` 启动的子进程生效，不会修改系统级或用户级环境变量。
 
@@ -252,7 +247,7 @@ mv cb_conf.ini cb.conf
 > 1. **当前工作目录** `./cb.conf`（项目级配置）
 > 2. **脚本所在目录**（回退，即 `~/.cbuild/cb.conf`）
 >
-> 修改配置时（`-t` / `--config`），始终修改**实际加载的那个文件**——
+> 修改构建类型时（`-t` / `--type`），始终修改**实际加载的那个文件**——
 > 项目目录有就改项目目录的，没有则改全局的，互不干扰。
 >
 > 相对 `source_dir` 以实际加载的 `cb.conf` 所在目录为基准；相对 `output_dir` 以 `source_dir` 为基准。
@@ -262,18 +257,19 @@ mv cb_conf.ini cb.conf
 [build]
 build_type = Debug      # 编译类型为 Debug。目前可选 [Debug、Release]
 source_dir = .          # 源码目录，.表示当前目录
-output_dir = output     # 输出目录，不写则默认为 build；会追加编译器后缀如 output/GCC-11.4.0-Release
+output_dir = output     # 基础输出目录，默认 build
+# output_dir_use_subdir = true # 默认 true：追加构建类型子目录，例如 output/Debug
+# subdir_use_compiler = false # 默认 false；开启后子目录包含编译器，仅 output_dir_use_subdir = true 时生效
 generator = Ninja       # 构建工具，可选 [Ninja、Unix Makefiles, ...]
 parallel_jobs = auto    # 并行编译的线程数，auto为自动选择cpu核心数
 
 [compiler]              # 编译器相关配置（不含MSVC），若msvc的enable生效则此项无效（linux下msvc项无效）
-c_compiler = gcc        # C 编译器（可写命令名或路径）；非空时会注入 CMAKE_C_COMPILER
-cpp_compiler = g++      # C++ 编译器（可写命令名或路径）；非空时会注入 CMAKE_CXX_COMPILER
+compiler = gcc         # 自动配对 gcc/g++；也支持 gcc-9、clang、clang-14、交叉前缀及驱动路径
 
 [conan]                 # Conan 包管理器配置
 enable = 1              # 是否使用 Conan
-build = gcc             # 对应 Conan 的 build profile
-host = gcc              # 对应 Conan 的 host profile
+# build = gcc           # 显式 build profile；未配置时按编译器匹配已有 gcc* profile
+# host = gcc            # 显式 host profile；未配置时按编译器匹配已有 gcc* profile
 
 [vcpkg]                 # vcpkg 包管理器配置
 enable = 1              # 是否启用 vcpkg toolchain
@@ -289,6 +285,31 @@ enable = 1              # 是否使用MSVC编译器，1、True、true表示使�
 msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC环境变量脚本路径
 host_arch = x64         # 编译可执行程序的位数，可选 [x86、x64]
 ```
+
+`output_dir_use_subdir` 默认 `true`，按构建类型创建子目录；设为 `false` 时直接使用 `output_dir`，忽略 `subdir_use_compiler`。`subdir_use_compiler` 默认 `false`，设为 `true` 时子目录包含编译器名称和版本。没有独立目录隔离时，切换编译器前应清理 CMake 缓存或使用另一 `output_dir`。
+
+### Conan GCC profile
+
+使用 `[compiler] compiler` 指定工具链，例如 `gcc-9`；脚本从同目录或 PATH 配对 GCC/G++，Conan profile 和 CMake 共用该配对。生成 GCC profile 时检查两个驱动的主版本。
+
+```bash
+bash cb.sh --conan-profile       # 优先按 conan.host 命名；未配置时采用回退规则
+python3 cb.py --conan-profile    # 相同行为；--conan-profle 是命令别名
+bash cb.sh --conan
+bash cb.sh -g
+```
+
+- 生成名称优先使用 `conan.host`，未配 host 时使用 `conan.build`，均未配置时采用 `gcc-<主版本>`。例如 build/host 均为 `gcc` 时生成/覆盖 `gcc`。生成名称必须以 `gcc` 开头，只允许字母、数字及 `._+-`。名称只是标签；`compiler.version` 仍由 `[compiler]` 配置的实际编译器决定，不从 profile 名称反推版本。
+- 生成命令只处理当前配置工具链对应的一个 profile，直接覆盖、不备份；不要求启用 Conan，不安装依赖或配置项目。build/host 均配置且不同时仅生成 host，build 保持不变。
+- `[buildenv]` 显式写入 `CC`、`CXX`，通过 GCC 的工具查询、对应前缀及工具链目录定位 `AR`、`AS`、`LD`、`NM`、`RANLIB`、`STRIP`、`OBJCOPY`、`OBJDUMP`，并将编译器目录加入 `PATH`。找不到的工具会警告并省略；驱动名带前缀时不因缺少配套工具而回退到无前缀的 binutils。
+- 编译器路径由 `[buildenv]` 提供。GCC 报告有效 sysroot 时，同时写入 `[buildenv] SYSROOT` 和 `[conf] tools.build:sysroot`。
+- 启用 Conan 且项目存在依赖清单时，`--conan` 和 `-g` 使用同一规则：显式配置的 build/host 各自优先，缺省项只匹配名称以 `gcc` 开头、实际 `compiler=gcc` 且主版本一致的已有 profile，优先 `gcc-<主版本>`，不自行推断或筛选目标架构。找不到时提示先运行生成命令，不隐式生成。
+- 显式配置的 profile 不存在或无法加载时，`--conan` 和 `-g` 均报错，不回退到自动匹配。日志显示实际配置文件、脚本路径及 build/host 的来源（configured / auto / default）。
+- 匹配过程不改写已有 profile；Conan 依赖构建使用选中 profile 的 `[buildenv]`，因此已有 profile 也需在该段正确配置工具链。本项目的 CMake 配置仍接收 cbuild 显式传入的编译器参数。
+- `-g` 只配置项目。修改 profile 后先执行 `--conan` 安装依赖，再执行 `-g`。profile 选择与依赖安装记录不一致或缺少安装记录时，脚本会提示执行 `--conan`。
+- `os`、`arch`、`compiler.cppstd` 由 Conan 探测，具体的目标平台设置由 profile 维护。
+- 交叉编译时请显式维护本机 build 与目标 host profile，并在生成后校正目标 `os/arch`、ABI、SDK、三元组及额外选项。`conan profile detect` 主要探测当前机器，不能将其默认设置当作目标平台设置；不要依赖只按 GCC 主版本的缺省匹配来区分不同目标。
+- `compiler` 未配置或留空时保留 Conan 默认 profile 行为。自动匹配/生成仅支持 GCC；Clang、MSVC 请自行维护并显式配置适合的 build/host profile。
 
 ### cb.py / cb.sh 使用命令说明
 
@@ -435,7 +456,7 @@ python cb.py -b
 
 `root`、`toolchain_file` 和环境变量 `VCPKG_ROOT` 的优先级为：`toolchain_file` > `root` > `VCPKG_ROOT`。若 `triplet` 留空，由 vcpkg 根据当前编译器自动推断；交叉编译、静态库或自定义运行时应显式填写。
 
-首次为某个构建目录启用、禁用或切换 toolchain 时，需先执行 `cb.py -c`（或 `cb.sh -c`）清理旧 CMake cache。
+首次为某个构建目录启用、禁用或切换 toolchain 时，需先执行 `cb.py -c`（或 `cb.sh -c`）清理 CMake cache。
 
 不要编辑构建目录内自动生成的 `cbuild_toolchain.cmake`。项目需要额外工具链设置时，编辑 `cbuild_custom.cmake`，例如：
 

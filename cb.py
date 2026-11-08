@@ -88,12 +88,17 @@ if GENERATOR == "Ninja" and not shutil.which("ninja"):
     GENERATOR = "Unix Makefiles"
 
 OUTPUT_DIR = (CONFIG.get("build", "output_dir", fallback="") or "").strip() or None
-USE_OUTPUT_AUTO_SUBDIR = CONFIG.getboolean("build", "use_output_auto_subdir", fallback=True)
+OUTPUT_DIR_USE_SUBDIR = CONFIG.getboolean("build", "output_dir_use_subdir", fallback=True)
+SUBDIR_USE_COMPILER = CONFIG.getboolean("build", "subdir_use_compiler", fallback=False)
 
-CONFIG_C_COMPILER = (CONFIG.get("compiler", "c_compiler", fallback="") or "").strip()
-CONFIG_CXX_COMPILER = (CONFIG.get("compiler", "cpp_compiler", fallback="") or "").strip()
-c_compiler = CONFIG_C_COMPILER or None
-cpp_compiler = CONFIG_CXX_COMPILER or None
+if any(CONFIG.has_option("compiler", key) for key in ("c_compiler", "cpp_compiler")) and not any(
+        arg in ("-h", "--help") for arg in sys.argv[1:]):
+    log.error("Unsupported [compiler] options: c_compiler/cpp_compiler; configure compiler = gcc, gcc-9, clang or a toolchain driver path")
+    sys.exit(1)
+CONFIG_COMPILER = (CONFIG.get("compiler", "compiler", fallback="") or "").strip()
+# Internal C/C++ paths are derived from the single toolchain entry.
+CONFIG_C_COMPILER = ""
+CONFIG_CXX_COMPILER = ""
 CONAN_ENABLER = CONFIG.getboolean("conan", "enable", fallback=False)
 CONAN_BUILD = CONFIG.get("conan", "build", fallback=None)
 CONAN_HOST = CONFIG.get("conan", "host", fallback=None)
@@ -120,20 +125,14 @@ if OS_TYPE == "windows":
     MSVC_ENABLE = CONFIG.getboolean("msvc", "enable", fallback=False)
     MSVC_ENV_SCRIPT = CONFIG.get("msvc", "msvc_env_script", fallback=None)
     HOST_ARCH = CONFIG.get("msvc", "host_arch", fallback="x64")
-    c_compiler = c_compiler or "gcc.exe"
-    cpp_compiler = cpp_compiler or "g++.exe"
+    C_COMPILER_EXEC, CXX_COMPILER_EXEC = "gcc.exe", "g++.exe"
 elif OS_TYPE == "linux":
-    c_compiler = c_compiler or "gcc"
-    cpp_compiler = cpp_compiler or "g++"
+    C_COMPILER_EXEC, CXX_COMPILER_EXEC = "gcc", "g++"
 elif OS_TYPE == "darwin":
-    c_compiler = c_compiler or "clang"
-    cpp_compiler = cpp_compiler or "clang++"
+    C_COMPILER_EXEC, CXX_COMPILER_EXEC = "clang", "clang++"
 else:
     log.error(f"Unknown system: {OS_TYPE}")
     sys.exit(1)
-
-C_COMPILER_EXEC = c_compiler
-CXX_COMPILER_EXEC = cpp_compiler
 
 # -------------------- 工具函数 --------------------
 def resolve_compiler_and_bin_dir(compiler_value):
@@ -152,6 +151,30 @@ def resolve_compiler_and_bin_dir(compiler_value):
         return resolved, os.path.dirname(resolved) or None
 
     return value, None
+
+def configure_compiler_pair():
+    global CONFIG_C_COMPILER, CONFIG_CXX_COMPILER
+    if not CONFIG_COMPILER or (MSVC_ENABLE and MSVC_ENV_SCRIPT):
+        return
+    resolved, directory = resolve_compiler_and_bin_dir(CONFIG_COMPILER)
+    match = re.fullmatch(r"(.*-)?(gcc|g\+\+|clang|clang\+\+)(-\d+(?:\.\d+)*)?(\.exe)?", os.path.basename(resolved))
+    if not match:
+        raise RuntimeError(f"Unsupported [compiler] compiler: {CONFIG_COMPILER}; use a GCC or Clang driver")
+    prefix, family, version, extension = match.groups()
+    families = ("gcc", "g++") if family in ("gcc", "g++") else ("clang", "clang++")
+    drivers = []
+    for driver in families:
+        name = (prefix or "") + driver + (version or "") + (extension or "")
+        nearby = os.path.join(directory, name) if directory else name
+        if driver == family:
+            path = resolved
+        elif os.path.isfile(nearby) and os.access(nearby, os.X_OK):
+            path = nearby
+        else:
+            path = shutil.which(name) or nearby
+        drivers.append(path)
+    CONFIG_C_COMPILER, CONFIG_CXX_COMPILER = drivers
+
 
 def cmake_path(path):
     """Return a CMake-safe absolute path using forward slashes."""
@@ -211,18 +234,19 @@ def get_compiler_type(compiler):
     if compiler is None:
         return "unknown"
     base = os.path.basename(compiler).lower()
-    if base in ["gcc", "gcc.exe"]:
-        return "gcc"
-    elif base in ["g++", "g++.exe"]:
-        return "g++"
-    elif base in ["clang", "clang.exe"]:
-        return "clang"
-    elif base in ["clang++", "clang++.exe"]:
-        return "clang++"
-    elif base in ["cl", "cl.exe", "vcvarsall.bat"]:
+    match = re.fullmatch(r"(?:.*-)?(gcc|g\+\+|clang|clang\+\+)(?:-\d+(?:\.\d+)*)?(?:\.exe)?", base)
+    if match:
+        return match.group(1)
+    if base in ["cl", "cl.exe", "vcvarsall.bat"]:
         return "msvc"
     return "unknown"
 
+if not any(arg in ("-h", "--help") for arg in sys.argv[1:]):
+    try:
+        configure_compiler_pair()
+    except RuntimeError as error:
+        log.error(str(error))
+        sys.exit(1)
 prepare_cmake_compiler_env()
 COMPILER_TYPE = get_compiler_type(CXX_COMPILER_EXEC or C_COMPILER_EXEC)
 
@@ -403,6 +427,9 @@ def is_option_token(tok: str) -> bool:
 
 # -------------------- 命令行参数 --------------------
 SHOULD_CONAN_BUILD = False
+SHOULD_CONAN_PROFILE = False
+CONAN_PROFILE_ARGS = []
+CONAN_PROFILE_SIGNATURE = ""
 SHOULD_CONFIGURE = False
 SHOULD_BUILD = False
 SHOULD_RUN = False
@@ -412,7 +439,7 @@ EXIT_AFTER_TYPE_CHANGE = False  # 仅切换类型时立即退出
 CMAKE_DEFINE_ARGS = []
 
 def parse_args():
-    global BUILD_TYPE, SHOULD_CONAN_BUILD, SHOULD_CONFIGURE, SHOULD_BUILD, SHOULD_RUN, SHOULD_CLEAN, BUILD_TARGET, EXIT_AFTER_TYPE_CHANGE, CMAKE_DEFINE_ARGS, EXEC_NAME, SHOULD_LIST_EXECS
+    global BUILD_TYPE, SHOULD_CONAN_BUILD, SHOULD_CONAN_PROFILE, SHOULD_CONFIGURE, SHOULD_BUILD, SHOULD_RUN, SHOULD_CLEAN, BUILD_TARGET, EXIT_AFTER_TYPE_CHANGE, CMAKE_DEFINE_ARGS, EXEC_NAME, SHOULD_LIST_EXECS
     args = sys.argv[1:]
     i = 0
     BUILD_TARGET = "all"
@@ -431,6 +458,7 @@ def parse_args():
             print("  -h, --help                     显示帮助 / Show this help")
             print("  -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb.conf")
             print("                                 / Toggle or set build type, saves to cb.conf")
+            print("  --conan-profile | --conan-profle  按配置的 GCC 生成/覆盖 profile / Generate GCC profile")
             print("  --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies")
             print("  -g | --generate [<type>]       运行 CMake 配置 / Run CMake configure only")
             print("  -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）")
@@ -470,6 +498,10 @@ def parse_args():
                 update_settings_json()
                 log.info(f"The build type has been switched to: {BUILD_TYPE}")
                 type_changed = True
+
+        elif arg in ("--conan-profle", "--conan-profile"):
+            SHOULD_CONAN_PROFILE = True
+            had_action = True
 
         elif arg == "--conan":
             SHOULD_CONAN_BUILD = True
@@ -544,53 +576,52 @@ def parse_args():
 # -------------------- 构建目录 --------------------
 def detect_compiler_version(compiler_type, c_compiler_exec, cxx_compiler_exec,
                             msvc_env_script=None, host_arch="x64"):
+    if compiler_type == "msvc":
+        return f"MSVC-{host_arch}"
+    if compiler_type not in ("gcc", "g++", "clang", "clang++"):
+        return ""
+
+    compiler_exec = c_compiler_exec if compiler_type in ("gcc", "clang") else cxx_compiler_exec
     try:
-        if compiler_type in ("gcc", "g++"):
-            compiler_exec = c_compiler_exec if compiler_type == "gcc" else cxx_compiler_exec
-            result = subprocess.run([compiler_exec, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, check=True)
-            first_line = result.stdout.splitlines()[0]
-            m = re.search(r"(\d+(\.\d+){1,2})", first_line)
-            ver = m.group(1) if m else "unknown"
-            if "mingw" in first_line.lower():
-                return f"MinGW-{ver}"
-            else:
-                return f"GCC-{ver}"
-        elif compiler_type in ("clang", "clang++"):
-            compiler_exec = c_compiler_exec if compiler_type == "clang" else cxx_compiler_exec
-            result = subprocess.run([compiler_exec, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, check=True)
-            first_line = result.stdout.splitlines()[0]
-            m = re.search(r"(\d+(\.\d+){1,2})", first_line)
-            ver = m.group(1) if m else "unknown"
-            return f"Clang-{ver}"
-        elif compiler_type == "msvc":
-            # result = subprocess.run(["cl"], capture_output=True, text=True)
-            # out = result.stdout or result.stderr
-            # m = re.search(r"Version\s+([0-9]+\.[0-9]+)", out, re.IGNORECASE)
-            # if m:
-            #     return f"MSVC-{m.group(1)}"
-            # else:
-            #     return "MSVC-unknown"
-            return f"MSVC-{host_arch}"
-        else:
+        result = subprocess.run([compiler_exec, "--version"], env=CMAKE_RUN_ENV,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, check=True)
+        if not result.stdout.strip():
+            log.warning(f"Cannot query compiler: {compiler_exec}")
             return ""
-    except FileNotFoundError:
-        log.error(f"Compiler not found: {compiler_type}")
+        first_line = result.stdout.splitlines()[0]
+        match = re.search(r"\d+(?:\.\d+){1,2}", first_line)
+        ver = match.group(0) if match else "unknown"
+        if compiler_type in ("gcc", "g++"):
+            # Prefer GCC's machine-readable version over distribution banners.
+            try:
+                result = subprocess.run([compiler_exec, "-dumpfullversion", "-dumpversion"], env=CMAKE_RUN_ENV,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, check=True)
+                dumped_version = result.stdout.strip()
+                if re.fullmatch(r"\d+(?:\.\d+)*", dumped_version):
+                    ver = dumped_version
+            except (OSError, subprocess.CalledProcessError):
+                pass
+            family = "MinGW" if "mingw" in first_line.lower() else "GCC"
+            return f"{family}-{ver}"
+        return f"Clang-{ver}"
+    except (OSError, subprocess.CalledProcessError):
+        log.warning(f"Cannot query compiler: {compiler_exec}")
         return ""
 
 def prepare_build_dir(create=True):
     global BUILD_DIR, BUILD_DIR_TYPE
     if BUILD_DIR is None or BUILD_DIR_TYPE != BUILD_TYPE:
-        compiler_id = detect_compiler_version(
-            COMPILER_TYPE,
-            C_COMPILER_EXEC,
-            CXX_COMPILER_EXEC,
-            MSVC_ENV_SCRIPT,
-            HOST_ARCH or "x64"
-        )
-        if compiler_id:
-            suffix = f"{compiler_id}-{BUILD_TYPE}"
-        else:
-            suffix = BUILD_TYPE
+        suffix = BUILD_TYPE
+        if OUTPUT_DIR_USE_SUBDIR and SUBDIR_USE_COMPILER:
+            compiler_id = detect_compiler_version(
+                COMPILER_TYPE,
+                C_COMPILER_EXEC,
+                CXX_COMPILER_EXEC,
+                MSVC_ENV_SCRIPT,
+                HOST_ARCH or "x64"
+            )
+            if compiler_id:
+                suffix = f"{compiler_id}-{BUILD_TYPE}"
 
         if OUTPUT_DIR:
             if os.path.isabs(OUTPUT_DIR):
@@ -600,7 +631,7 @@ def prepare_build_dir(create=True):
         else:
             base_dir = os.path.join(SOURCE_DIR, "build")
 
-        if USE_OUTPUT_AUTO_SUBDIR:
+        if OUTPUT_DIR_USE_SUBDIR:
             BUILD_DIR = os.path.normpath(os.path.join(base_dir, suffix)).replace("\\", "/")
         else:
             BUILD_DIR = os.path.normpath(base_dir).replace("\\", "/")
@@ -689,7 +720,7 @@ def update_settings_json():
 
 def read_conanfile_txt_options(conanfile_txt_path):
     import configparser
-    config = configparser.ConfigParser(interpolation=None)
+    config = configparser.ConfigParser(interpolation=None, allow_no_value=True, delimiters=("=",))
     config.optionxform = str
     config.read(conanfile_txt_path)
     cli_args = []
@@ -826,6 +857,163 @@ def get_generators_folder(conanfile_path):
     return None
 
 # -------------------- Conan 处理 --------------------
+def conan_output(*args):
+    return subprocess.check_output(["conan"] + list(args), universal_newlines=True).strip()
+
+
+def configured_gcc_pair():
+    """Validate the GCC pair already derived from [compiler] compiler."""
+    if not CONFIG_COMPILER:
+        raise RuntimeError("Set [compiler] compiler before generating a GCC profile")
+    c, cpp = C_COMPILER_EXEC, CXX_COMPILER_EXEC
+    for driver in (c, cpp):
+        if get_compiler_type(driver) not in ("gcc", "g++"):
+            raise RuntimeError("Automatic Conan profiles only support GCC; configure both conan.build and conan.host for other compilers")
+    versions = []
+    for driver in (c, cpp):
+        version = subprocess.check_output([driver, "-dumpfullversion", "-dumpversion"],
+                                          env=CMAKE_RUN_ENV, universal_newlines=True).strip()
+        if not re.fullmatch(r"\d+(?:\.\d+)*", version):
+            raise RuntimeError(f"Cannot detect GCC version: {driver}")
+        versions.append(version.split(".")[0])
+    if versions[0] != versions[1]:
+        raise RuntimeError(f"Configured GCC/G++ versions differ: {versions[0]} vs {versions[1]}")
+    executables = json.dumps({"c": c.replace("\\", "/"), "cpp": cpp.replace("\\", "/")}, ensure_ascii=False, separators=(",", ":"))
+    return versions[0], executables
+
+
+def gcc_profile_buildenv():
+    """Resolve tools from GCC and matching executable prefixes, without arch guesses."""
+    env = CMAKE_RUN_ENV or os.environ
+    directory = os.path.dirname(C_COMPILER_EXEC)
+    prefix = re.sub(r"(?:gcc|g\+\+)(?:-\d+(?:\.\d+)*)?(?:\.exe)?$", "", os.path.basename(C_COMPILER_EXEC))
+    result = {"CC": C_COMPILER_EXEC, "CXX": CXX_COMPILER_EXEC}
+    for tool in ("ar", "as", "ld", "nm", "ranlib", "strip", "objcopy", "objdump"):
+        query = subprocess.check_output([C_COMPILER_EXEC, f"-print-prog-name={tool}"],
+                                        env=CMAKE_RUN_ENV, universal_newlines=True).strip()
+        candidates = []
+        if query and (query != tool or not prefix):
+            candidates.append(query)
+        candidates.append(prefix + tool if prefix else tool)
+        found = None
+        for candidate in candidates:
+            nearby = candidate if os.path.isabs(candidate) else os.path.join(directory, candidate)
+            if os.path.isfile(nearby) and os.access(nearby, os.X_OK):
+                found = os.path.abspath(nearby)
+                break
+            if not os.path.dirname(candidate):
+                found = shutil.which(candidate, path=env.get("PATH"))
+                if found:
+                    break
+        if found:
+            result[tool.upper()] = found
+        else:
+            log.warning(f"Toolchain tool not found, omitted from profile: {tool.upper()}")
+    sysroot = subprocess.check_output([C_COMPILER_EXEC, "-print-sysroot"],
+                                      env=CMAKE_RUN_ENV, universal_newlines=True).strip()
+    if sysroot:
+        sysroot = os.path.abspath(sysroot if os.path.isabs(sysroot) else os.path.join(directory, sysroot))
+        if not os.path.isdir(sysroot):
+            raise RuntimeError(f"GCC sysroot directory not found: {sysroot}")
+        result["SYSROOT"] = sysroot
+    directories = list(dict.fromkeys(os.path.dirname(driver) for driver in (C_COMPILER_EXEC, CXX_COMPILER_EXEC)))
+    return result, directories, sysroot
+
+
+def gcc_profile_matches(name, major):
+    try:
+        result = subprocess.run(["conan", "profile", "show", "-pr:b", name, "-pr:h", name, "-f", "json"],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, check=True)
+        settings = json.loads(result.stdout)["host"]["settings"]
+        return settings.get("compiler") == "gcc" and str(settings.get("compiler.version", "")).split(".")[0] == major
+    except (subprocess.CalledProcessError, ValueError, KeyError):
+        return False
+
+
+def generate_conan_profile():
+    major, _ = configured_gcc_pair()
+    build = (CONAN_BUILD or "").strip()
+    host = (CONAN_HOST or "").strip()
+    name = host or build or f"gcc-{major}"
+    if not re.fullmatch(r"gcc[A-Za-z0-9_.+-]*", name):
+        raise RuntimeError("Generated profile name must start with gcc and contain only letters, digits, '.', '_', '+' or '-'")
+    buildenv, directories, sysroot = gcc_profile_buildenv()
+    env = (CMAKE_RUN_ENV or os.environ).copy()
+    env.update(CC=C_COMPILER_EXEC, CXX=CXX_COMPILER_EXEC)
+    run_cmd(["conan", "profile", "detect", "--name", name, "--force"], env=env)
+    path = conan_output("profile", "path", name)
+    if not gcc_profile_matches(name, major):
+        raise RuntimeError(f"Detected profile does not match GCC {major}; inspect {path}")
+    with open(path, encoding="utf-8") as f:
+        content = f.read()
+    lines = [content.rstrip(), "", "[buildenv]"]
+    lines += [f"{key}={value.replace(chr(92), '/')}" for key, value in buildenv.items()]
+    lines.append("PATH=+(path)" + os.pathsep.join(directory.replace("\\", "/") for directory in directories))
+    conf = []
+    if sysroot:
+        conf.append("tools.build:sysroot=" + sysroot.replace("\\", "/"))
+    if conf:
+        lines += ["", "[conf]"] + conf
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    log.info(f"Generated Conan profile: {name} ({path})")
+    log.info("Profile settings retain Conan's detected defaults; review os/arch/ABI and build/host profiles for cross compilation")
+    if build and build != name:
+        log.info(f"Build profile left unchanged: {build}")
+
+
+def prepare_conan_profiles():
+    """One profile selection policy for --conan and -g; never auto-create."""
+    global CONAN_PROFILE_ARGS, CONAN_PROFILE_SIGNATURE
+    if not CONAN_ENABLER or not any(os.path.isfile(os.path.join(SOURCE_DIR, name)) for name in ("conanfile.txt", "conanfile.py")):
+        return
+    build = (CONAN_BUILD or "").strip()
+    host = (CONAN_HOST or "").strip()
+    auto_build, auto_host = not build, not host
+    executables = ""
+    if (auto_build or auto_host) and CONFIG_COMPILER:
+        major, executables = configured_gcc_pair()
+        names = json.loads(conan_output("profile", "list", "-f", "json"))
+        candidates = sorted(name for name in names if name.startswith("gcc"))
+        preferred = f"gcc-{major}"
+        if preferred in candidates:
+            candidates.remove(preferred)
+            candidates.insert(0, preferred)
+        selected = next((name for name in candidates if gcc_profile_matches(name, major)), None)
+        if not selected:
+            raise RuntimeError(f"No gcc* Conan profile matches GCC {major}; run --conan-profile first")
+        build = build or selected
+        host = host or selected
+    CONAN_PROFILE_ARGS = []
+    for context, profile in (("build", build), ("host", host)):
+        if profile:
+            CONAN_PROFILE_ARGS += [f"--profile:{context}", profile]
+    log.info(f"Conan config: {CONFIG_FILE} (script: {os.path.abspath(__file__)})")
+    result = subprocess.run(["conan", "profile", "show"] + CONAN_PROFILE_ARGS,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    if result.returncode:
+        raise RuntimeError((result.stderr or result.stdout).strip() or "Cannot load selected Conan profiles")
+    CONAN_PROFILE_SIGNATURE = "\n".join((f"build={build or 'default'}", f"host={host or 'default'}",
+                                          f"build_compilers={executables if auto_build else ''}",
+                                          f"host_compilers={executables if auto_host else ''}"))
+    log.info(f"Conan profiles: build={build or 'default'}, host={host or 'default'}")
+    log.info("Conan profile sources: build=%s, host=%s",
+             "configured" if not auto_build else "auto" if build else "default",
+             "configured" if not auto_host else "auto" if host else "default")
+
+
+def check_conan_profile_state():
+    state = os.path.join(BUILD_DIR, ".cbuild-conan-profiles")
+    if not CONAN_PROFILE_SIGNATURE:
+        return
+    if os.path.isfile(state):
+        with open(state, encoding="utf-8") as f:
+            if f.read().rstrip("\n") != CONAN_PROFILE_SIGNATURE:
+                raise RuntimeError("Conan profiles/compilers changed; run --conan before -g")
+    elif glob.glob(os.path.join(BUILD_DIR, "**", "conan_toolchain.cmake"), recursive=True):
+        raise RuntimeError("Existing Conan toolchain has no profile selection record; run --conan before -g")
+
+
 def run_conan_install():
     global CONAN_BUILD, CONAN_HOST, CONAN_ENABLER
 
@@ -837,24 +1025,7 @@ def run_conan_install():
 
     if os.path.isfile(conan_file_txt) or os.path.isfile(conan_file_py):
         cmd = ["conan", "install", SOURCE_DIR, "-s", f"build_type={BUILD_TYPE}", "--output-folder", BUILD_DIR, "--build=missing"]
-        
-        def is_valid_value(val):
-            return val is not None and isinstance(val, str) and val.strip() != ""
-        
-        if is_valid_value(CONAN_BUILD) and not is_valid_value(CONAN_HOST):
-            cmd += ["--profile:build", CONAN_BUILD.strip()]  # strip() 去除首尾空格，避免意外空格影响
-        # 2. 有效 CONAN_BUILD + 有效 CONAN_HOST（走双 profile）
-        elif is_valid_value(CONAN_BUILD) and is_valid_value(CONAN_HOST):
-            cmd += [
-                "--profile:build", CONAN_BUILD.strip(),
-                "--profile:host", CONAN_HOST.strip()
-            ]
-
-        # if CONAN_BUILD != None and CONAN_HOST == None:
-        #     cmd += ["--profile", CONAN_BUILD]
-        # if CONAN_BUILD != None and CONAN_HOST != None:
-        #     cmd += ["--profile:build", CONAN_BUILD]
-        #     cmd += ["--profile:host", CONAN_HOST]
+        cmd += CONAN_PROFILE_ARGS
 
         options_list = []
         if os.path.isfile(conan_file_txt):
@@ -863,7 +1034,9 @@ def run_conan_install():
             cmd += options_list
 
         log.info(" ".join(f'"{c}"' if " " in c else c for c in cmd))
-        run_cmd(cmd)
+        run_cmd(cmd, env=CMAKE_RUN_ENV)
+        with open(os.path.join(BUILD_DIR, ".cbuild-conan-profiles"), "w", encoding="utf-8", newline="\n") as f:
+            f.write(CONAN_PROFILE_SIGNATURE + "\n")
 
         # toolchain_file = os.path.join(BUILD_DIR, "generators/conan_toolchain.cmake")
         generators_folder = get_generators_folder(conan_file_py)
@@ -1179,6 +1352,13 @@ def run():
     if EXIT_AFTER_TYPE_CHANGE:
         return
 
+    if SHOULD_CONAN_PROFILE:
+        if any((SHOULD_CONAN_BUILD, SHOULD_CONFIGURE, SHOULD_BUILD, SHOULD_RUN, SHOULD_CLEAN, SHOULD_LIST_EXECS)):
+            raise RuntimeError("--conan-profile must be used without other actions")
+        generate_conan_profile()
+        return
+    if SHOULD_CONAN_BUILD or SHOULD_CONFIGURE:
+        prepare_conan_profiles()
     prepare_build_dir()
 
     if SHOULD_CLEAN:
@@ -1191,6 +1371,7 @@ def run():
         return
 
     if SHOULD_CONFIGURE:
+        check_conan_profile_state()
         prepare_cmake_toolchain()
         if run_cmake_configure():
             if has_vscode_launch():

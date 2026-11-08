@@ -79,7 +79,8 @@
     "clangd.enable": true,
     "clangd.enableCodeCompletion": true,
     "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/build/GCC-11.4.0-Release",
+        "--compile-commands-dir=${workspaceFolder}/build/Release",
+        "--query-driver=/usr/bin/gcc,/usr/bin/g++,/usr/bin/gcc-*,/usr/bin/g++-*",
         "--header-insertion=never",
         "--all-scopes-completion",
         "--clang-tidy"

@@ -16,7 +16,8 @@ cbuild 使用统一版本号：`cb.sh` / `cb.py` 的 `CBUILD_VERSION`、VS Code 
 
 ```bash
 tools/check_version.sh
-python3 -m unittest discover -s tests -v
+bash -n cb.sh install.sh cb_uninstall.sh
+python3 -m py_compile cb.py
 cd tools/cbuild-plugin-vscode
 npm ci --ignore-scripts
 npm test

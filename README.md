@@ -58,7 +58,7 @@ python -m pip install conan
 
 ## Global Install
 
-The default installation is global: it installs `cb.py` or `cb.sh`, `cb_install.sh`, and, when available, the `cb_uninstall.sh` compatibility wrapper to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb.conf`.
+The default installation is global: it installs `cb.py` or `cb.sh`, `cb_install.sh`, and, when available, the `cb_uninstall.sh` uninstall wrapper to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb.conf`.
 
 ### GitHub
 
@@ -186,7 +186,7 @@ Notes:
 ## Uninstall
 
 ### Uninstall Global Installation
-Uninstall is implemented by `install.sh` / `cb_install.sh`; `cb_uninstall.sh` is an optional compatibility wrapper. If the wrapper was not installed, use the updater or a downloaded installer instead.
+Uninstall is implemented by `install.sh` / `cb_install.sh`; `cb_uninstall.sh` is an optional uninstall wrapper. If the wrapper was not installed, use the updater or a downloaded installer instead.
 
 ```bash
 # Installed wrapper (removes its own directory):
@@ -221,22 +221,17 @@ Both scripts need `cb.conf` for build operations, with this lookup order (`-h/--
 1. current working directory: `./cb.conf`
 2. script directory fallback: `cb.conf`
 
-To migrate an existing project, rename its old configuration once:
-
-```bash
-mv cb_conf.ini cb.conf
-```
-
 ### Regarding `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER`
 
-`cb.py` and `cb.sh` now behave as follows:
+`cb.py` and `cb.sh` behave as follows:
 
-- If `c_compiler` / `cpp_compiler` in `cb.conf` is **empty**: no `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER` is injected; CMake uses the normal environment.
-- If `c_compiler` / `cpp_compiler` is **configured**:
-  - `-DCMAKE_C_COMPILER=...` / `-DCMAKE_CXX_COMPILER=...` is injected automatically.
-  - For absolute (or path-like) values, the compiler directory is temporarily prepended to `PATH` for this CMake subprocess only.
-  - For command names like `gcc`/`g++`/`clang`/`clang++`, the script first resolves the executable path, then temporarily prepends that directory to `PATH`.
-- In `MSVC` mode (`[msvc] enable=1` with valid `msvc_env_script`), behavior stays unchanged: environment is initialized via `vcvarsall.bat`, without the above injection flow.
+- If `[compiler] compiler` is **empty or unset**: no `-DCMAKE_C_COMPILER` / `-DCMAKE_CXX_COMPILER` is injected; CMake uses the normal environment.
+- If `compiler` is **configured**: one GCC or Clang driver selects the C/C++ pair, and both CMake compiler arguments are injected automatically.
+  - `gcc` → `gcc/g++`; `gcc-9` → `gcc-9/g++-9`.
+  - `clang` → `clang/clang++`; `clang-14` → `clang-14/clang++-14`. Clang is never paired with G++.
+  - Cross prefixes, `.exe` suffixes and paths are supported; the corresponding C++ driver can also be the entry point. Companion drivers are located in the same directory first, then by matching name on PATH.
+  - Compiler directories are temporarily prepended to subprocess PATH, without changing persistent environment settings.
+- In `MSVC` mode (`[msvc] enable=1` with valid `msvc_env_script`), the CMake build environment is initialized via `vcvarsall.bat`.
 
 Note: this temporary `PATH` change is process-local and does not modify user/system persistent environment variables.
 
@@ -249,7 +244,7 @@ All the parameters in `cb.conf` can be modified according to your needs.
 > 1. **Current working directory** `./cb.conf` (project-local config)
 > 2. **Script directory** (fallback, i.e. `~/.cbuild/cb.conf`)
 >
-> When modifying config (`-t` / `--config`), the script always writes to whichever file was actually loaded — project-local first, global fallback otherwise. They do not interfere with each other.
+> When changing the build type (`-t` / `--type`), the script always writes to whichever file was actually loaded — project-local first, global fallback otherwise. They do not interfere with each other.
 >
 > Relative `source_dir` is resolved from the directory of the active `cb.conf`; a relative `output_dir` is resolved from `source_dir`.
 
@@ -257,18 +252,19 @@ All the parameters in `cb.conf` can be modified according to your needs.
 [build]
 build_type = Debug      # The compilation type is Debug. Currently, [Debug, Release]
 source_dir = .          # The source code directory, "."indicates the current directory
-output_dir = output     # Output directory. If not specified, it will default to "build"; the compiler suffix will be appended, such as "output/GCC-11.4.0-Release"
+output_dir = output     # Base output directory; defaults to "build"
+# output_dir_use_subdir = true # Default true: append the build type, e.g. output/Debug
+# subdir_use_compiler = false # Default false: include the compiler only when enabled; requires output_dir_use_subdir = true
 generator = Ninja       # Build tools available: [Ninja, Unix Makefiles, ...]
 parallel_jobs = auto    # The number of threads for parallel compilation, where auto means the number of cpu cores is automatically selected
 
 [compiler]              # Compact-related configuration (excluding MSVC), is invalid if the enable of msvc takes effect (the msvc item is invalid under linux).
-c_compiler = gcc        # C compiler (name or path); if non-empty, injects CMAKE_C_COMPILER
-cpp_compiler = g++      # C++ compiler (name or path); if non-empty, injects CMAKE_CXX_COMPILER
+compiler = gcc         # Pairs gcc/g++; also accepts gcc-9, clang, clang-14, cross prefixes and driver paths
 
 [conan]                 # Conan package manager settings
 enable = 1              # Whether to use Conan
-build = gcc             # Conan build profile
-host = gcc              # Conan host profile
+# build = gcc           # Explicit build profile; otherwise match a gcc* profile to the configured compiler
+# host = gcc            # Explicit host profile; otherwise match a gcc* profile to the configured compiler
 
 [vcpkg]                 # vcpkg package manager settings
 enable = 1              # Enable the vcpkg toolchain
@@ -284,6 +280,31 @@ enable = 1              # Whether to use the MSVC compiler or not, 1, True, true
 msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC environment variable script path
 host_arch = x64         # The number of bits for compiling the executable program can be selected as [x86, x64]
 ```
+
+`output_dir_use_subdir` defaults to `true`, creating a build-type subdirectory. When set to `false`, the build directory is exactly `output_dir`, regardless of `subdir_use_compiler`. `subdir_use_compiler` defaults to `false`; enabling it includes the compiler name and version in the subdirectory. When switching compilers without isolated directories, clear the CMake cache first or use a separate `output_dir`.
+
+### Conan GCC profiles
+
+Set `[compiler] compiler` to the toolchain driver, e.g. `gcc-9`. Conan profiles and CMake share the GCC/G++ pair located in the same directory or on PATH. GCC profile generation checks both drivers' major versions.
+
+```bash
+bash cb.sh --conan-profile       # Prefer conan.host as the name; otherwise apply the fallback rules
+python3 cb.py --conan-profile    # Same behavior; --conan-profle is also accepted
+bash cb.sh --conan
+bash cb.sh -g
+```
+
+- Generation uses `conan.host` as the name first, then `conan.build` if host is unset, then `gcc-<major>` if both are unset. With both build and host set to `gcc`, the generated/overwritten profile is `gcc`. Generated names must start with `gcc` and contain only letters, digits or `._+-`. The name is only a label: `compiler.version` still comes from the actual `[compiler]` toolchain, not from parsing the profile name.
+- Generation handles one profile for the configured toolchain and overwrites it without a backup, even if Conan is disabled; it does not install dependencies or run CMake. When both build and host are configured with different names, only the host profile is generated; build is left untouched.
+- `[buildenv]` explicitly records `CC` and `CXX`. GCC tool queries, matching prefixes and the toolchain directory locate `AR`, `AS`, `LD`, `NM`, `RANLIB`, `STRIP`, `OBJCOPY` and `OBJDUMP`; compiler directories are prepended to `PATH`. Missing tools produce a warning and are omitted; prefixed driver names do not fall back to unprefixed binutils when companion tools are missing.
+- Compiler paths are supplied by `[buildenv]`. A valid GCC-reported sysroot is recorded as `[buildenv] SYSROOT` and `[conf] tools.build:sysroot`.
+- With Conan enabled and a dependency manifest present, `--conan` and `-g` use the same selection policy. Each explicit build/host profile wins; unset entries match existing names beginning with `gcc`, with `compiler=gcc` and the selected major version. `gcc-<major>` is preferred; cb does not infer or filter target architectures. Without a match, run `--conan-profile` first; neither action silently generates one.
+- If an explicit profile is missing or cannot be loaded, both `--conan` and `-g` fail instead of falling back to automatic matching. Logs identify the active config file, script path and each profile's source (configured / auto / default).
+- Existing matched profiles are not modified during selection. Conan dependency builds rely on the selected profile's `[buildenv]`, so existing profiles must specify the intended toolchain there. The project's CMake configure still receives explicit compiler arguments from cbuild.
+- `-g` configures the project only. After editing a profile, run `--conan` to install dependencies before `-g`. A missing dependency-installation record or a different profile selection prompts the user to run `--conan`.
+- Conan detects `os`, `arch` and `compiler.cppstd`; profiles define the required target-platform settings.
+- For cross compilation, explicitly maintain native build and target host profiles, and correct target OS/architecture, ABI, SDK, triplets and extra flags after generation. `conan profile detect` primarily detects the running machine; its default settings are not target-platform settings. Do not rely on GCC-major-only matching to distinguish targets.
+- With `compiler` empty or unset, Conan's default profile behavior is preserved. Automatic selection/generation supports GCC only; for Clang or MSVC, explicitly maintain and select suitable build/host profiles.
 
 ### Command Reference
 
@@ -423,7 +444,7 @@ python cb.py -b
 
 The vcpkg path resolution order is `toolchain_file` > `root` > `VCPKG_ROOT`. If `triplet` is empty, vcpkg infers it from the active compiler. Set it explicitly for cross builds, static linkage, or custom runtimes.
 
-When first enabling, disabling, or changing a toolchain for an existing build directory, run `cb.py -c` (or `cb.sh -c`) first to clear its old CMake cache.
+When first enabling, disabling, or changing a toolchain for an existing build directory, run `cb.py -c` (or `cb.sh -c`) first to clear its CMake cache.
 
 Do not edit the generated `cbuild_toolchain.cmake`. Put project-specific additions in `cbuild_custom.cmake`, for example:
 

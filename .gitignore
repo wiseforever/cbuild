@@ -5,14 +5,5 @@ log/
 # .vs folder
 .vs/
 
-# #
-# install_cb.sh
-# cb.sh
-# cb
-# cb.conf
-# ez_custom_func.cmake
-
-# cb.py
-# cb_conf.ini
 __pycache__/
 CMakeUserPresets.json
