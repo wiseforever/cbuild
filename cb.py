@@ -13,8 +13,9 @@ import importlib.util
 import json
 import logging
 import shlex
+import tempfile
 
-CBUILD_VERSION = "0.2.0"
+CBUILD_VERSION = "0.2.1"
 
 # Version queries must work without a readable or even valid cb.conf.
 if __name__ == "__main__":
@@ -484,7 +485,7 @@ def parse_args():
                     if has_vscode_launch():
                         update_vscode_launch()
                     update_cpp_properties()
-                    update_settings_json()
+                    update_clangd_config()
                     log.info(f"The build type has been switched to: {BUILD_TYPE}")
                     type_changed = True
                 else:
@@ -495,7 +496,7 @@ def parse_args():
                 if has_vscode_launch():
                     update_vscode_launch()
                 update_cpp_properties()
-                update_settings_json()
+                update_clangd_config()
                 log.info(f"The build type has been switched to: {BUILD_TYPE}")
                 type_changed = True
 
@@ -683,40 +684,152 @@ def update_cpp_properties():
     except Exception as e:
         log.warning(f"Failed to update c_cpp_properties.json: {e}")
 
-def update_settings_json():
-    """更新 .vscode/settings.json 中 clangd.arguments 的 --compile-commands-dir 路径"""
-    settings_json_path = os.path.join(SOURCE_DIR, ".vscode", "settings.json")
-    if not os.path.isfile(settings_json_path):
-        return
+def update_clangd_text(content, database_dir):
+    """Update the direct database key in a plain, single-document configuration."""
+    if "\n" in database_dir or "\r" in database_dir:
+        raise ValueError("compilation database path contains a newline")
+    value = "'" + database_dir.replace("'", "''") + "'"
+    block = "CompileFlags:\n  CompilationDatabase: " + value + "\n"
+    if content is None:
+        return (block + "\nCompletion:\n"
+                "  # 可选值：true（包含不可见作用域的补全）、false（仅当前可见作用域）。\n"
+                "  AllScopes: false\n"
+                "  # 可选值：IWYU（补全时按需插入头文件）、Never（不自动插入）。\n"
+                "  HeaderInsertion: Never\n").encode("utf-8")
+    text = content.decode("utf-8")
+    if "\r" in text or "\x00" in text:
+        raise ValueError("expected LF-delimited text")
+    lines = text.splitlines(keepends=True)
+    start = None
+    end = len(lines)
+    insertion = 0
+    seen = False
+    indent = None
+    for i, line in enumerate(lines):
+        raw = line.rstrip("\n")
+        if re.match(r" *\t", raw):
+            raise ValueError("tab indentation is not supported")
+        if not raw.strip() or raw.lstrip(" ").startswith("#"):
+            continue
+        if raw.startswith(" "):
+            seen = True
+            if start is not None and end == len(lines):
+                width = len(raw) - len(raw.lstrip(" "))
+                indent = width if indent is None else min(indent, width)
+            continue
+        if re.fullmatch(r"--- *(?:#.*)?", raw):
+            if seen:
+                raise ValueError("multiple YAML documents are not supported")
+            seen = True
+            insertion = i + 1
+            continue
+        seen = True
+        key = re.match(r"([A-Za-z_][A-Za-z_0-9.-]*) *:(?= |$)(.*)$", raw)
+        if not key:
+            raise ValueError("expected plain top-level YAML keys")
+        if key[1] == "If":
+            raise ValueError("conditional YAML configuration is not supported")
+        if start is not None and end == len(lines):
+            end = i
+        if key[1] == "CompileFlags":
+            if start is not None:
+                raise ValueError("duplicate CompileFlags blocks")
+            if key[2].strip() and not key[2].lstrip().startswith("#"):
+                raise ValueError("CompileFlags must be a block mapping")
+            start = i
+    if start is None:
+        if insertion and not lines[insertion - 1].endswith("\n"):
+            lines[insertion - 1] += "\n"
+        lines[insertion:insertion] = [block + ("\n" if insertion < len(lines) else "")]
+    else:
+        indent = indent or 2
+        target = None
+        after_target = False
+        for i in range(start + 1, end):
+            raw = lines[i].rstrip("\n")
+            if not raw.strip() or raw.lstrip(" ").startswith("#"):
+                continue
+            width = len(raw) - len(raw.lstrip(" "))
+            if after_target:
+                if width > indent:
+                    raise ValueError("multiline CompilationDatabase is not supported")
+                after_target = False
+            if width != indent:
+                continue
+            if not re.match(r" +[A-Za-z_][A-Za-z_0-9.-]* *:(?= |$)", raw):
+                raise ValueError("CompileFlags must contain plain mapping keys")
+            match = re.match(r"( +CompilationDatabase *:(?= |$) *)(.*)$", raw)
+            if match:
+                if target is not None:
+                    raise ValueError("duplicate CompilationDatabase keys")
+                target = (i, match)
+                after_target = True
+        if target is None:
+            if not lines[start].endswith("\n"):
+                lines[start] += "\n"
+            lines.insert(start + 1, " " * indent + "CompilationDatabase: " + value + "\n")
+        else:
+            i, match = target
+            scalar = match[2]
+            if scalar.startswith(("'", '"')):
+                quoted = re.match(r"'(?:[^']|'')*'|\"(?:[^\"\\]|\\.)*\"", scalar)
+                if not quoted or not re.fullmatch(r" *(?:#.*)?", scalar[quoted.end():]):
+                    raise ValueError("unsupported CompilationDatabase scalar")
+                suffix = scalar[quoted.end():]
+            elif scalar.startswith("#"):
+                suffix = " " + scalar
+            else:
+                if scalar.startswith(tuple("[{&*!|>")):
+                    raise ValueError("CompilationDatabase must be a single-line scalar")
+                suffix = re.fullmatch(r".*?( +#.*| *)", scalar)[1]
+            prefix = match[1] if match[1].endswith(" ") else match[1] + " "
+            lines[i] = prefix + value + suffix + ("\n" if lines[i].endswith("\n") else "")
+    return "".join(lines).encode("utf-8")
 
+
+def update_clangd_config():
+    """Safely update the compilation database directory in .clangd."""
+    path = os.path.join(SOURCE_DIR, ".clangd")
+    temp_path = None
     try:
-        with open(settings_json_path, "r", encoding="utf-8") as f:
-            content = f.read()
-
         prepare_build_dir(create=False)
-        rel_path = os.path.relpath(BUILD_DIR, SOURCE_DIR).replace(os.sep, '/')
-        if rel_path.startswith('..'):
-            compile_commands_dir = BUILD_DIR
-        else:
-            compile_commands_dir = f"${{workspaceFolder}}/{rel_path}"
-
-        new_content, n = re.subn(
-            r'("--compile-commands-dir=)[^"]*(")',
-            rf'\1{compile_commands_dir}\2',
-            content
-        )
-
-        if n > 0:
-            # bak_file = settings_json_path + ".bak"
-            # with open(bak_file, "w", encoding="utf-8") as f:
-            #     f.write(content)
-            with open(settings_json_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
-            log.info(f"Updated .vscode/settings.json compile-commands-dir -> {compile_commands_dir}")
-        else:
-            log.warning("No --compile-commands-dir= found in settings.json")
-    except Exception as e:
-        log.warning(f"Failed to update settings.json: {e}")
+        source = os.path.abspath(SOURCE_DIR)
+        build = os.path.abspath(BUILD_DIR)
+        try:
+            relative = os.path.relpath(build, source)
+        except ValueError:  # Different Windows drives.
+            relative = None
+        directory = (relative if relative is not None and relative != os.pardir
+                     and not relative.startswith(os.pardir + os.sep) else build)
+        directory = directory.replace("\\", "/")
+        if os.path.islink(path):
+            raise ValueError(".clangd is a symbolic link")
+        if os.path.exists(path) and not os.path.isfile(path):
+            raise ValueError(".clangd is not a regular file")
+        try:
+            with open(path, "rb") as f:
+                content = f.read()
+        except FileNotFoundError:
+            content = None
+        updated = update_clangd_text(content, directory)
+        if updated == content:
+            return
+        fd, temp_path = tempfile.mkstemp(prefix=".clangd.", dir=SOURCE_DIR)
+        with os.fdopen(fd, "wb") as f:
+            f.write(updated)
+        if os.path.exists(path):
+            os.chmod(temp_path, os.stat(path).st_mode & 0o7777)
+        os.replace(temp_path, path)
+        temp_path = None
+        log.info(f"Updated .clangd CompilationDatabase -> {directory}")
+    except (OSError, ValueError, UnicodeError) as e:
+        log.warning(f"Failed to update .clangd: {e}")
+    finally:
+        if temp_path is not None:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
 
 def read_conanfile_txt_options(conanfile_txt_path):
     import configparser
@@ -1377,7 +1490,7 @@ def run():
             if has_vscode_launch():
                 update_vscode_launch()
             update_cpp_properties()
-            update_settings_json()
+            update_clangd_config()
         else:
             log.error("CMake configure failed.")
         return
@@ -1407,7 +1520,7 @@ def run():
                     update_vscode_launch()
                 log.info(f"exec: {exe_path}")
         update_cpp_properties()
-        update_settings_json()
+        update_clangd_config()
         return
 
     if SHOULD_RUN:

@@ -28,13 +28,13 @@ npm test
 npm run package
 ```
 
-打包产物版本由 `package.json` 的 `version` 决定，应与 `cb.sh` / `cb.py` 的 `CBUILD_VERSION` 一致：
+打包产物版本由 `package.json` 的 `version` 决定，与核心版本独立。需要升级插件版本时，在插件目录运行 `npm version 0.3.0 --no-git-tag-version`，npm 会同步更新 `package.json` 和 `package-lock.json`，不会创建 Git tag。当前版本的产物示例：
 
 ```text
 tools/cbuild-plugin-vscode/cbuild-plugin-vscode-0.2.0.vsix
 ```
 
-可在仓库根目录执行 `tools/check_version.sh` 检查所有版本来源。
+`tools/check_version.sh` 仅检查核心版本，不检查插件版本。
 
 ## 安装 VSIX
 
@@ -48,9 +48,9 @@ code --install-extension tools/cbuild-plugin-vscode/cbuild-plugin-vscode-0.2.0.v
 
 ## 与 master 分支的关系
 
-插件内置的默认安装命令从所选源的 `master/install.sh` 启动，再由 `master/LATEST` 解析 tag；不使用 GitHub API 或 Release 附件。显式版本则直接读取对应 tag 的 `install.sh`。
+插件的 `cbuild.installRelease` 选择的是核心版本，而不是插件版本。插件内置的默认安装命令从所选源的 `master/install.sh` 启动，再由 `master/LATEST` 解析 tag；不使用 GitHub API 或 Release 附件。显式版本则直接读取对应 tag 的 `install.sh`。
 
-正式 tag、`master` 和 VSIX 的发布步骤见仓库根目录的 [RELEASING.md](../../../RELEASING.md)。Release 附件是可选的发布说明材料，不是默认安装入口。
+核心 tag 和 `master` 的发布步骤见仓库根目录的 [RELEASING.md](../../../RELEASING.md)。Release 附件是可选的发布说明材料，不是默认安装入口。
 
 在对应 `vX.Y.Z` tag 推送前，默认全局安装无法完成下载；此时应使用本地 VSIX、显式 tag，或配置 `cbuild.bootstrapCommands` 指向内部安装源。
 

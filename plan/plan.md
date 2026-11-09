@@ -4,7 +4,7 @@
 
 ## 未完成事项
 
-- **版本化安装：0.2.0 待发布。** 版本文件已同步，按发布流程先推送 `v0.2.0` tag，再推进两个远端的 `master/LATEST`。见[版本化安装](install/release_versioned_install.md)。
+- **版本化安装：核心 0.2.1 未发布。** `LATEST` 仍为 `v0.2.0`，尚未推进；准备发布时先更新本地 `LATEST`，再推送 `v0.2.1` tag，最后推进两个远端的 `master`。见[版本化安装](install/release_versioned_install.md)。
 - **VS Code 插件：文档与发布收尾。** 核心功能已完成；剩余中英文 README 推荐入口说明、本地调试说明及发布方式决策。见[插件规划](vscode/vscode_cbuild_tools.md)。
 
 ## 主题索引
@@ -13,6 +13,7 @@
 | --- | --- | --- |
 | 安装发布 | [master/LATEST 与 tag 版本化安装](install/release_versioned_install.md) | 待发布 |
 | VS Code | [自研轻量 VS Code 插件](vscode/vscode_cbuild_tools.md) | 进行中 |
+| 构建 | [clangd 编译数据库](build/clangd_compilation_database.md) | 已完成 |
 | 构建 | [编译器与构建类型配置](build/build_type_config_write.md) | 已完成 |
 | 构建 | [命令行构建类型](build/command_build_type_arguments.md) | 已完成 |
 | 构建 | [构建目标参数](build/build_target_arguments.md) | 已完成 |

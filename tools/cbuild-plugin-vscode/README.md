@@ -40,7 +40,7 @@ Recommended setup:
 
 1. If cbuild is not already available on PATH or in the fallback directory, run **Install / Update Global cbuild** once. This requires the source's `master/LATEST` value (or set `cbuild.installRelease` to an existing tag).
 2. Open the project and run **Install Project Config (--config)** if it lacks `cb.conf`.
-3. Optionally run **Install VS Code Templates (--vscode)**.
+3. Optionally run **Install VS Code Templates (--vscode)** to install the four templates.
 4. Edit `cb.conf`, then use the generate/build/run buttons.
 
 Global installation does not install project configuration or editor templates. Project setup commands explicitly target the first workspace folder, even if a terminal's current directory has changed. Existing `cb.conf` or `.vscode` is moved to `<project-root>/cbuild_bak/` before replacement. If scripts or `cb_install.sh` cannot be found on PATH or in the fallback directory, the extension reports both lookup locations and asks you to install cbuild or adjust `cbuild.installDirectory`.

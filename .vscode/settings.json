@@ -79,10 +79,11 @@
     "clangd.enable": true,
     "clangd.enableCodeCompletion": true,
     "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/build/Release",
+        // 已迁移到 .clangd；不要同时启用，以免启动参数覆盖项目配置。
+        // "--compile-commands-dir=${workspaceFolder}/build/Release", // CompileFlags.CompilationDatabase，由 cbuild 更新
+        // "--header-insertion=never", // Completion.HeaderInsertion: Never，需支持此配置项的新版 clangd
+        // "--all-scopes-completion=false", // Completion.AllScopes: false
         "--query-driver=/usr/bin/gcc,/usr/bin/g++,/usr/bin/gcc-*,/usr/bin/g++-*",
-        "--header-insertion=never",
-        "--all-scopes-completion",
         "--clang-tidy"
     ],
     "editor.inlayHints.enabled": "offUnlessPressed",

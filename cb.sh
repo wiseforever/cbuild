@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-CBUILD_VERSION="0.2.0"
+CBUILD_VERSION="0.2.1"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CONFIG_FILE_CWD="$PWD/cb.conf"
@@ -637,26 +637,171 @@ update_cpp_properties() {
   log_info "Updated .vscode/c_cpp_properties.json compileCommands -> ${compile_commands_path}"
 }
 
-update_settings_json() {
-  local settings_json rel_path compile_commands_dir escaped
-  settings_json="$SOURCE_DIR/.vscode/settings.json"
-  [[ -f "$settings_json" ]] || return 0
-
+update_clangd_config() {
+  local path="$SOURCE_DIR/.clangd" directory tmp='' input missing=false last_newline=true
   prepare_build_dir false
-
-  if [[ "$BUILD_DIR" == "$SOURCE_DIR/"* ]]; then
-    rel_path="${BUILD_DIR#"$SOURCE_DIR"/}"
-    compile_commands_dir="\${workspaceFolder}/${rel_path}"
+  if [[ "$BUILD_DIR" == "$SOURCE_DIR" ]]; then
+    directory='.'
+  elif [[ "$SOURCE_DIR" == / && "$BUILD_DIR" == /* ]]; then
+    directory="${BUILD_DIR#/}"
+  elif [[ "$BUILD_DIR" == "$SOURCE_DIR/"* ]]; then
+    directory="${BUILD_DIR#"$SOURCE_DIR"/}"
   else
-    compile_commands_dir="${BUILD_DIR}"
+    directory="$BUILD_DIR"
+    if [[ "$OS_TYPE" == windows ]] && command -v cygpath >/dev/null 2>&1; then
+      directory="$(cygpath -m "$directory")" || { log_warn "Failed to convert .clangd path"; return 0; }
+    fi
   fi
-
-#   cp -f "$settings_json" "${settings_json}.bak"
-  escaped="${compile_commands_dir//\//\\/}"
-  sed -E "s/(\"--compile-commands-dir=)[^\"]*(\")/\1${escaped}\2/g" \
-    "$settings_json" > "${settings_json}.tmp"
-  mv "${settings_json}.tmp" "$settings_json"
-  log_info "Updated .vscode/settings.json compile-commands-dir -> ${compile_commands_dir}"
+  if [[ "$directory" == *$'\n'* || "$directory" == *$'\r'* || -L "$path" ]]; then
+    log_warn "Failed to update .clangd: invalid path or symbolic link"
+    return 0
+  fi
+  if [[ -e "$path" ]]; then
+    if [[ ! -f "$path" || ! -r "$path" ]]; then
+      log_warn "Failed to update .clangd: not a readable regular file"
+      return 0
+    fi
+    if [[ -s "$path" && -n "$(tail -c 1 "$path")" ]]; then last_newline=false; fi
+  else
+    missing=true
+  fi
+  tmp="$(mktemp "$SOURCE_DIR/.clangd.XXXXXXXX")" || { log_warn "Failed to create .clangd temporary file"; return 0; }
+  if [[ -e "$path" ]] && ! cp -p "$path" "$tmp"; then
+    log_warn "Failed to preserve .clangd permissions"; rm -f "$tmp"; return 0
+  fi
+  input="$path"
+  [[ "$missing" == false ]] || input=/dev/null
+  # Recognize plain block mappings only; never guess at conditional or complex YAML.
+  if ! CBUILD_CLANGD_DIR="$directory" CBUILD_CLANGD_MISSING="$missing" CBUILD_CLANGD_NEWLINE="$last_newline" awk '
+    function fail(reason) {
+      print "Cannot update .clangd: " reason > "/dev/stderr"
+      exit 2
+    }
+    function indent(s) { match(s, /^ */); return RLENGTH }
+    function suffix(s, q, c, j, tail) {
+      q = substr(s, 1, 1)
+      if (q == sq || q == "\"") {
+        for (j = 2; j <= length(s); j++) {
+          c = substr(s, j, 1)
+          if (q == "\"" && c == "\\") { j++; continue }
+          if (c != q) continue
+          if (q == sq && substr(s, j + 1, 1) == sq) { j++; continue }
+          tail = substr(s, j + 1)
+          if (tail !~ /^ *(#.*)?$/) fail("unsupported CompilationDatabase scalar")
+          return tail
+        }
+        fail("unsupported CompilationDatabase scalar")
+      }
+      if (q == "#") return " " s
+      if (length(q) && index("[{&*!|>", q)) fail("CompilationDatabase must be a single-line scalar")
+      if (match(s, / +#/)) return substr(s, RSTART)
+      match(s, / *$/)
+      return substr(s, RSTART)
+    }
+    { lines[NR] = $0 }
+    END {
+      sq = sprintf("%c", 39)
+      directory = ENVIRON["CBUILD_CLANGD_DIR"]
+      gsub(sq, sq sq, directory)
+      value = sq directory sq
+      n = NR
+      if (ENVIRON["CBUILD_CLANGD_MISSING"] == "true") {
+        print "CompileFlags:"
+        print "  CompilationDatabase: " value
+        print ""
+        print "Completion:"
+        print "  # 可选值：true（包含不可见作用域的补全）、false（仅当前可见作用域）。"
+        print "  AllScopes: false"
+        print "  # 可选值：IWYU（补全时按需插入头文件）、Never（不自动插入）。"
+        print "  HeaderInsertion: Never"
+      } else {
+        block_end = n + 1
+        insert_at = 1
+        for (i = 1; i <= n; i++) {
+          raw = lines[i]
+          if (index(raw, "\r")) fail("expected LF-delimited text")
+          if (raw ~ /^ *\t/) fail("tab indentation is not supported")
+          if (raw ~ /^ *(#.*)?$/) continue
+          if (raw ~ /^ /) {
+            seen = 1
+            if (block_start && block_end == n + 1) {
+              width = indent(raw)
+              if (!child_indent || width < child_indent) child_indent = width
+            }
+            continue
+          }
+          if (raw ~ /^--- *(#.*)?$/) {
+            if (seen) fail("multiple YAML documents are not supported")
+            seen = 1
+            insert_at = i + 1
+            continue
+          }
+          seen = 1
+          if (!match(raw, /^[A-Za-z_][A-Za-z_0-9.-]* *:( |$)/)) fail("expected plain top-level YAML keys")
+          key = substr(raw, 1, RLENGTH)
+          rest = substr(raw, RLENGTH + 1)
+          sub(/ *: *$/, "", key)
+          if (key == "If") fail("conditional YAML configuration is not supported")
+          if (block_start && block_end == n + 1) block_end = i
+          if (key == "CompileFlags") {
+            if (block_start) fail("duplicate CompileFlags blocks")
+            if (rest !~ /^ *(#.*)?$/) fail("CompileFlags must be a block mapping")
+            block_start = i
+          }
+        }
+        if (block_start) {
+          if (!child_indent) child_indent = 2
+          for (i = block_start + 1; i < block_end; i++) {
+            raw = lines[i]
+            if (raw ~ /^ *(#.*)?$/) continue
+            width = indent(raw)
+            if (after_target) {
+              if (width > child_indent) fail("multiline CompilationDatabase is not supported")
+              after_target = 0
+            }
+            if (width != child_indent) continue
+            if (raw !~ /^ +[A-Za-z_][A-Za-z_0-9.-]* *:( |$)/) fail("CompileFlags must contain plain mapping keys")
+            if (raw ~ /^ +CompilationDatabase *:( |$)/) {
+              if (target) fail("duplicate CompilationDatabase keys")
+              target = i
+              after_target = 1
+            }
+          }
+          if (target) {
+            match(lines[target], /^ +CompilationDatabase *:( |$) */)
+            prefix = substr(lines[target], 1, RLENGTH)
+            scalar = substr(lines[target], RLENGTH + 1)
+            if (substr(prefix, length(prefix), 1) != " ") prefix = prefix " "
+            lines[target] = prefix value suffix(scalar)
+          }
+        }
+        for (i = 1; i <= n + 1; i++) {
+          if (!block_start && i == insert_at) {
+            print "CompileFlags:"
+            print "  CompilationDatabase: " value
+            if (i <= n) print ""
+          }
+          if (block_start && !target && i == block_start + 1)
+            print sprintf("%*s", child_indent, "") "CompilationDatabase: " value
+          if (i <= n) {
+            printf "%s", lines[i]
+            if (i < n || ENVIRON["CBUILD_CLANGD_NEWLINE"] == "true" ||
+                (block_start && !target && i == block_start) ||
+                (!block_start && i == insert_at - 1)) printf "\n"
+          }
+        }
+      }
+    }
+  ' "$input" > "$tmp"; then
+    log_warn "Failed to update .clangd; original file preserved"; rm -f "$tmp"; return 0
+  fi
+  if [[ -e "$path" ]] && cmp -s "$path" "$tmp"; then
+    rm -f "$tmp"
+  elif ! mv -f "$tmp" "$path"; then
+    log_warn "Failed to replace .clangd"; rm -f "$tmp"
+  else
+    log_info "Updated .clangd CompilationDatabase"
+  fi
 }
 
 get_exec_path() {
@@ -849,7 +994,7 @@ parse_args() {
             update_vscode_launch
           fi
           update_cpp_properties
-          update_settings_json
+          update_clangd_config
           log_info "The build type has been switched to: $BUILD_TYPE"
           type_changed="true"
         else
@@ -866,7 +1011,7 @@ parse_args() {
           update_vscode_launch
         fi
         update_cpp_properties
-        update_settings_json
+        update_clangd_config
         log_info "The build type has been switched to: $BUILD_TYPE"
         type_changed="true"
       fi
@@ -1609,7 +1754,7 @@ main() {
       update_vscode_launch
     fi
     update_cpp_properties
-    update_settings_json
+    update_clangd_config
     exit 0
   fi
 
@@ -1633,7 +1778,7 @@ main() {
       fi
     fi
     update_cpp_properties
-    update_settings_json
+    update_clangd_config
     exit 0
   fi
 

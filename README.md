@@ -178,7 +178,9 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 Notes:
 
 - A simple install moves existing `.vscode`, `cb.py`, `cb.sh`, `cb.conf`, and `cmake/ez_custom_func.cmake` to `cbuild_bak/` before installing replacements.
-- `--vscode [directory]` installs only the four VS Code templates. When `.vscode` already exists, it is moved to `<directory>/cbuild_bak/` first.
+- `--vscode [directory]` installs the four VS Code templates. Existing `.vscode` is moved to `<directory>/cbuild_bak/` first.
+- The installer never downloads, creates, replaces, or backs up project `.clangd`; the build scripts maintain it.
+- All required files are downloaded before replacement; a download failure leaves existing files untouched.
 - `--config [directory]` installs only `cb.conf`. An existing configuration is moved to `<directory>/cbuild_bak/` first.
 - If you do not use VSCode, only `cb.py` or `cb.sh` plus `cb.conf` is required.
 - `install.sh` does not generate or overwrite `.vscode/tasks.json`. The repository keeps the task files for users who still want to use VS Code's built-in Tasks manually.
@@ -389,6 +391,8 @@ bash cb.sh --list-execs
 ## VSCode Configuration
 
 The `.vscode` directory contains debug launch configurations, C/C++ and clangd settings, and snippets. Adjust them as needed.
+
+For clangd in any editor, when the project root `.clangd` is missing, cbuild creates it with two-space indentation, `CompileFlags.CompilationDatabase` first, and annotated defaults for `Completion.AllScopes: false` and `Completion.HeaderInsertion: Never`. For existing files, cbuild only updates or adds `CompileFlags.CompilationDatabase` in ordinary single-document block-style YAML, preserving existing indentation, other settings and comments; newly added blocks or keys use two spaces when no indentation can be inferred. No custom markers are required. Conditional, multi-document or ambiguous configurations are left unchanged with a warning and must be maintained manually. It no longer updates `.vscode/settings.json`; remove the old active `--compile-commands-dir` argument manually.
 
 You can run the commands listed in [Command Reference](#command-reference) in a terminal.
 

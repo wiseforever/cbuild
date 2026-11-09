@@ -1,6 +1,6 @@
 # Release 与 tag 版本化安装
 
-状态：0.2.0 版本已同步，待发布。
+状态：核心 0.2.1 为未发布的开发版本；`LATEST` 仍为 `v0.2.0`，尚未推进。
 
 ## 安装与版本规则
 
@@ -10,11 +10,11 @@
 - `--base-url` 必须包含 `{tag}`，并配合显式版本使用。
 - 下载到暂存目录，校验脚本版本和必需文件后再备份、替换目标。可选卸载包装缺失时，可直接通过安装器卸载。
 - 安装目录记录版本、变体和来源；`cb_install.sh` 默认沿用自身目录及变体，版本默认 latest，显式参数优先。
-- `cb.sh` / `cb.py` 的版本、插件 package.json/package-lock.json 和 `LATEST` 中的 tag 保持一致，当前版本为 0.2.0。
+- `cb.sh` / `cb.py` 的核心版本保持一致；`LATEST` 记录核心发布 tag。插件 package.json/package-lock.json 由 npm 独立维护，不要求与核心同版。当前核心版本为 0.2.1，尚未发布。
 
 ## 插件与卸载
 
-- 插件 `cbuild.installRelease` 默认 latest，作用于内置全局安装及 `--config` / `--vscode` 命令。
+- 插件 `cbuild.installRelease` 选择核心版本而非插件版本，默认 latest，作用于内置全局安装及 `--config` / `--vscode` 命令。
 - 自定义初始化命令由用户维护，PATH 查找顺序独立于安装版本设置。
 - `install.sh` / `cb_install.sh --uninstall [--prefix] [--yes]` 执行卸载，`cb_uninstall.sh` 提供可选包装入口。
 - 非交互卸载要求 `--yes`，拒绝根目录、主目录和源码仓库。
@@ -28,4 +28,4 @@
 
 ## 剩余事项
 
-- 推送 `v0.2.0` tag，再推送更新 `LATEST` 的 master。
+- 准备发布时显式运行 `python3 tools/set_version.py 0.2.1 --latest`，再先推送 `v0.2.1` tag，最后推送更新 `LATEST` 的 master。

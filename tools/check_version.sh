@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify that every version source agrees. Usage: tools/check_version.sh [tag]
+# Verify core versions and release pointer. Usage: tools/check_version.sh [tag]
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -12,9 +12,6 @@ read_constant() {
 bash_script="$(read_constant "$root/cb.sh" CBUILD_VERSION)"
 python_script="$(read_constant "$root/cb.py" CBUILD_VERSION)"
 version="$bash_script"
-plugin="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$root/tools/cbuild-plugin-vscode/package.json")"
-lock="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$root/tools/cbuild-plugin-vscode/package-lock.json")"
-lock_root="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["packages"][""]["version"])' "$root/tools/cbuild-plugin-vscode/package-lock.json")"
 
 status=0
 check() {
@@ -24,15 +21,12 @@ check() {
     fi
 }
 
-[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$ ]] ||
+[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]] ||
     { echo "Invalid CBUILD_VERSION: $version" >&2; exit 1; }
 [[ "$latest" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]] ||
     { echo "Invalid LATEST (expected a tag such as vX.Y.Z): $latest" >&2; exit 1; }
 check cb.sh "$bash_script"
 check cb.py "$python_script"
-check tools/cbuild-plugin-vscode/package.json "$plugin"
-check tools/cbuild-plugin-vscode/package-lock.json "$lock"
-check 'package-lock.json packages[""]' "$lock_root"
 
 # install.sh intentionally has no self-version constant: tags identify releases,
 # and LATEST records the last published tag.

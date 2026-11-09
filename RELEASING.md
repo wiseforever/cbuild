@@ -1,12 +1,12 @@
 # 发布流程
 
-cbuild 使用统一版本号：`cb.sh` / `cb.py` 的 `CBUILD_VERSION`、VS Code 插件的 `package.json` / `package-lock.json`，以及记录最后发布 tag 的 `LATEST`。tag 使用 `v` 前缀，例如 `v0.2.0`。
+核心版本由 `cb.sh` / `cb.py` 的 `CBUILD_VERSION` 共同维护，`LATEST` 记录核心发布 tag。插件版本由 npm 独立维护，不要求与核心一致。核心 tag 使用 `v` 前缀，例如 `v0.2.0`。
 
 仓库同时推送到 GitHub（`origin`）和 Gitee（`gitee`）两个远端，代码、tag 和 `LATEST` 内容保持一致。
 
 ## 版本规则
 
-- 正式版本形如 `v0.2.0`；预发布版本形如 `v0.2.0-rc.1`，脚本中的 `CBUILD_VERSION` 为 `0.2.0`。
+- 正式版本形如 `v0.2.0`；预发布版本形如 `v0.2.0-rc.1`，脚本中的 `CBUILD_VERSION` 为 `0.2.0-rc.1`。
 - 已发布的 tag 和 tag 内文件不移动、不覆盖；修正内容时发布新版本。
 - 默认安装读取所选源 `master/LATEST` 中的 tag，再从该 tag 下载全部文件。
 - `--release vX.Y.Z` 直接使用对应 tag，不读取 `master/LATEST`。
@@ -18,24 +18,20 @@ cbuild 使用统一版本号：`cb.sh` / `cb.py` 的 `CBUILD_VERSION`、VS Code 
 tools/check_version.sh
 bash -n cb.sh install.sh cb_uninstall.sh
 python3 -m py_compile cb.py
-cd tools/cbuild-plugin-vscode
-npm ci --ignore-scripts
-npm test
-npm run package
 ```
 
-所有版本来源不一致时，`tools/check_version.sh` 会失败。
+`tools/check_version.sh` 检查核心脚本版本一致及 `LATEST` 格式；可传入 tag 检查其与脚本及 `LATEST` 的匹配关系。插件打包不属于核心发布的强制步骤。
 
 ## 发布步骤
 
-1. 修改代码，并在需要时统一更新 `CBUILD_VERSION`、插件版本，以及 `LATEST`（发布 tag，例如 `v0.2.0`）。
-2. 提交 `master`，并确认发布前检查通过。
+1. 修改代码。日常递增时运行 `python3 tools/set_version.py 0.2.1`，仅更新核心脚本；准备发布时运行 `python3 tools/set_version.py 0.2.1 --latest`，同时将本地 `LATEST` 更新为 `v0.2.1`。预发布可使用 `0.2.1-rc.1 --latest`，生成 `v0.2.1-rc.1`。本地更新 `LATEST` 不等于发布；工具不会提交、创建 tag 或推送。发布前运行 `tools/check_version.sh v0.2.1`。
+2. 确认所选版本后提交 `master`，并确认发布前检查通过。
 3. 创建 tag，并**先推送 tag 到两个远端**：
 
    ```bash
-   git tag v0.2.0
-   git push origin v0.2.0
-   git push gitee  v0.2.0
+   git tag v0.2.1
+   git push origin v0.2.1
+   git push gitee  v0.2.1
    ```
 
 4. tag 完整后，再推送 `master` 到两个远端。`master` 中的 `LATEST` 一旦推送，就会成为该远端默认安装的 tag：

@@ -180,7 +180,9 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 前提：
 
 - 项目级 `--simple` 安装会先将已有 `.vscode`、`cb.py`、`cb.sh`、`cb.conf` 和 `cmake/ez_custom_func.cmake` 移至 `cbuild_bak/`，再安装新文件。
-- `--vscode [目录]` 仅安装四个 VS Code 模板；若 `.vscode` 已存在，会先移至 `<目录>/cbuild_bak/`。
+- `--vscode [目录]` 安装四个 VS Code 模板；已有 `.vscode` 会先移至 `<目录>/cbuild_bak/`。
+- 安装器不会下载、创建、替换或备份项目 `.clangd`；该文件由构建脚本维护。
+- 替换前会先下载全部必需文件；下载失败时保留已有文件。
 - `--config [目录]` 仅安装 `cb.conf`；若已有配置，会先移至 `<目录>/cbuild_bak/`。
 - 若不需要使用 VSCode 可以不依赖 `.vscode` 目录，仅仅需要 `cb.py` 或 `cb.sh` 与 `cb.conf` 文件即可。
 - `install.sh` 安装 VS Code 模板时不包含 `.vscode/tasks.json`；仓库提供的 task 文件可供 VS Code 内置 Tasks 手动参考。
@@ -394,6 +396,8 @@ bash cb.sh --list-execs
 ## VSCode 配置
 
 `.vscode` 目录包含调试启动配置、C/C++ 与 clangd 设置以及代码片段，可以自行修改。
+
+无论使用何种编辑器，项目根目录缺少 `.clangd` 时，cbuild 会以 2 空格缩进创建该文件，将 `CompileFlags.CompilationDatabase` 放在最前面，并生成带可选值注释的 `Completion.AllScopes: false` 和 `Completion.HeaderInsertion: Never` 默认配置。对于已有文件，cbuild 在常规单文档块式 YAML 中直接更新或补充 `CompileFlags.CompilationDatabase`，不需要自定义标记，保留已有缩进、其他设置和注释；新增块或无法推断缩进时使用 2 空格。条件配置、多文档或存在歧义的复杂格式会警告并保持原样，需手动维护。不再更新 `.vscode/settings.json`，请自行删除旧的生效参数 `--compile-commands-dir`。
 
 可以在终端中使用 [cb.py/cb.sh 命令](#cbpy--cbsh-使用命令说明)快速编译运行。
 
