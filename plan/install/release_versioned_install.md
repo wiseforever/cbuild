@@ -1,6 +1,6 @@
 # Release 与 tag 版本化安装
 
-状态：核心 0.2.1 为未发布的开发版本；`LATEST` 仍为 `v0.2.0`，尚未推进。
+状态：核心 0.2.1 准备发布，尚未发布；本地 `LATEST` 已指向 `v0.2.1`。
 
 ## 安装与版本规则
 
@@ -28,4 +28,4 @@
 
 ## 剩余事项
 
-- 准备发布时显式运行 `python3 tools/set_version.py 0.2.1 --latest`，再先推送 `v0.2.1` tag，最后推送更新 `LATEST` 的 master。
+- 待提交准备改动并创建 `v0.2.1` tag 后，先推送 tag，最后推送更新 `LATEST` 的 master。
