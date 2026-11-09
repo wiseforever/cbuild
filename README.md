@@ -58,7 +58,7 @@ python -m pip install conan
 
 ## Global Install
 
-The default installation is global: it installs `cb.py` or `cb.sh`, `cb_install.sh`, and, when available, the `cb_uninstall.sh` uninstall wrapper to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb.conf`.
+The default installation is global: it installs `cb.py` or `cb.sh` and `cb_install.sh` to a shared directory. `-g` and `--global` are also accepted. Global installation does not install `cb.conf`.
 
 ### GitHub
 
@@ -106,7 +106,7 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | \
 - `--source github|gitee` selects both the `LATEST` lookup and the tag files. The selected source is authoritative; a missing file is an error and is not fetched from the other source.
 - `--base-url` is a custom raw URL template that must contain `{tag}` and requires an explicit `--release`; `latest` is not resolved for custom URLs.
 - `cb_install.sh` keeps its own installation directory, variant, and source (unless overridden), but updates to `master/LATEST` unless `--release` is given.
-- Query installed versions without loading a project `cb.conf`: `cb.sh --version`, `cb.py --version`, or `cb_uninstall.sh --version`.
+- Query installed versions without loading a project `cb.conf`: `cb.sh --version` or `cb.py --version`.
 - Tags and tag files are immutable. Push the tag before advancing `master/LATEST`; each remote determines `latest` only from its own branch state.
 - Release process: [RELEASING.md](RELEASING.md)
 
@@ -188,21 +188,18 @@ Notes:
 ## Uninstall
 
 ### Uninstall Global Installation
-Uninstall is implemented by `install.sh` / `cb_install.sh`; `cb_uninstall.sh` is an optional uninstall wrapper. If the wrapper was not installed, use the updater or a downloaded installer instead.
+Uninstall using the installed updater or a downloaded `install.sh`.
 
 ```bash
-# Installed wrapper (removes its own directory):
-~/.cbuild/cb_uninstall.sh --yes
-
 # Globally installed updater:
-~/.cbuild/cb_install.sh --uninstall
+~/.cbuild/cb_install.sh --uninstall --yes
 
 # Re-download the installer (use --yes because stdin is not interactive):
 curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | \
   bash -s -- --uninstall --yes
 
 # Uninstall a custom installation directory via the default updater:
-~/.cbuild/cb_install.sh --uninstall --prefix /path/to/cbuild
+~/.cbuild/cb_install.sh --uninstall --prefix /path/to/cbuild --yes
 ```
 
 Uninstall is local-only and does not query GitHub. It refuses `/`, your home directory, and directories that do not look like a cbuild installation. `--yes` is required when stdin is not a terminal.

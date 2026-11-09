@@ -246,13 +246,6 @@ if [[ "$mode" == "global" || "$mode" == "simple" ]]; then
         fail "Downloaded $selected_tool ($tool_version) does not match $release; existing files preserved"
 fi
 
-# The uninstaller is now implemented by this installer. Keep installing the
-# compatibility wrapper when available, but never let it block a valid install.
-if [[ "$mode" == "global" ]] && ! download_file cb_uninstall.sh "$staging_dir/cb_uninstall.sh"; then
-    rm -f "$staging_dir/cb_uninstall.sh"
-    printf 'Warning: compatibility cb_uninstall.sh unavailable; the installer supports --uninstall directly.\n'
-fi
-
 update_shell_rc() {
     local dir_to_add="$1" rc_file=""
     case ":${PATH}:" in *":${dir_to_add}:"*) return 0 ;; esac
@@ -275,9 +268,6 @@ if [[ "$mode" == "global" ]]; then
     rm -rf -- "$staging_dir"
     staging_dir="$publish_dir"
     chmod +x "$staging_dir/$selected_tool" "$staging_dir/install.sh"
-    if [[ -f "$staging_dir/cb_uninstall.sh" ]]; then
-        chmod +x "$staging_dir/cb_uninstall.sh"
-    fi
     {
         printf '# cbuild installation manifest\n'
         printf 'INSTALL_DIR=%q\n' "$global_install_dir"
@@ -287,10 +277,8 @@ if [[ "$mode" == "global" ]]; then
     } > "$staging_dir/.install.cfg"
     mv -f "$staging_dir/$selected_tool" "$global_install_dir/$selected_tool"
     mv -f "$staging_dir/install.sh" "$global_install_dir/cb_install.sh"
-    if [[ -f "$staging_dir/cb_uninstall.sh" ]]; then
-        mv -f "$staging_dir/cb_uninstall.sh" "$global_install_dir/cb_uninstall.sh"
-    fi
     mv -f "$staging_dir/.install.cfg" "$global_install_dir/.install.cfg"
+    rm -f "$global_install_dir/cb_uninstall.sh"
     if [[ "$install_variant" == "python" ]]; then
         rm -f "$global_install_dir/cb.sh"
     else

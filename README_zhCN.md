@@ -58,7 +58,7 @@ python -m pip install conan
 
 ## 全局安装
 
-默认安装方式是全局安装：会将 `cb.py` 或 `cb.sh`、`cb_install.sh`，以及可用时的 `cb_uninstall.sh` 卸载入口安装到共享目录。`-g` 与 `--global` 也可显式使用。全局安装不会安装 `cb.conf`。
+默认安装方式是全局安装：会将 `cb.py` 或 `cb.sh` 以及 `cb_install.sh` 安装到共享目录。`-g` 与 `--global` 也可显式使用。全局安装不会安装 `cb.conf`。
 
 ### GitHub
 
@@ -108,7 +108,7 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | \
 - `--source github|gitee` 同时决定 `LATEST` 和 tag 文件来源。所选源是唯一来源，文件缺失会直接报错，不会从另一个源补取。
 - `--base-url` 是必须包含 `{tag}` 的自定义 URL 模板，并要求显式 `--release`；自定义 URL 不解析 `latest`。
 - `cb_install.sh` 默认保留自身安装目录、变体和来源（显式参数优先），但版本默认跟随 `master/LATEST`；需要固定时加 `--release`。
-- 查询已安装版本不依赖项目 `cb.conf`：`cb.sh --version`、`cb.py --version` 或 `cb_uninstall.sh --version`。
+- 查询已安装版本不依赖项目 `cb.conf`：`cb.sh --version` 或 `cb.py --version`。
 - tag 和 tag 内文件不可变；先推 tag，再推进 `master/LATEST`。每个远端只以自己的分支状态为准。
 - 发布流程：[RELEASING.md](RELEASING.md)
 
@@ -191,21 +191,18 @@ curl -fsSL https://gitee.com/wiseforever/cbuild/raw/master/install.sh | bash -s 
 
 ### 卸载全局安装
 
-卸载逻辑由 `install.sh` / `cb_install.sh` 实现；`cb_uninstall.sh` 是可选的卸载包装入口。若未安装该包装，请直接使用更新器或重新下载的安装器。
+使用已安装的更新器或下载的 `install.sh` 卸载。
 
 ```bash
-# 卸载包装入口（卸载自身目录）：
-~/.cbuild/cb_uninstall.sh --yes
-
 # 全局更新器：
-~/.cbuild/cb_install.sh --uninstall
+~/.cbuild/cb_install.sh --uninstall --yes
 
 # 重新下载安装器（stdin 非交互，需加 --yes）：
 curl -fsSL https://raw.githubusercontent.com/wiseforever/cbuild/master/install.sh | \
   bash -s -- --uninstall --yes
 
 # 使用默认更新器卸载自定义安装目录：
-~/.cbuild/cb_install.sh --uninstall --prefix /path/to/cbuild
+~/.cbuild/cb_install.sh --uninstall --prefix /path/to/cbuild --yes
 ```
 
 卸载完全在本地执行，不查询 GitHub。会拒绝删除 `/`、用户主目录，以及不像 cbuild 安装目录的路径。stdin 不是终端时必须显式传入 `--yes`。

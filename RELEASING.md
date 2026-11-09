@@ -16,7 +16,7 @@
 
 ```bash
 tools/check_version.sh
-bash -n cb.sh install.sh cb_uninstall.sh
+bash -n cb.sh && bash -n install.sh && bash -n tools/check_version.sh
 python3 -m py_compile cb.py
 ```
 

@@ -6,8 +6,8 @@
 
 - 默认全局安装 Bash，保留 `--simple` 项目级安装及 `--python` 变体切换；中英文安装说明按 GitHub/Gitee 下载源分组。
 - 当前 PATH 或 shell rc 已包含安装目录时，不重复添加 PATH 条目。
-- 全局更新先暂存必需下载，准备成功后才替换并删除另一变体；可选卸载包装下载失败时保留当前副本，手动回退配置不覆盖。
-- 全局更新器名为 `cb_install.sh`；`.install.cfg` 作为全局安装标记，并保留版本、变体及来源。
+- 全局更新先暂存必需下载，准备成功后才替换并删除另一变体；成功发布后清理旧卸载入口，手动回退配置不覆盖。
+- 全局更新器名为 `cb_install.sh`，通过 `--uninstall` 卸载；`.install.cfg` 作为全局安装标记，并保留版本、变体及来源。
 - `--vscode [目录]` 安装四个 VS Code 模板；`--config [目录]`（别名 `--conf`）仅安装 `cb.conf`，默认目标为当前目录。
 - 项目级 `--simple` 和 `--vscode` 先完成全部下载，再将已有目标备份到 `cbuild_bak` 后发布；下载失败保留已有文件。安装器各模式均不下载、替换或备份 `.clangd`，由构建脚本维护。
 - 所有模式默认从所选源 `master/LATEST` 解析版本，也可用 `--release vX.Y.Z` 固定 tag，详见[版本化安装](release_versioned_install.md)。
