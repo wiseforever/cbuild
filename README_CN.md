@@ -254,42 +254,78 @@ rm -rf .vscode/ cmake/cbuild_bak/
 
 ```ini
 [build]
-build_type = Debug      # 编译类型为 Debug。目前可选 [Debug、Release]
-source_dir = .          # 源码目录，.表示当前目录
-output_dir = output     # 基础输出目录，默认 build
-# output_dir_use_subdir = true # 默认 true：追加构建类型子目录，例如 output/Debug
-# subdir_use_compiler = false # 默认 false；开启后子目录包含编译器，仅 output_dir_use_subdir = true 时生效
-generator = Ninja       # 构建工具，可选 [Ninja、Unix Makefiles, ...]
-parallel_jobs = auto    # 并行编译的线程数，auto为自动选择cpu核心数
+## 编译类型：Debug 或 Release
+build_type = Debug
 
-[compiler]              # 编译器相关配置（不含MSVC），若msvc的enable生效则此项无效（linux下msvc项无效）
-compiler = gcc         # 自动配对 gcc/g++；也支持 gcc-9、clang、clang-14、交叉前缀及驱动路径
+## 源码目录，"."表示当前目录
+source_dir = .
 
-[conan]                 # Conan 包管理器配置
-enable = 1              # 是否使用 Conan
-# build = gcc           # 显式 build profile；未配置时按编译器匹配已有 gcc* profile
-# host = gcc            # 显式 host profile；未配置时按编译器匹配已有 gcc* profile
+## 基础输出目录，默认 build
+output_dir = output
 
-[vcpkg]                 # vcpkg 包管理器配置
-enable = 1              # 是否启用 vcpkg toolchain
-root = /path/to/vcpkg   # 可留空，留空时读取环境变量 VCPKG_ROOT
-toolchain_file =        # 可直接指定 vcpkg.cmake；非空时优先于 root
-triplet =               # 留空时由 vcpkg 根据当前编译器自动推断
+## 默认 true：追加构建类型子目录，例如 output/Debug
+# output_dir_use_subdir = true
+
+## 默认 false；开启后子目录包含编译器，仅 output_dir_use_subdir = true 时生效
+# subdir_use_compiler = false
+
+## 构建工具：Ninja、Unix Makefiles 等
+generator = Ninja
+
+## 并行编译任务数，auto 表示按 CPU 核心数
+parallel_jobs = auto
+
+## 编译器相关配置（不含 MSVC）；msvc 的 enable 生效时此项无效
+[compiler]
+## 单一编译器驱动，自动配对 C/C++；也支持 gcc-9、clang、clang-14、交叉前缀及驱动路径
+compiler = gcc
+
+## Conan 包管理器配置
+[conan]
+## 是否使用 Conan
+enable = 1
+
+## 显式 build profile；未配置时使用与 compiler 同名的 profile（如 gcc、clang-14）
+# build = gcc
+
+## 显式 host profile；未配置时使用与 compiler 同名的 profile（如 gcc、clang-14）
+# host = gcc
+
+## vcpkg 包管理器配置
+[vcpkg]
+## 是否启用 vcpkg toolchain
+enable = 1
+
+## 可留空，留空时读取环境变量 VCPKG_ROOT
+root = /path/to/vcpkg
+
+## 可直接指定 vcpkg.cmake；非空时优先于 root
+toolchain_file =
+
+## 留空时由 vcpkg 根据当前编译器自动推断
+triplet =
 
 [toolchain]
-custom_file = cbuild_custom.cmake  # 用户维护的 CMake 工具链扩展文件
+## 用户维护的 CMake 工具链扩展文件
+custom_file = cbuild_custom.cmake
 
-[msvc]                  # msvc 编译器比较特殊，需要指定环境变量脚本vcvarsall.bat的路径
-enable = 1              # 是否使用MSVC编译器，1、True、true表示使用，0、False、false表示不使用
-msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC环境变量脚本路径
-host_arch = x64         # 编译可执行程序的位数，可选 [x86、x64]
+## MSVC 编译器比较特殊，需要指定环境变量脚本 vcvarsall.bat 的路径
+[msvc]
+## 是否使用 MSVC 编译器，1、True、true 表示使用，0、False、false 表示不使用
+enable = 1
+
+## MSVC 环境变量脚本路径
+msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat
+
+## 编译可执行程序的位数，可选 x86、x64
+host_arch = x64
 ```
 
 `output_dir_use_subdir` 默认 `true`，按构建类型创建子目录；设为 `false` 时直接使用 `output_dir`，忽略 `subdir_use_compiler`。`subdir_use_compiler` 默认 `false`，设为 `true` 时子目录包含编译器名称和版本。没有独立目录隔离时，切换编译器前应清理 CMake 缓存或使用另一 `output_dir`。
 
-### Conan GCC profile
+### Conan profile
 
-使用 `[compiler] compiler` 指定工具链，例如 `gcc-9`；脚本从同目录或 PATH 配对 GCC/G++，Conan profile 和 CMake 共用该配对。生成 GCC profile 时检查两个驱动的主版本。
+使用 `[compiler] compiler` 指定工具链，例如 `gcc-9`；脚本从同目录或 PATH 配对 GCC/G++（Clang 同理），Conan profile 和 CMake 共用该配对。生成的 profile 名称取自配置，并检查两个驱动的主版本。
 
 ```bash
 bash cb.sh --conan-profile       # 优先按 conan.host 命名；未配置时采用回退规则
@@ -298,17 +334,17 @@ bash cb.sh --conan
 bash cb.sh -g
 ```
 
-- 生成名称优先使用 `conan.host`，未配 host 时使用 `conan.build`，均未配置时采用 `gcc-<主版本>`。例如 build/host 均为 `gcc` 时生成/覆盖 `gcc`。生成名称必须以 `gcc` 开头，只允许字母、数字及 `._+-`。名称只是标签；`compiler.version` 仍由 `[compiler]` 配置的实际编译器决定，不从 profile 名称反推版本。
+- 生成名称原样取自配置：优先 `conan.host`，未配 host 时用 `conan.build`，均未配置时用 `[compiler] compiler` 的文件名（`gcc` → `gcc`、`gcc-9` → `gcc-9`、`clang-14` → `clang-14`；路径只取末段，`/opt/gcc/gcc-9` → `gcc-9`），不改写名称。名称只允许字母、数字及 `._+-`，不符时报错。名称只是标签；`compiler.version` 仍由 `[compiler]` 配置的实际编译器决定，不从 profile 名称反推版本。
 - 生成命令只处理当前配置工具链对应的一个 profile，直接覆盖、不备份；不要求启用 Conan，不安装依赖或配置项目。build/host 均配置且不同时仅生成 host，build 保持不变。
-- `[buildenv]` 显式写入 `CC`、`CXX`，通过 GCC 的工具查询、对应前缀及工具链目录定位 `AR`、`AS`、`LD`、`NM`、`RANLIB`、`STRIP`、`OBJCOPY`、`OBJDUMP`，并将编译器目录加入 `PATH`。找不到的工具会警告并省略；驱动名带前缀时不因缺少配套工具而回退到无前缀的 binutils。
-- 编译器路径由 `[buildenv]` 提供。GCC 报告有效 sysroot 时，同时写入 `[buildenv] SYSROOT` 和 `[conf] tools.build:sysroot`。
-- 启用 Conan 且项目存在依赖清单时，`--conan` 和 `-g` 使用同一规则：显式配置的 build/host 各自优先，缺省项只匹配名称以 `gcc` 开头、实际 `compiler=gcc` 且主版本一致的已有 profile，优先 `gcc-<主版本>`，不自行推断或筛选目标架构。找不到时提示先运行生成命令，不隐式生成。
+- `[buildenv]` 显式写入 `CC`、`CXX`，通过编译器自身的工具查询、对应前缀及工具链目录定位 `AR`、`AS`、`LD`、`NM`、`RANLIB`、`STRIP`、`OBJCOPY`、`OBJDUMP`，并将编译器目录加入 `PATH`。找不到的工具会警告并省略；驱动名带前缀时不因缺少配套工具而回退到无前缀的 binutils。
+- 编译器路径由 `[buildenv]` 提供。编译器报告有效 sysroot 时（GCC 的 `-print-sysroot`），同时写入 `[buildenv] SYSROOT` 和 `[conf] tools.build:sysroot`；不支持该查询的编译器跳过。
+- 启用 Conan 且项目存在依赖清单时，由 `--conan` 选择并校验 profile：显式配置的 build/host 各自优先，缺省项严格使用与 `[compiler] compiler` 同名的 profile（`compiler = gcc` → `gcc`，`compiler = gcc-9` → `gcc-9`，路径取文件名），不篡改名称、不扫描其他 profile、不自行推断目标架构。只配了 build 或 host 其中一项时，缺省项沿用已配置的那一项（与生成规则一致）。显式配置的名称同样校验存在性及 `compiler`/主版本，任何一侧不满足都报错并提示运行 `--conan-profile`。
 - 显式配置的 profile 不存在或无法加载时，`--conan` 和 `-g` 均报错，不回退到自动匹配。日志显示实际配置文件、脚本路径及 build/host 的来源（configured / auto / default）。
 - 匹配过程不改写已有 profile；Conan 依赖构建使用选中 profile 的 `[buildenv]`，因此已有 profile 也需在该段正确配置工具链。本项目的 CMake 配置仍接收 cbuild 显式传入的编译器参数。
-- `-g` 只配置项目。修改 profile 后先执行 `--conan` 安装依赖，再执行 `-g`。profile 选择与依赖安装记录不一致或缺少安装记录时，脚本会提示执行 `--conan`。
+- `-g` 只负责工具链与 CMake 配置：不查询、不校验、不记录 Conan profile，直接使用构建目录中已有的 Conan 生成文件。`-b` 只执行构建，同样不涉及 Conan 与工具链；构建目录尚未配置时直接提示先 `-g`。因此修改 `[compiler] compiler` 或 profile 后，需要自己先执行 `--conan`，再执行 `-g`。
 - `os`、`arch`、`compiler.cppstd` 由 Conan 探测，具体的目标平台设置由 profile 维护。
-- 交叉编译时请显式维护本机 build 与目标 host profile，并在生成后校正目标 `os/arch`、ABI、SDK、三元组及额外选项。`conan profile detect` 主要探测当前机器，不能将其默认设置当作目标平台设置；不要依赖只按 GCC 主版本的缺省匹配来区分不同目标。
-- `compiler` 未配置或留空时保留 Conan 默认 profile 行为。自动匹配/生成仅支持 GCC；Clang、MSVC 请自行维护并显式配置适合的 build/host profile。
+- 交叉编译时请显式维护本机 build 与目标 host profile，并在生成后校正目标 `os/arch`、ABI、SDK、三元组及额外选项。`conan profile detect` 主要探测当前机器，不能将其默认设置当作目标平台设置；缺省匹配只按名称，不能区分不同目标。
+- `compiler` 未配置或留空时保留 Conan 默认 profile 行为。自动匹配/生成支持 GCC 与 Clang 驱动（`gcc`/`g++`、`clang`/`clang++` 及带版本、带交叉前缀的名称）；MSVC 等其他编译器请显式配置 build/host。
 
 ### cb.py / cb.sh 使用命令说明
 

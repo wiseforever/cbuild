@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-CBUILD_VERSION="0.2.1"
+CBUILD_VERSION="0.3.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CONFIG_FILE_CWD="$PWD/cb.conf"
@@ -54,11 +54,11 @@ EXEC_NAME=""
 
 SHOULD_CONAN_BUILD="false"
 SHOULD_CONAN_PROFILE="false"
-CONAN_PROFILE_SIGNATURE=""
-GCC_MAJOR=""
-GCC_EXECUTABLES=""
-GCC_SYSROOT=""
-declare -a GCC_BUILDENV=()
+COMPILER_FAMILY=""
+COMPILER_MAJOR=""
+COMPILER_EXECUTABLES=""
+COMPILER_SYSROOT=""
+declare -a COMPILER_BUILDENV=()
 declare -a CONAN_PROFILE_ARGS=()
 SHOULD_CONFIGURE="false"
 SHOULD_BUILD="false"
@@ -954,7 +954,7 @@ Options:
   -h, --help                     显示帮助 / Show this help
   -t | --type [Debug|Release]    切换编译类型 (Debug/Release)，保存到 cb.conf
                                  / Toggle or set build type, saves to cb.conf
-  --conan-profile | --conan-profle  按配置的 GCC 生成/覆盖 profile / Generate GCC profile
+  --conan-profile | --conan-profle  按配置的编译器生成/覆盖 profile / Generate the compiler's profile
   --conan [<type>]               使用 Conan 构建依赖库 / Build Conan dependencies
   -g | --generate [<type>]       运行 CMake 配置 / Run CMake configure only
   -D<name>=<value>               传递 CMake 定义（仅与 -g/--generate 一起使用）
@@ -1128,48 +1128,62 @@ gcc_json_path() {
   printf '%s' "$value"
 }
 
-configured_gcc_pair() {
+configured_compiler_info() {
   local -x PATH="${CMAKE_RUN_PATH_PREFIX}${CMAKE_RUN_PATH_PREFIX:+:}$PATH"
-  local c="$C_COMPILER" cpp="$CXX_COMPILER" driver base version major=""
+  local driver base family="" driver_family="" version major=""
   if [[ -z "$CONFIG_COMPILER" ]]; then
-    log_err "Set [compiler] compiler before generating a GCC profile"
+    log_err "Set [compiler] compiler before generating a Conan profile"
     return 1
   fi
-  for driver in "$c" "$cpp"; do
-    [[ -n "$driver" ]] || continue
+  for driver in "$C_COMPILER" "$CXX_COMPILER"; do
     base="$(basename "$driver")"
-    if [[ ! "$base" =~ ^(.*-)?(gcc|g\+\+)(-[0-9]+(\.[0-9]+)*)?(\.exe)?$ ]]; then
-      log_err "Automatic Conan profiles only support GCC; configure both conan.build and conan.host for other compilers"
+    if [[ ! "$base" =~ ^(.*-)?(gcc|g\+\+|clang|clang\+\+)(-[0-9]+(\.[0-9]+)*)?(\.exe)?$ ]]; then
+      log_err "Unsupported compiler for automatic Conan profiles: $CONFIG_COMPILER; set [conan] build/host explicitly"
+      return 1
+    fi
+    case "${BASH_REMATCH[2]}" in
+    gcc|g++) driver_family="gcc" ;;
+    *) driver_family="clang" ;;
+    esac
+    if [[ -z "$family" ]]; then
+      family="$driver_family"
+    elif [[ "$family" != "$driver_family" ]]; then
+      log_err "Configured C/C++ drivers mix compiler families: $C_COMPILER vs $CXX_COMPILER"
       return 1
     fi
   done
-  for driver in "$c" "$cpp"; do
-    if ! version="$("$driver" -dumpfullversion -dumpversion)" || [[ ! "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
-      log_err "Cannot detect GCC version: $driver"
+  for driver in "$C_COMPILER" "$CXX_COMPILER"; do
+    if [[ ! -x "$driver" ]] && ! type -P "$driver" >/dev/null 2>&1; then
+      log_err "Configured compiler not found: $driver"
+      return 1
+    fi
+    if ! version="$("$driver" -dumpfullversion -dumpversion 2>/dev/null)" || [[ ! "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+      log_err "Cannot detect compiler version: $driver"
       return 1
     fi
     if [[ -n "$major" && "$major" != "${version%%.*}" ]]; then
-      log_err "Configured GCC/G++ versions differ: $major vs ${version%%.*}"
+      log_err "Configured C/C++ compiler versions differ: $major vs ${version%%.*}"
       return 1
     fi
     major="${version%%.*}"
   done
-  GCC_MAJOR="$major"
-  GCC_EXECUTABLES="{\"c\":\"$(gcc_json_path "$c")\",\"cpp\":\"$(gcc_json_path "$cpp")\"}"
+  COMPILER_FAMILY="$family"
+  COMPILER_MAJOR="$major"
+  COMPILER_EXECUTABLES="{\"c\":\"$(gcc_json_path "$C_COMPILER")\",\"cpp\":\"$(gcc_json_path "$CXX_COMPILER")\"}"
 }
 
-gcc_profile_buildenv() {
+compiler_profile_buildenv() {
   local -x PATH="${CMAKE_RUN_PATH_PREFIX}${CMAKE_RUN_PATH_PREFIX:+:}$PATH"
-  local directory base prefix="" tool query candidate nearby found value
+  local directory base prefix="" tool query candidate nearby found
   local -a candidates=()
   directory="$(dirname "$C_COMPILER")"
   base="$(basename "$C_COMPILER")"
-  if [[ "$base" =~ ^(.*-)?(gcc|g\+\+)(-[0-9]+(\.[0-9]+)*)?(\.exe)?$ ]]; then
+  if [[ "$base" =~ ^(.*-)?(gcc|g\+\+|clang|clang\+\+)(-[0-9]+(\.[0-9]+)*)?(\.exe)?$ ]]; then
     prefix="${BASH_REMATCH[1]}"
   fi
-  GCC_BUILDENV=("CC=${C_COMPILER//\\//}" "CXX=${CXX_COMPILER//\\//}")
+  COMPILER_BUILDENV=("CC=${C_COMPILER//\\//}" "CXX=${CXX_COMPILER//\\//}")
   for tool in ar as ld nm ranlib strip objcopy objdump; do
-    query="$("$C_COMPILER" "-print-prog-name=$tool")"
+    query="$("$C_COMPILER" "-print-prog-name=$tool" 2>/dev/null || true)"
     candidates=()
     if [[ -n "$query" && ( "$query" != "$tool" || -z "$prefix" ) ]]; then
       candidates+=("$query")
@@ -1191,27 +1205,40 @@ gcc_profile_buildenv() {
       fi
     done
     if [[ -n "$found" ]]; then
-      GCC_BUILDENV+=("${tool^^}=${found//\\//}")
+      COMPILER_BUILDENV+=("${tool^^}=${found//\\//}")
     else
       log_warn "Toolchain tool not found, omitted from profile: ${tool^^}"
     fi
   done
-  GCC_SYSROOT="$("$C_COMPILER" -print-sysroot)"
-  if [[ -n "$GCC_SYSROOT" ]]; then
-    if [[ "$GCC_SYSROOT" != /* ]] && ! is_windows_abs_path "$GCC_SYSROOT"; then
-      GCC_SYSROOT="$directory/$GCC_SYSROOT"
+  COMPILER_SYSROOT="$("$C_COMPILER" -print-sysroot 2>/dev/null || true)"
+  if [[ -n "$COMPILER_SYSROOT" ]]; then
+    if [[ "$COMPILER_SYSROOT" != /* ]] && ! is_windows_abs_path "$COMPILER_SYSROOT"; then
+      COMPILER_SYSROOT="$directory/$COMPILER_SYSROOT"
     fi
-    GCC_SYSROOT="$(normalize_path "$GCC_SYSROOT")"
-    if [[ ! -d "$GCC_SYSROOT" ]]; then
-      log_err "GCC sysroot directory not found: $GCC_SYSROOT"
+    COMPILER_SYSROOT="$(normalize_path "$COMPILER_SYSROOT")"
+    if [[ ! -d "$COMPILER_SYSROOT" ]]; then
+      log_err "Compiler sysroot directory not found: $COMPILER_SYSROOT"
       return 1
     fi
-    GCC_BUILDENV+=("SYSROOT=${GCC_SYSROOT//\\//}")
+    COMPILER_BUILDENV+=("SYSROOT=${COMPILER_SYSROOT//\\//}")
   fi
 }
 
-gcc_profile_matches() {
-  local name="$1" major="$2" output line in_settings="false" seen="false" compiler="" version=""
+compiler_profile_name() {
+  local value name
+  value="$(trim "$CONFIG_COMPILER")"
+  [[ -n "$value" ]] || return 0
+  name="$(basename "${value//\\//}")"
+  name="${name%.[eE][xX][eE]}"
+  if [[ ! "$name" =~ ^[A-Za-z0-9_.+-]+$ ]]; then
+    log_err "Cannot derive a Conan profile name from [compiler] compiler = $value; set [conan] build/host explicitly"
+    return 1
+  fi
+  printf '%s' "$name"
+}
+
+profile_matches_compiler() {
+  local name="$1" family="$2" major="$3" output line in_settings="false" seen="false" compiler="" version=""
   output="$(conan profile show -pr:b "$name" -pr:h "$name" 2>/dev/null)" || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="$(trim "${line%$'\r'}")"
@@ -1228,27 +1255,27 @@ gcc_profile_matches() {
       esac
     fi
   done <<< "$output"
-  [[ "$compiler" == "gcc" && "${version%%.*}" == "$major" ]]
+  [[ "$compiler" == "$family" && "${version%%.*}" == "$major" ]]
 }
 
 generate_conan_profile() {
-  configured_gcc_pair
+  configured_compiler_info || return 1
   local name="" build host path line entry directory cpp_directory separator=":"
   build="$(trim "$CONAN_BUILD")"
   host="$(trim "$CONAN_HOST")"
   name="$host"
   [[ -n "$name" ]] || name="$build"
-  [[ -n "$name" ]] || name="gcc-$GCC_MAJOR"
-  if [[ ! "$name" =~ ^gcc[A-Za-z0-9_.+-]*$ ]]; then
-    log_err "Generated profile name must start with gcc and contain only letters, digits, '.', '_', '+' or '-'"
+  [[ -n "$name" ]] || name="$(compiler_profile_name)" || return 1
+  if [[ ! "$name" =~ ^[A-Za-z0-9_.+-]+$ ]]; then
+    log_err "Profile name may only contain letters, digits, '.', '_', '+' or '-'"
     return 1
   fi
-  gcc_profile_buildenv
+  compiler_profile_buildenv || return 1
   CC="$C_COMPILER" CXX="$CXX_COMPILER" PATH="${CMAKE_RUN_PATH_PREFIX}${CMAKE_RUN_PATH_PREFIX:+:}$PATH" \
     conan profile detect --name "$name" --force
   path="$(conan profile path "$name")"
-  if ! gcc_profile_matches "$name" "$GCC_MAJOR"; then
-    log_err "Detected profile does not match GCC $GCC_MAJOR; inspect $path"
+  if ! profile_matches_compiler "$name" "$COMPILER_FAMILY" "$COMPILER_MAJOR"; then
+    log_err "Detected profile $name does not match $COMPILER_FAMILY $COMPILER_MAJOR; inspect $path"
     return 1
   fi
   directory="$(dirname "$C_COMPILER")"
@@ -1260,14 +1287,14 @@ generate_conan_profile() {
       printf '%s\n' "$line"
     done < "$path"
     printf '\n[buildenv]\n'
-    for entry in "${GCC_BUILDENV[@]}"; do
+    for entry in "${COMPILER_BUILDENV[@]}"; do
       printf '%s\n' "$entry"
     done
     printf 'PATH=+(path)%s' "${directory//\\//}"
     [[ "$cpp_directory" == "$directory" ]] || printf '%s%s' "$separator" "${cpp_directory//\\//}"
     printf '\n'
-    if [[ -n "$GCC_SYSROOT" ]]; then
-      printf '\n[conf]\ntools.build:sysroot=%s\n' "${GCC_SYSROOT//\\//}"
+    if [[ -n "$COMPILER_SYSROOT" ]]; then
+      printf '\n[conf]\ntools.build:sysroot=%s\n' "${COMPILER_SYSROOT//\\//}"
     fi
   } > "$path.tmp"
   mv "$path.tmp" "$path"
@@ -1281,34 +1308,37 @@ generate_conan_profile() {
 prepare_conan_profiles() {
   [[ "$CONAN_ENABLE" == "true" ]] || return 0
   [[ -f "$SOURCE_DIR/conanfile.txt" || -f "$SOURCE_DIR/conanfile.py" ]] || return 0
-  local build host auto_build="false" auto_host="false" executables="" names name selected=""
+  local build host auto_build="false" auto_host="false" executables="" selected=""
   build="$(trim "$CONAN_BUILD")"
   host="$(trim "$CONAN_HOST")"
   [[ -n "$build" ]] || auto_build="true"
   [[ -n "$host" ]] || auto_host="true"
-  if [[ ( "$auto_build" == "true" || "$auto_host" == "true" ) && -n "$CONFIG_COMPILER" ]]; then
-    configured_gcc_pair
-    executables="$GCC_EXECUTABLES"
-    names="$(conan profile list)"
-    local preferred="gcc-$GCC_MAJOR"
-    if gcc_profile_matches "$preferred" "$GCC_MAJOR"; then
-      selected="$preferred"
-    else
-      while IFS= read -r name || [[ -n "$name" ]]; do
-        name="$(trim "${name%$'\r'}")"
-        [[ "$name" == gcc* ]] || continue
-        if gcc_profile_matches "$name" "$GCC_MAJOR"; then
-          selected="$name"
-          break
-        fi
-      done <<< "$names"
+  if [[ -n "$CONFIG_COMPILER" ]]; then
+    configured_compiler_info || return 1
+    executables="$COMPILER_EXECUTABLES"
+    if [[ "$auto_build" == "true" || "$auto_host" == "true" ]]; then
+      selected="$host"
+      [[ -n "$selected" ]] || selected="$build"
+      [[ -n "$selected" ]] || selected="$(compiler_profile_name)" || return 1
+      log_info "Conan profile selection: $selected ([compiler] compiler = $CONFIG_COMPILER, $COMPILER_FAMILY $COMPILER_MAJOR)"
+      [[ -n "$build" ]] || build="$selected"
+      [[ -n "$host" ]] || host="$selected"
     fi
-    if [[ -z "$selected" ]]; then
-      log_err "No gcc* Conan profile matches GCC $GCC_MAJOR; run --conan-profile first"
-      return 1
-    fi
-    [[ -n "$build" ]] || build="$selected"
-    [[ -n "$host" ]] || host="$selected"
+    # Explicit names are checked the same way: existence plus compiler family and major version.
+    local context profile name_list
+    name_list="$(conan profile list | tr -d '\r')"
+    for context in build host; do
+      profile="${!context}"
+      [[ -n "$profile" ]] || continue
+      if ! grep -Fxq -- "$profile" <<< "$name_list"; then
+        log_err "No Conan profile named $profile for $context; run --conan-profile first or set [conan] build/host"
+        return 1
+      fi
+      if ! profile_matches_compiler "$profile" "$COMPILER_FAMILY" "$COMPILER_MAJOR"; then
+        log_err "Conan profile $profile does not match $COMPILER_FAMILY $COMPILER_MAJOR or cannot be loaded; run --conan-profile to regenerate it"
+        return 1
+      fi
+    done
   fi
   CONAN_PROFILE_ARGS=()
   [[ -z "$build" ]] || CONAN_PROFILE_ARGS+=(--profile:build "$build")
@@ -1327,24 +1357,8 @@ prepare_conan_profiles() {
     host_source="default"
     [[ -z "$host" ]] || host_source="auto"
   fi
-  CONAN_PROFILE_SIGNATURE="$(printf 'build=%s\nhost=%s\nbuild_compilers=%s\nhost_compilers=%s' "${build:-default}" "${host:-default}" "$([[ "$auto_build" != "true" ]] || printf '%s' "$executables")" "$([[ "$auto_host" != "true" ]] || printf '%s' "$executables")")"
   log_info "Conan profiles: build=${build:-default}, host=${host:-default}"
   log_info "Conan profile sources: build=$build_source, host=$host_source"
-}
-
-check_conan_profile_state() {
-  local state="$BUILD_DIR/.cbuild-conan-profiles" previous
-  [[ -n "$CONAN_PROFILE_SIGNATURE" ]] || return 0
-  if [[ -f "$state" ]]; then
-    previous="$(< "$state")"
-    if [[ "$previous" != "$CONAN_PROFILE_SIGNATURE" ]]; then
-      log_err "Conan profiles/compilers changed; run --conan before -g"
-      return 1
-    fi
-  elif [[ -n "$(detect_toolchain_file)" ]]; then
-    log_err "Existing Conan toolchain has no profile selection record; run --conan before -g"
-    return 1
-  fi
 }
 
 run_conan_install() {
@@ -1395,7 +1409,6 @@ run_conan_install() {
     PATH="${CMAKE_RUN_PATH_PREFIX}${CMAKE_RUN_PATH_PREFIX:+:}$PATH" "${cmd[@]}"
   fi
 
-  printf '%s\n' "$CONAN_PROFILE_SIGNATURE" > "$BUILD_DIR/.cbuild-conan-profiles"
   local toolchain_file
   toolchain_file="$(detect_toolchain_file)"
   if [[ -n "$toolchain_file" && -f "$toolchain_file" ]]; then
@@ -1730,7 +1743,7 @@ main() {
     generate_conan_profile
     exit 0
   fi
-  if [[ "$SHOULD_CONAN_BUILD" == "true" || "$SHOULD_CONFIGURE" == "true" ]]; then
+  if [[ "$SHOULD_CONAN_BUILD" == "true" ]]; then
     prepare_conan_profiles
   fi
   prepare_build_dir true
@@ -1747,7 +1760,6 @@ main() {
   fi
 
   if [[ "$SHOULD_CONFIGURE" == "true" ]]; then
-    check_conan_profile_state
     prepare_cmake_toolchain
     run_cmake_configure
     if has_vscode_launch; then
@@ -1759,6 +1771,10 @@ main() {
   fi
 
   if [[ "$SHOULD_BUILD" == "true" ]]; then
+    if [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
+      log_err "Build directory is not configured: $BUILD_DIR; run -g/--generate first"
+      exit 1
+    fi
     run_cmake_build
 
     local exe_path

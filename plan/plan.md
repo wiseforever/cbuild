@@ -4,7 +4,7 @@
 
 ## 未完成事项
 
-- **版本化安装：核心 0.2.1 准备发布，尚未发布。** 本地 `LATEST` 已指向 `v0.2.1`；待提交准备改动并创建 `v0.2.1` tag 后，先推送 tag，最后推进两个远端的 `master`。见[版本化安装](install/release_versioned_install.md)。
+- **版本化安装：核心 0.3.0 准备发布，尚未发布。** 本地 `LATEST` 已指向 `v0.3.0`；待提交准备改动并创建 `v0.3.0` tag 后，先推送 tag，最后推进两个远端的 `master`。见[版本化安装](install/release_versioned_install.md)。
 - **VS Code 插件：文档与发布收尾。** 核心功能已完成；剩余中英文 README 推荐入口说明、本地调试说明及发布方式决策。见[插件规划](vscode/vscode_cbuild_tools.md)。
 
 ## 主题索引
@@ -19,7 +19,7 @@
 | 构建 | [构建目标参数](build/build_target_arguments.md) | 已完成 |
 | 构建 | [CMake 输出路径解析](build/cmake_output_path_resolution.md) | 已完成 |
 | 构建 | [CMake 自定义宏与插件终端](build/cmake_defines_and_plugin_terminals.md) | 已完成 |
-| 依赖 | [按编译器匹配 Conan GCC profile](dependencies/conan_gcc_profiles.md) | 已完成 |
+| 依赖 | [按配置的编译器命名并使用 Conan profile](dependencies/conan_gcc_profiles.md) | 已完成 |
 | 依赖 | [Conan 与 vcpkg 组合工具链](dependencies/conan_vcpkg_toolchain.md) | 已完成 |
 | 安装发布 | [全局安装与配置路径](install/global_install_config_paths.md) | 已完成 |
 | 安装发布 | [安装脚本全局与模板模式](install/install_script_global_and_vscode.md) | 已完成 |

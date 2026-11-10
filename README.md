@@ -1,6 +1,6 @@
 # cbuild
 
-[中文文档](README_zhCN.md)
+[中文文档](README_CN.md)
 
 This repository provides a lightweight build workflow for C/C++ projects, with optional VSCode integration and Conan support.
 
@@ -249,42 +249,78 @@ All the parameters in `cb.conf` can be modified according to your needs.
 
 ```ini
 [build]
-build_type = Debug      # The compilation type is Debug. Currently, [Debug, Release]
-source_dir = .          # The source code directory, "."indicates the current directory
-output_dir = output     # Base output directory; defaults to "build"
-# output_dir_use_subdir = true # Default true: append the build type, e.g. output/Debug
-# subdir_use_compiler = false # Default false: include the compiler only when enabled; requires output_dir_use_subdir = true
-generator = Ninja       # Build tools available: [Ninja, Unix Makefiles, ...]
-parallel_jobs = auto    # The number of threads for parallel compilation, where auto means the number of cpu cores is automatically selected
+## Compilation type: Debug or Release
+build_type = Debug
 
-[compiler]              # Compact-related configuration (excluding MSVC), is invalid if the enable of msvc takes effect (the msvc item is invalid under linux).
-compiler = gcc         # Pairs gcc/g++; also accepts gcc-9, clang, clang-14, cross prefixes and driver paths
+## Source directory, "." means the current directory
+source_dir = .
 
-[conan]                 # Conan package manager settings
-enable = 1              # Whether to use Conan
-# build = gcc           # Explicit build profile; otherwise match a gcc* profile to the configured compiler
-# host = gcc            # Explicit host profile; otherwise match a gcc* profile to the configured compiler
+## Base output directory, defaults to build
+output_dir = output
 
-[vcpkg]                 # vcpkg package manager settings
-enable = 1              # Enable the vcpkg toolchain
-root = /path/to/vcpkg   # Optional; falls back to the VCPKG_ROOT environment variable
-toolchain_file =        # Direct vcpkg.cmake path; takes precedence over root
-triplet =               # Empty lets vcpkg infer it from the active compiler
+## Default true: append the build type, e.g. output/Debug
+# output_dir_use_subdir = true
+
+## Default false: include the compiler in the subdirectory; requires output_dir_use_subdir = true
+# subdir_use_compiler = false
+
+## Build tool: Ninja, Unix Makefiles, ...
+generator = Ninja
+
+## Parallel compilation jobs, auto uses the CPU core count
+parallel_jobs = auto
+
+## Compiler settings (excluding MSVC); ignored when msvc enable takes effect
+[compiler]
+## Single driver pairing C/C++; also accepts gcc-9, clang, clang-14, cross prefixes and driver paths
+compiler = gcc
+
+## Conan package manager settings
+[conan]
+## Whether to use Conan
+enable = 1
+
+## Explicit build profile; otherwise the profile named after [compiler] compiler (gcc, clang-14)
+# build = gcc
+
+## Explicit host profile; otherwise the profile named after [compiler] compiler (gcc, clang-14)
+# host = gcc
+
+## vcpkg package manager settings
+[vcpkg]
+## Enable the vcpkg toolchain
+enable = 1
+
+## Optional; falls back to the VCPKG_ROOT environment variable
+root = /path/to/vcpkg
+
+## Direct vcpkg.cmake path; takes precedence over root
+toolchain_file =
+
+## Empty lets vcpkg infer it from the active compiler
+triplet =
 
 [toolchain]
-custom_file = cbuild_custom.cmake  # User-maintained CMake toolchain extension
+## User-maintained CMake toolchain extension
+custom_file = cbuild_custom.cmake
 
-[msvc]                  # The msvc compiler is rather special and requires specifying the path of the environment variable script vcvarsall.bat
-enable = 1              # Whether to use the MSVC compiler or not, 1, True, true indicates usage, and 0, False, false indicates non-usage
-msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat # MSVC environment variable script path
-host_arch = x64         # The number of bits for compiling the executable program can be selected as [x86, x64]
+## The MSVC compiler needs the path of the vcvarsall.bat environment script
+[msvc]
+## Whether to use the MSVC compiler: 1, True, true enables it; 0, False, false disables it
+enable = 1
+
+## MSVC environment script path
+msvc_env_script = D:/Develop/Visual Studio/2019/BuildTools/VC/Auxiliary/Build/vcvarsall.bat
+
+## Target bitness of executables: x86 or x64
+host_arch = x64
 ```
 
 `output_dir_use_subdir` defaults to `true`, creating a build-type subdirectory. When set to `false`, the build directory is exactly `output_dir`, regardless of `subdir_use_compiler`. `subdir_use_compiler` defaults to `false`; enabling it includes the compiler name and version in the subdirectory. When switching compilers without isolated directories, clear the CMake cache first or use a separate `output_dir`.
 
-### Conan GCC profiles
+### Conan profiles
 
-Set `[compiler] compiler` to the toolchain driver, e.g. `gcc-9`. Conan profiles and CMake share the GCC/G++ pair located in the same directory or on PATH. GCC profile generation checks both drivers' major versions.
+Set `[compiler] compiler` to the toolchain driver, e.g. `gcc-9`. Conan profiles and CMake share the GCC/G++ pair located in the same directory or on PATH (likewise for Clang). The generated profile is named after the configured driver and checks both drivers' major versions.
 
 ```bash
 bash cb.sh --conan-profile       # Prefer conan.host as the name; otherwise apply the fallback rules
@@ -293,17 +329,17 @@ bash cb.sh --conan
 bash cb.sh -g
 ```
 
-- Generation uses `conan.host` as the name first, then `conan.build` if host is unset, then `gcc-<major>` if both are unset. With both build and host set to `gcc`, the generated/overwritten profile is `gcc`. Generated names must start with `gcc` and contain only letters, digits or `._+-`. The name is only a label: `compiler.version` still comes from the actual `[compiler]` toolchain, not from parsing the profile name.
+- Generation takes the name as configured: `conan.host` first, then `conan.build`, otherwise the file name of `[compiler] compiler` (`gcc` → `gcc`, `gcc-9` → `gcc-9`, `clang-14` → `clang-14`; a path contributes only its last segment, `/opt/gcc/gcc-9` → `gcc-9`) without rewriting it. Names may only contain letters, digits, `.`, `_`, `+` or `-`; anything else fails. The name is only a label: `compiler.version` still comes from the actual `[compiler]` toolchain, not from parsing the profile name.
 - Generation handles one profile for the configured toolchain and overwrites it without a backup, even if Conan is disabled; it does not install dependencies or run CMake. When both build and host are configured with different names, only the host profile is generated; build is left untouched.
-- `[buildenv]` explicitly records `CC` and `CXX`. GCC tool queries, matching prefixes and the toolchain directory locate `AR`, `AS`, `LD`, `NM`, `RANLIB`, `STRIP`, `OBJCOPY` and `OBJDUMP`; compiler directories are prepended to `PATH`. Missing tools produce a warning and are omitted; prefixed driver names do not fall back to unprefixed binutils when companion tools are missing.
-- Compiler paths are supplied by `[buildenv]`. A valid GCC-reported sysroot is recorded as `[buildenv] SYSROOT` and `[conf] tools.build:sysroot`.
-- With Conan enabled and a dependency manifest present, `--conan` and `-g` use the same selection policy. Each explicit build/host profile wins; unset entries match existing names beginning with `gcc`, with `compiler=gcc` and the selected major version. `gcc-<major>` is preferred; cb does not infer or filter target architectures. Without a match, run `--conan-profile` first; neither action silently generates one.
+- `[buildenv]` explicitly records `CC` and `CXX`. Tool queries from the compiler itself, matching prefixes and the toolchain directory locate `AR`, `AS`, `LD`, `NM`, `RANLIB`, `STRIP`, `OBJCOPY` and `OBJDUMP`; compiler directories are prepended to `PATH`. Missing tools produce a warning and are omitted; prefixed driver names do not fall back to unprefixed binutils when companion tools are missing.
+- Compiler paths are supplied by `[buildenv]`. When the compiler reports a valid sysroot (GCC's `-print-sysroot`), it is recorded as `[buildenv] SYSROOT` and `[conf] tools.build:sysroot`; compilers without that query are skipped.
+- With Conan enabled and a dependency manifest present, `--conan` selects and validates profiles. Each explicit build/host profile wins; unset entries use exactly the profile named after `[compiler] compiler` (`compiler = gcc` → `gcc`, `compiler = gcc-9` → `gcc-9`, paths contribute their file name) without renaming, without scanning other profiles and without inferring target architectures. If only one of build/host is configured, the unset entry reuses the configured one, matching generation. Explicitly configured names are validated the same way: a missing profile, or one whose `compiler`/major version differs from the configured compiler, fails with a hint to run `--conan-profile`.
 - If an explicit profile is missing or cannot be loaded, both `--conan` and `-g` fail instead of falling back to automatic matching. Logs identify the active config file, script path and each profile's source (configured / auto / default).
 - Existing matched profiles are not modified during selection. Conan dependency builds rely on the selected profile's `[buildenv]`, so existing profiles must specify the intended toolchain there. The project's CMake configure still receives explicit compiler arguments from cbuild.
-- `-g` configures the project only. After editing a profile, run `--conan` to install dependencies before `-g`. A missing dependency-installation record or a different profile selection prompts the user to run `--conan`.
+- `-g` only wires the toolchain and runs the CMake configure: it never queries, validates or records Conan profiles and simply uses the Conan-generated files already in the build directory. `-b` only builds and also stays out of Conan and toolchains, pointing at `-g` when the build directory is not configured. After changing `[compiler] compiler` or a profile, run `--conan` yourself and then `-g`.
 - Conan detects `os`, `arch` and `compiler.cppstd`; profiles define the required target-platform settings.
-- For cross compilation, explicitly maintain native build and target host profiles, and correct target OS/architecture, ABI, SDK, triplets and extra flags after generation. `conan profile detect` primarily detects the running machine; its default settings are not target-platform settings. Do not rely on GCC-major-only matching to distinguish targets.
-- With `compiler` empty or unset, Conan's default profile behavior is preserved. Automatic selection/generation supports GCC only; for Clang or MSVC, explicitly maintain and select suitable build/host profiles.
+- For cross compilation, explicitly maintain native build and target host profiles, and correct target OS/architecture, ABI, SDK, triplets and extra flags after generation. `conan profile detect` primarily detects the running machine; its default settings are not target-platform settings. The default name-based matching cannot distinguish targets.
+- With `compiler` empty or unset, Conan's default profile behavior is preserved. Automatic selection/generation supports GCC and Clang drivers (`gcc`/`g++`, `clang`/`clang++`, including versioned and cross-prefixed names); for MSVC and other compilers, explicitly maintain and select build/host profiles.
 
 ### Command Reference
 
